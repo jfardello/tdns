@@ -1,0 +1,83 @@
+package plugin
+
+import (
+	"regexp"
+	"strings"
+	"sync"
+
+	"github.com/jfardello/tdns/client"
+	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/log"
+	"github.com/miekg/dns"
+)
+
+// StubresolverPlugin sends DNS requests to stub zone dns, eg. VPN or DMZ internal dns.
+type StubresolverPlugin struct {
+	mu          sync.Mutex
+	EnableStubs bool
+	Stubs       map[string]*client.ClientMux
+	config      config.Config
+}
+
+func (sr *StubresolverPlugin) Info() (string, Ptype) {
+	return "stubresolver", Resolving
+}
+
+func (sr *StubresolverPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
+	logger := log.GetLogger("plugin", "StubResolver")
+	domain := m.Question[0].Name
+
+	//there should be a channel for toogling enableStubs
+	if sr.EnableStubs {
+		logger.Debug("Stubs are enabled")
+		sr.mu.Lock()
+		defer sr.mu.Unlock()
+		for k, mux := range sr.Stubs {
+			match, _ := regexp.MatchString(`^.*\Q`+k+`\E\.`, domain)
+			if match {
+				logger.Debugf("Resove %s via server %s", domain, mux.Upstreams[0].Address)
+				response, _, err := mux.Resolve(m)
+				if err != nil {
+					logger.Errorf("HHHHEEEEREE: %s", err.Error())
+					return nil, false, nil
+				}
+				return &response.Answer[0], false, nil
+			}
+		}
+
+	}
+	return nil, false, nil
+}
+
+func (sr *StubresolverPlugin) Config(c config.Config) error {
+	sr.config = c
+	return nil
+}
+
+func (sr *StubresolverPlugin) Replace(m map[string]*client.ClientMux) {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+	sr.Stubs = m
+
+}
+
+func (sr *StubresolverPlugin) Init() error {
+	stubs, err := ParseStubList(sr.config.StubResolverStubs)
+	if err != nil {
+		return err
+	}
+	sr.Replace(stubs)
+	return nil
+}
+
+func ParseStubList(s []string) (map[string]*client.ClientMux, error) {
+	stubs := map[string]*client.ClientMux{}
+	for _, each := range s {
+		splitted := strings.Split(each, ",")
+		servers := splitted[1:]
+		mux := client.NewClientMux(servers)
+		stubs[splitted[0]] = mux
+	}
+	return stubs, nil
+
+}

@@ -1,0 +1,33 @@
+timeout: 1000
+#verify_tls: true
+#upstreams: 
+#  - tls://1.1.1.1:853#cloudflare-dns.com
+#  - tls://1.0.0.1:853#cloudflare-dns.com
+#enable_blackhole: true
+#blackhole_file: ./bar/foo.txt
+blackhole_exempt:
+  - domain.tld
+  - facebook.com
+#enable_static_response: true
+#static_response_file: /etc/hosts
+#enable_zenmode: true
+#zenmode_file: ./zen.txt
+#zenmode_domains: 
+#  - facebook.com
+#  - instagram.com
+#  - dw.com
+#zenmode_time: 20
+#enable_stubs: true
+stubs:
+  - google.com,udp://8.8.8.8,udp://8.8.4.4
+  - google.es,udp://8.8.8.8,udp://8.8.4.4
+server:
+  listen_addr: ":8053"
+  api_addr: ":8443"
+  api_cert_file: fixtures/tdns.crt
+  api_key_file:  fixtures/tdns.key
+  signing_key: wFLL196Y7zC8jLTDSezh6R8sGq4RqcMV/11P/MQ4u+USoEK2YCnctT7za/dPfeFjnJZJaDeBsyGXngB1657ahw==
+client:
+  token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5NTQ5NDcsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.iR9Y_n_YyZcqOa8WhH0kUDS-7CjdxYUuun93BHhF4pK8zqlFYfgbrhM824Jra86bcB-qaDPO9lgxiQWQ6uSBBQ
+  server: https://localhost:8443
+  ca_cert: fixtures/tdns.crt

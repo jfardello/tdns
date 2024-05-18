@@ -1,0 +1,13 @@
+{
+    "spellright.language": [
+        "English (British)"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ],
+    "markdown.styles": [
+    "https://use.fontawesome.com/releases/v6.5.2/css/all.css"
+]
+}
