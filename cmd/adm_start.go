@@ -11,12 +11,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// startCmd represents the start command
+// startCmd represents the start command.
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Starts interceptors",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		err := cmd.Help()
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
@@ -59,7 +62,7 @@ var startStubsCmd = &cobra.Command{
 	},
 }
 
-// startStaticCmd represents the static command
+// startStaticCmd represents the static command.
 var startStaticCmd = &cobra.Command{
 	Use:   "static",
 	Short: "Start static file respose interceptor",

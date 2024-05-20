@@ -3,14 +3,12 @@ package cmd
 import (
 	"os"
 
-	"github.com/jfardello/tdns/config"
 	"github.com/spf13/cobra"
 )
 
 var verbose bool
-var conf config.Config
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:   "tdns",
 	Short: "A DNSoT capable caching dns forwarder with black hole features.",
@@ -35,7 +33,3 @@ func init() {
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output.")
 
 }
-
-//TODO: unittest
-
-//TODO: lint everithing

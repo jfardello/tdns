@@ -102,7 +102,7 @@ func (z *ZenmodePlugin) Start() {
 			logger.WithFields(logrus.Fields{"action": "stop"}).Info("Zen period ended")
 		}()
 	default:
-		logger.Info("Zen period could not aquire a lock, timer already started")
+		logger.Info("Zen period could not acquire a lock, timer already started")
 	}
 }
 

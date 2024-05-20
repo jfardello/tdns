@@ -72,17 +72,9 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 		}
 	}
 	//If we didn't resolve at preRouting time, then try resolving plugins.
-	if currentResponse == nil {
-		for _, p := range pi.resolving {
-			rr, _, err := s.Plugins[p].Run(requestMsg)
-			if err != nil {
-				return nil, err
-			}
-			if rr != nil {
-				currentResponse = answerMsg(rr)
-				break
-			}
-		}
+	currentResponse, shouldReturn, returnValue, returnValue1 := s.tryResolve(currentResponse, pi, requestMsg)
+	if shouldReturn {
+		return returnValue, returnValue1
 	}
 
 	//no response from resolving plugins, just resolve with the default upstream.
@@ -107,20 +99,46 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 	return currentResponse, nil
 }
 
+// try resolving plugins.
+func (s *Server) tryResolve(currentResponse *dns.Msg, pi *PluginIndex, requestMsg *dns.Msg) (*dns.Msg, bool, *dns.Msg, error) {
+	if currentResponse == nil {
+		for _, p := range pi.resolving {
+			rr, _, err := s.Plugins[p].Run(requestMsg)
+			if err != nil {
+				return nil, true, nil, err
+			}
+			if rr != nil {
+				currentResponse = answerMsg(rr)
+				break
+			}
+		}
+	}
+	return currentResponse, false, nil, nil
+}
+
 func (s *Server) StubsToogle(state bool) bool {
+	logger := log.GetLogger("server", "StubsToogle")
 	c := config.GetRunningConfig()
 	config.Lock()
 	c.StubResolver = state
 	config.Unlock()
-	s.Plugins["stubresolver"].Config(*c)
+	err := s.Plugins["stubresolver"].Config(*c)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	return c.StubResolver
 }
 
 func (s *Server) BholeToogle(state bool) bool {
+	logger := log.GetLogger("server", "BholeToogle")
 	c := config.GetRunningConfig()
 	c.BlackHole = state
 	config.SetRunningConfig(c)
-	s.Plugins["blacklist"].Config(*c)
+	err := s.Plugins["blacklist"].Config(*c)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	return c.BlackHole
 }
 

@@ -5,17 +5,17 @@
 TDNS focuses on privacy, it is a DNS over TLS proxy, that can act as a DNS sinkhole to improve privacy network-wide and
 prevents data gathering by carriers and trackers. 
 
-It also can broke DNS requests to stub servers for local internal networks in changing scenarios, like public Wi-Fi, VPN or 5G services.
+It can also broke DNS requests to stub servers for local internal networks in changing scenarios, like public Wi-Fi, VPN or 5G services.
 
 ## Features
 
-* Supports TLS and clear DNS upstreams
-* Static host file responses
-* Routes DNS call to specific domains via stub servers for internal services.
-* Zen mode (disable social sites for a period of time)
-* Caching 
+* Supports TLS and clear DNS upstreams.
+* Static host file responses.
+* Routes DNS calls to specific domains via stub servers for internal services.
+* Zen mode (disable social sites for a period of time).
+* Caching.
 * Black-hole service, responds with A records to 0.0.0.0 to black listed services, also supports white listing.
-* Cli tool
+* Cli tool.
 * ReST management API.
 
 ```mermaid

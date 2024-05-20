@@ -18,7 +18,7 @@ var (
 	zenDomains []string
 )
 
-// replaceCmd represents the replace command
+// replaceCmd represents the replace command.
 var replaceCmd = &cobra.Command{
 
 	Use:   "replace",
@@ -26,11 +26,18 @@ var replaceCmd = &cobra.Command{
 	Long: `Replace runtime config for zen-mode domains or stub servers, this
 	won't persist changes.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		logger := log.GetLogger("cmd", "replaceCmd")
 		if len(stubs) > 0 {
-			handleStubs(stubs)
+			err := handleStubs(stubs)
+			if err != nil {
+				logger.Error(err)
+			}
 		}
 		if len(zenDomains) > 0 {
-			handleZenDomains(zenDomains)
+			err := handleZenDomains(zenDomains)
+			if err != nil {
+				logger.Error(err)
+			}
 		}
 
 	},
@@ -41,7 +48,7 @@ func init() {
 	replaceCmd.PersistentFlags().StringSliceVarP(&zenDomains, "zendomains", "z", []string{}, "Forbidden domains for zen modes.")
 	replaceCmd.PersistentFlags().StringSliceVarP(&stubs, "stub", "s", []string{}, "Stubs servers for domains ex: domain.tld,udp://8.8.8.8")
 	viper.SetDefault("zenmode_domains", replaceCmd.PersistentFlags().Lookup("zendomains").DefValue)
-	viper.BindPFlag("upstreams", replaceCmd.PersistentFlags().Lookup("upstream"))
+	_ = viper.BindPFlag("upstreams", replaceCmd.PersistentFlags().Lookup("upstream"))
 
 }
 

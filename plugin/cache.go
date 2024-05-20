@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -29,7 +30,7 @@ var (
 	cacheInit bool = false
 )
 
-// returns the cache singleton
+// GetCache returns the cache singleton.
 func GetCache() *Cache {
 	if cacheInit {
 		return cache
@@ -85,8 +86,8 @@ func (cs *CacheSet) Run(m *dns.Msg) (*dns.RR, bool, error) {
 		if len(m.Question) > 0 {
 			q := m.Question[0]
 			logger.Debugf("Setting cache for %s", q.Name)
-			cache.Set(cache.Key(&q), m)
-			return nil, false, nil
+			err := cache.Set(cache.Key(&q), m)
+			return nil, false, err
 		}
 	}
 	return nil, false, nil
@@ -119,21 +120,22 @@ func (c *Cache) Get(k string) (string, bool) {
 	return "", false
 }
 
-func (c *Cache) Set(k string, m *dns.Msg) {
+func (c *Cache) Set(k string, m *dns.Msg) error {
 	if k == "" {
-		return
+		return errors.New("No cache key!")
 	}
 
 	idx := len(m.Answer) - 1
 
+	//Just cache Anchoss, ivv6 anchors and cnames.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
-		c.backend.Set(k, []byte(t.String()))
+		return c.backend.Set(k, []byte(t.String()))
 	} else if t, ok := m.Answer[idx].(*dns.CNAME); ok {
-		c.backend.Set(k, []byte(t.String()))
+		return c.backend.Set(k, []byte(t.String()))
 	} else if t, ok := m.Answer[idx].(*dns.AAAA); ok {
-		c.backend.Set(k, []byte(t.String()))
+		return c.backend.Set(k, []byte(t.String()))
 	}
-
+	return nil
 }
 
 func (c *Cache) Key(q *dns.Question) string {

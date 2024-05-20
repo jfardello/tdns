@@ -14,16 +14,17 @@ import (
 )
 
 var (
-	upstream  []string
-	stubs     []string
-	hostFile  string
-	bholeFile string
-	zenFile   string
-	zenTime   int
-	timeOut   int
+	upstream        []string
+	stubs           []string
+	hostFile        string
+	bholeFile       string
+	zenFile         string
+	zenTime         int
+	timeOut         int
+	DefaultUpstream string = "tls://1.1.1.1:853#cloudflare-dns.com"
 )
 
-// serveCmd represents the serve command
+// serveCmd represents the serve command.
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start tls-dns forwarder",
@@ -58,7 +59,10 @@ func initConfig() {
 	logger.Infof("Loaded config file %s", viper.ConfigFileUsed())
 
 	c := &config.Config{}
-	viper.Unmarshal(c)
+	err := viper.Unmarshal(c)
+	if err != nil {
+		panic(err)
+	}
 	config.SetRunningConfig(c)
 
 }
@@ -66,7 +70,7 @@ func initConfig() {
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	serveCmd.PersistentFlags().StringSliceVarP(&upstream, "upstream", "u", []string{"tls://1.1.1.1:853#cloudflare-dns.com"}, "default upstream")
+	serveCmd.PersistentFlags().StringSliceVarP(&upstream, "upstream", "u", []string{DefaultUpstream}, "default upstream")
 	serveCmd.PersistentFlags().StringSliceVarP(&stubs, "stub", "s", []string{}, "Stubs servers for domains ex: domain.tld,udp://8.8.8.8")
 	serveCmd.PersistentFlags().StringVarP(&hostFile, "hosts", "f", "", "Respond with Anchor Resource sets from this file.")
 	serveCmd.PersistentFlags().StringVarP(&bholeFile, "blackhole", "b", "", "Black hole list file to filter ads & tracking systems.")
@@ -77,27 +81,30 @@ func init() {
 	//Viper will try pflags, environment variables and config file, in that order, default values
 	//are mapped to oflags if they exist, or just viper default in case there is no config option
 	//defined
-	viper.SetDefault("upstreams", serveCmd.PersistentFlags().Lookup("upstream").DefValue)
-	viper.BindPFlag("upstreams", serveCmd.PersistentFlags().Lookup("upstream"))
+
+	viper.SetDefault("upstreams", []string{DefaultUpstream})
+	_ = viper.BindPFlag("upstreams", serveCmd.PersistentFlags().Lookup("upstream"))
 	viper.SetDefault("stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
-	viper.BindPFlag("stubs", serveCmd.PersistentFlags().Lookup("stub"))
+	_ = viper.BindPFlag("stubs", serveCmd.PersistentFlags().Lookup("stub"))
 	viper.SetDefault("static_response_file", serveCmd.PersistentFlags().Lookup("stub").DefValue)
-	viper.BindPFlag("static_response_file", serveCmd.PersistentFlags().Lookup("hosts"))
+	_ = viper.BindPFlag("static_response_file", serveCmd.PersistentFlags().Lookup("hosts"))
 	viper.SetDefault("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole").DefValue)
-	viper.BindPFlag("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole"))
+	_ = viper.BindPFlag("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole"))
 	viper.SetDefault("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile").DefValue)
 	viper.SetDefault("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
-	viper.BindPFlag("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime"))
-	viper.BindPFlag("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile"))
+	_ = viper.BindPFlag("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime"))
+	_ = viper.BindPFlag("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile"))
 
 }
 
 func run() {
+	logger := log.GetLogger("server", "lookup")
 	c := &config.Config{}
-	viper.Unmarshal(c)
+	err := viper.Unmarshal(c)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	config.SetRunningConfig(c)
-
-	logger := log.GetLogger("serve", "lookup")
 
 	server := server.NewServer(
 		server.WithStaticResponse(c.StaticReposnsefile),
@@ -118,7 +125,10 @@ func run() {
 			if err != nil {
 				logger.Errorf("Failed lookup for %s with error: %s\n", r, err.Error())
 				m.SetReply(r)
-				w.WriteMsg(m)
+				err := w.WriteMsg(m)
+				if err != nil {
+					logger.Error(err)
+				}
 				return
 			}
 			if len(m.Answer) > 0 {
@@ -132,7 +142,10 @@ func run() {
 				}
 			}
 			m.SetReply(r)
-			w.WriteMsg(m)
+			err = w.WriteMsg(m)
+			if err != nil {
+				logger.Error(err)
+			}
 		}
 	})
 

@@ -16,10 +16,13 @@ func WithStaticResponse(hostFile string) func(*Server) {
 		if hostFile != "" {
 
 			st := &plugin.StaticResponsePlugin{}
-			st.Config(s.Config)
-			err := st.Init()
+			err := st.Config(s.Config)
 			if err != nil {
-				panic(err)
+				logger.Fatal(err)
+			}
+			err = st.Init()
+			if err != nil {
+				logger.Fatal(err)
 			}
 			n, _ := st.Info()
 			s.Plugins[n] = st
@@ -36,10 +39,13 @@ func WithZenFile(zenFile string) func(*Server) {
 		if zenFile != "" {
 
 			z := &plugin.ZenmodePlugin{}
-			z.Config(s.Config)
-			err := z.Init()
+			err := z.Config(s.Config)
 			if err != nil {
-				panic(err)
+				logger.Fatal(err)
+			}
+			err = z.Init()
+			if err != nil {
+				logger.Fatal(err)
 			}
 			n, _ := z.Info()
 			s.Plugins[n] = z
@@ -71,8 +77,10 @@ func WithStubs(u []string) func(*Server) {
 			EnableStubs: true,
 			Stubs:       stubs,
 		}
-		p.Init()
-
+		err = p.Init()
+		if err != nil {
+			logger.Fatal(err)
+		}
 		n, _ := p.Info()
 		s.Plugins[n] = p
 		logger.Infof("Loaded %d stubs", len(stubs))
@@ -88,11 +96,13 @@ func WithBHoleList(holeFile string) func(*Server) {
 			b := &plugin.BlackListPlugin{
 				Hole: radix.New(),
 			}
-			b.Config(s.Config)
-
-			err := b.Init()
+			err := b.Config(s.Config)
 			if err != nil {
-				panic(err)
+				logger.Fatal(err)
+			}
+			err = b.Init()
+			if err != nil {
+				logger.Fatal(err)
 			}
 			n, _ := b.Info()
 			s.Plugins[n] = b

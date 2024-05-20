@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// manageCmd represents the manage command
+// manageCmd represents the manage command.
 var manageCmd = &cobra.Command{
 	Use:   "adm",
 	Short: "TDNS management commands",
-	Long:  `Iteract with remote TDNS instances throught its ReST API.`,
+	Long:  `Iteract with remote TDNS instances ReST API.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("adm called")
 	},

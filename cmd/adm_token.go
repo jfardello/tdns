@@ -14,7 +14,7 @@ var (
 	sub string
 )
 
-// replaceCmd represents the replace command
+// replaceCmd represents the replace command.
 var tokenCmd = &cobra.Command{
 
 	Use:   "token",
@@ -22,7 +22,10 @@ var tokenCmd = &cobra.Command{
 	Long:  `blah blah.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		c := &config.Config{}
-		viper.Unmarshal(c)
+		err := viper.Unmarshal(c)
+		if err != nil {
+			panic(err)
+		}
 		config.SetRunningConfig(c)
 		t, _ := api.IssueToken(exp, sub)
 		fmt.Printf("Creating token with %d expiration days.\n", exp)

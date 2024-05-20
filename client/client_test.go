@@ -45,6 +45,14 @@ func GetFakeClient(store FStore, w time.Duration, fail bool) Exchanger {
 	return f
 }
 
+type resolveStruct struct {
+	name    string
+	query   string
+	want    string
+	mux     ClientMux
+	wantErr bool
+}
+
 func TestClientMux_Resolve(t *testing.T) {
 
 	client1 := GetFakeClient(FStore{"foo.tld.": "127.0.0.2", "bar.tld.": "127.0.0.1"}, 90*time.Millisecond, false)
@@ -78,13 +86,7 @@ func TestClientMux_Resolve(t *testing.T) {
 		globalTimeout: 120 * time.Millisecond,
 	}
 
-	tests := []struct {
-		name    string
-		query   string
-		want    string
-		mux     ClientMux
-		wantErr bool
-	}{
+	tests := []resolveStruct{
 		{name: "test1", query: "foo.tld.", mux: *mux1, want: "127.0.0.2"},
 		{name: "test2", query: "bar.tld.", mux: *mux1, want: "127.0.0.1"},
 		{name: "test3", query: "bar.tld.", mux: *mux2, want: "127.0.0.3", wantErr: true},

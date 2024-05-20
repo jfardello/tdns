@@ -12,16 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// stopCmd represents the stop command
+// stopCmd represents the stop command.
 var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stops interceptor services.",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		err := cmd.Help()
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
-// stopStubsCmd represents the stubs command
+// stopStubsCmd represents the stubs command.
 var stopStubsCmd = &cobra.Command{
 	Use:   "stubs",
 	Short: "Stops the stub-server interceptors",

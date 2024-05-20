@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// replaceCmd represents the replace command
+// replaceCmd represents the replace command.
 var signingCmd = &cobra.Command{
 
 	Use:   "genkey",
@@ -17,7 +17,10 @@ var signingCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		c := &config.Config{}
-		viper.Unmarshal(c)
+		err := viper.Unmarshal(c)
+		if err != nil {
+			panic(err)
+		}
 		config.SetRunningConfig(c)
 		k := config.GenKey()
 		fmt.Println(base64.StdEncoding.EncodeToString(*k))
