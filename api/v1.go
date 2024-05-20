@@ -106,6 +106,7 @@ func (api *v1) BholeToogle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) StaticResposeToogle(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger("api", "StaticResposeToogle")
 	p := api.server.Plugins["staticresponse"].(*plugin.StaticResponsePlugin)
 	action := r.PathValue("action")
 	state, err := actionToBool(action)
@@ -121,7 +122,10 @@ func (api *v1) StaticResposeToogle(w http.ResponseWriter, r *http.Request) {
 	c := config.GetRunningConfig()
 	c.StaticResponse = state
 	config.SetRunningConfig(c)
-	p.Config(*c)
+	err = p.Config(*c)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	resp := Response{
 		Kind:          BHOLE_RESPONSE_KIND,
@@ -206,7 +210,10 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	c := config.GetRunningConfig()
 	c.BlackHoleExempt = stubRequest.Stubs
 	config.SetRunningConfig(c)
-	st.Config(*c)
+	err = st.Config(*c)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	err = st.Init()
 	if err != nil {
 		logger.Error("Error initiating stubs: ", err)
@@ -240,7 +247,10 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 		logger.Error("Error clearing cache: ", err)
 		http.Error(w, `{"message":"Status Fail"}`, http.StatusInternalServerError)
 	}
-	w.Write([]byte(`{"message":"Status OK"}`))
+	_, err = w.Write([]byte(`{"message":"Status OK"}`))
+	if err != nil {
+		logger.Error(err)
+	}
 }
 
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
@@ -262,12 +272,17 @@ func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJSON(res Response, w http.ResponseWriter) {
+	logger := log.GetLogger("api", "writeJSON")
 	encoded, err := json.Marshal(res)
 	if err != nil {
-		panic(err)
+		logger.Fatal(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(encoded)
+	_, err = w.Write(encoded)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 }
 
 func formatBool(status bool) string {
