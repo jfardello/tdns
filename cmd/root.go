@@ -3,10 +3,14 @@ package cmd
 import (
 	"os"
 
+	"github.com/jfardello/tdns/log"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var verbose bool
+var configFile string
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
@@ -27,9 +31,14 @@ func Execute() {
 }
 
 func init() {
-	// when this action is called directly.
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "V", false, "Verbose output.")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "configfile", "c", "", "Config file.")
+	if configFile != "" {
+		viper.SetConfigFile(configFile)
 
-	initConfig()
-	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output.")
+	}
+	if verbose {
+		log.SetLevel(logrus.DebugLevel)
+	}
 
 }

@@ -31,6 +31,7 @@ var serveCmd = &cobra.Command{
 	Long: `TDNS is a TLS dns forwarder that accepts plain DNS calls locally and forwards 
 	queries to different upstreams based on its routing configuration.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		initConfig()
 		run()
 	},
 }
@@ -41,14 +42,18 @@ func initConfig() {
 	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("tdns")
 	viper.AutomaticEnv()
-	viper.AddConfigPath("/etc/tdns/")
-	viper.AddConfigPath("$HOME/.config/tdns")
-	viper.AddConfigPath(".")
+	if configFile == "" {
+		viper.AddConfigPath("/etc/tdns/")
+		viper.AddConfigPath("$HOME/.config/tdns")
+		viper.AddConfigPath(".")
+	} else {
+		viper.SetConfigFile(configFile)
+	}
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 
-			logger.Info("config file not found")
+			logger.Infof("config file not found %v", err)
 			return
 		} else {
 			logger.Error(err)
@@ -69,7 +74,6 @@ func initConfig() {
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-
 	serveCmd.PersistentFlags().StringSliceVarP(&upstream, "upstream", "u", []string{DefaultUpstream}, "default upstream")
 	serveCmd.PersistentFlags().StringSliceVarP(&stubs, "stub", "s", []string{}, "Stubs servers for domains ex: domain.tld,udp://8.8.8.8")
 	serveCmd.PersistentFlags().StringVarP(&hostFile, "hosts", "f", "", "Respond with Anchor Resource sets from this file.")
@@ -86,7 +90,7 @@ func init() {
 	_ = viper.BindPFlag("upstreams", serveCmd.PersistentFlags().Lookup("upstream"))
 	viper.SetDefault("stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
 	_ = viper.BindPFlag("stubs", serveCmd.PersistentFlags().Lookup("stub"))
-	viper.SetDefault("static_response_file", serveCmd.PersistentFlags().Lookup("stub").DefValue)
+	viper.SetDefault("static_response_file", serveCmd.PersistentFlags().Lookup("hosts").DefValue)
 	_ = viper.BindPFlag("static_response_file", serveCmd.PersistentFlags().Lookup("hosts"))
 	viper.SetDefault("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole").DefValue)
 	_ = viper.BindPFlag("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole"))

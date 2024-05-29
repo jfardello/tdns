@@ -37,37 +37,37 @@ func Unlock() {
 }
 
 type Config struct {
-	Timeout            int      `mapstructure:"timeout"`
-	VerifyTLS          bool     `mapstructure:"verify_tls"`
-	EnablAPI           bool     `mapstructure:"enable_api"`
-	Upstreams          []string `mapstructure:"upstreams"`
-	BlackHole          bool     `mapstructure:"enable_blackhole"`
-	BlackHoleFile      string   `mapstructure:"blackhole_file"`
-	BlackHoleExempt    []string `mapstructure:"blackhole_exempt"`
-	StaticResponse     bool     `mapstructure:"enable_static_response"`
-	StaticReposnsefile string   `mapstructure:"static_response_file"`
-	ZenMode            bool     `mapstructure:"enable_zenmode"`
-	ZenModeFile        string   `mapstructure:"zenmode_file"`
-	ZenModeDomains     []string `mapstructure:"zenmode_domains"`
-	ZenModeTime        int      `mapstructure:"zenmode_time"`
-	StubResolver       bool     `mapstructure:"enable_stubs"`
-	StubResolverStubs  []string `mapstructure:"stubs"`
-	Client             Client   `mapstructure:"client"`
-	Server             Server   `mapstructure:"server"`
+	Timeout            int      `mapstructure:"timeout" yaml:"timeout,omitempty"`
+	VerifyTLS          bool     `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
+	EnablAPI           bool     `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
+	Upstreams          []string `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
+	BlackHole          bool     `mapstructure:"enable_blackhole" yaml:"enable_blackhole,omitempty"`
+	BlackHoleFile      string   `mapstructure:"blackhole_file" yaml:"blackhole_file,omitempty"`
+	BlackHoleExempt    []string `mapstructure:"blackhole_exempt" yaml:"blackhole_exempt,omitempty"`
+	StaticResponse     bool     `mapstructure:"enable_static_response" yaml:"enable_static_response,omitempty"`
+	StaticReposnsefile string   `mapstructure:"static_response_file" yaml:"static_response_file,omitempty"`
+	ZenMode            bool     `mapstructure:"enable_zenmode" yaml:"enable_zenmode,omitempty"`
+	ZenModeFile        string   `mapstructure:"zenmode_file" yaml:"zenmode_file,omitempty"`
+	ZenModeDomains     []string `mapstructure:"zenmode_domains" yaml:"zenmode_domains,omitempty"`
+	ZenModeTime        int      `mapstructure:"zenmode_time" yaml:"zenmode_time,omitempty"`
+	StubResolver       bool     `mapstructure:"enable_stubs" yaml:"enable_stubs,omitempty"`
+	StubResolverStubs  []string `mapstructure:"stubs" yaml:"stubs,omitempty"`
+	Client             Client   `mapstructure:"client" yaml:"client,omitempty"`
+	Server             Server   `mapstructure:"server" yaml:"server,omitempty"`
 }
 
 type Client struct {
-	Server string `mapstructure:"server"`
-	CAcert string `mapstructure:"ca_cert"`
-	Token  string `mapstructure:"token"`
+	Server string `mapstructure:"server" yaml:"server,omitempty"`
+	CAcert string `mapstructure:"ca_cert" yaml:"ca_cert,omitempty"`
+	Token  string `mapstructure:"token" yaml:"token,omitempty"`
 }
 
 type Server struct {
-	ListenAddr  string `mapstructure:"listen_addr"`
-	APIAddr     string `mapstructure:"api_addr"`
-	APICertFile string `mapstructure:"api_cert_file"`
-	APIKeyFile  string `mapstructure:"api_key_file"`
-	SigningKey  string `mapstructure:"signing_key"`
+	ListenAddr  string `mapstructure:"listen_addr" yaml:"listen_addr,omitempty"`
+	APIAddr     string `mapstructure:"api_addr" yaml:"api_addr,omitempty"`
+	APICertFile string `mapstructure:"api_cert_file" yaml:"api_cert_file,omitempty"`
+	APIKeyFile  string `mapstructure:"api_key_file" yaml:"api_key_file,omitempty"`
+	SigningKey  string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 	signingKey  []byte
 }
 

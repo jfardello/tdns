@@ -14,7 +14,6 @@ func WithStaticResponse(hostFile string) func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 		if hostFile != "" {
-
 			st := &plugin.StaticResponsePlugin{}
 			err := st.Config(s.Config)
 			if err != nil {

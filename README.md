@@ -51,12 +51,12 @@ $ sudo tdns serve -f /etc/hosts -b /tmp/bhole.hosts
 
 The `config` sub-command will generate a sample configuration directory as well as a systemd entry.
 
-`$ tdns config -o -path /etc/tdns ./sample`
+`$ tdns config -o ./sample -path /etc/tdns`
 
 
-```
+```bash 
 $ sudo mv ./sample /etc/tdns
-$ sudo mv /etc/tdns/tdns.service.sample /etc/systemd/system/tdns.service
+$ sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
 $ sudo systemctl config-reload
 $ sudo systemctl start tdns
 
@@ -99,7 +99,7 @@ Some configuration options can be set by command line options for the `tdns serv
 |-----	|-----	|-----	|-------------	|
 |timeout | TDNS_TIMEOUT    	|     	|             	|
 |verify_tls | TDNS_VERIFY_TLS  	|     	|             	|
-|upstream | TDNS_UPSTREAM    	|    -u, --upstream 	|             	|
+|upstreams| TDNS_UPSTREAM    	|    -u, --upstream 	|             	|
 |enable_blackhole   | TDNS_ENABLE_BLACKHOLE     ||
 |blackhole_file |  TDNS_BLACKHOLE_FILE    | -b, --blackhole |
 |blackhole_exempt |TDNS_BLACKHOLE_EXEMPT      ||
@@ -133,44 +133,12 @@ ca_cert:
 
 
 
-timeout: 1000
-verify_tls: true
-upstreams: 
-#  - tls://1.1.1.1:853#cloudflare-dns.com
-#  - tls://1.0.0.1:853#cloudflare-dns.com
-enable_blackhole: true
-blackhole_file: ./bar/foo.txt
-blackhole_exempt:
-  - domain.tld
-  - facebook.com
-enable_static_response: true
-static_response_file: /etc/hosts
-enable_zenmode: true
-zenmode_file: ./zen.txt
-zenmode_domains: 
-  - facebook.com
-  - instagram.com
-  - dw.com
-zenmode_time: 20
-enable_stubs: true
-stubs:
-  - google.com,udp://8.8.8.8,udp://8.8.4.4
-  - google.es,udp://8.8.8.8,udp://8.8.4.4
-server:
-  listen_addr: ":8053"
-  api_addr: ":8443"
-  api_cert_file: fixtures/tdns.crt
-  api_key_file:  fixtures/tdns.key
-  signing_key: wFLL196Y7zC8jLTDSezh6R8sGq4RqcMV/11P/MQ4u+USoEK2YCnctT7za/dPfeFjnJZJaDeBsyGXngB1657ahw==
-client:
-  token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5NTQ5NDcsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.iR9Y_n_YyZcqOa8WhH0kUDS-7CjdxYUuun93BHhF4pK8zqlFYfgbrhM824Jra86bcB-qaDPO9lgxiQWQ6uSBBQ
-  server: https://localhost:8443
-  ca_cert: fixtures/tdns.crt
 
+## ReST API and tdns client
 
-## ReST API
-
-Making rest calls will require a TLS connection and a jwt token, tokens can be generated with `tdns adm token` command, the server certificate it is 
+Making rest calls will require a TLS connection and a JWT token, tokens can be generated with `tdns adm token` command, 
+the server certificate will be needed if it is serf signed, the default configuration creates a self signed certificate and key
+similar equivalent to the ones created by the following command:
 
 
 ```
@@ -179,3 +147,7 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -days 3650 \
   -addext "subjectAltName=DNS:localhost,DNS:*.example.com,IP:127.0.0.1"
 
 ```
+
+So the connection between tdns client to the server is always TLS based and authorized by a long lasting JWT token which
+is validated with an HMAC signature, you can create such tokens with the `tdns adm token` command, this way you can control 
+tdns runtime features remotely either by issuing rest commands or with the built in client.
