@@ -70,3 +70,6 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+gitea_urls:
+  api: https://gitea.myinstance.com/api/v1
+  download: https://gitea.myinstance.com
