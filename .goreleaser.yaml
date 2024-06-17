@@ -61,8 +61,6 @@ release:
   gitea:
     owner: jfardello
     name: tdns  
-  extra_files:
-    - glob: ./LICENSE.txt
 
 changelog:
   sort: asc
