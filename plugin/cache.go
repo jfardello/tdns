@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -122,7 +121,10 @@ func (c *Cache) Get(k string) (string, bool) {
 
 func (c *Cache) Set(k string, m *dns.Msg) error {
 	if k == "" {
-		return errors.New("No cache key!")
+		//Don't fail if theres no cache key
+		logger := log.GetLogger("Cache", "Set")
+		logger.Debugf("No cache key, skipping chache phase.")
+		return nil
 	}
 
 	idx := len(m.Answer) - 1
@@ -149,6 +151,10 @@ func (c *Cache) Key(q *dns.Question) string {
 }
 func (c *Cache) Clear() error {
 	return c.backend.Reset()
+}
+
+func (c *Cache) Status() bigcache.Stats {
+	return c.backend.Stats()
 }
 
 func NewCache() *Cache {

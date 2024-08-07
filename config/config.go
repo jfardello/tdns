@@ -50,6 +50,7 @@ type Config struct {
 	ZenModeFile        string   `mapstructure:"zenmode_file" yaml:"zenmode_file,omitempty"`
 	ZenModeDomains     []string `mapstructure:"zenmode_domains" yaml:"zenmode_domains,omitempty"`
 	ZenModeTime        int      `mapstructure:"zenmode_time" yaml:"zenmode_time,omitempty"`
+	Status             bool     `mapstructure:"enable_status" yaml:"enable_status,omitempty"`
 	StubResolver       bool     `mapstructure:"enable_stubs" yaml:"enable_stubs,omitempty"`
 	StubResolverStubs  []string `mapstructure:"stubs" yaml:"stubs,omitempty"`
 	Client             Client   `mapstructure:"client" yaml:"client,omitempty"`

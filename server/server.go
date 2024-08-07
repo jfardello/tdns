@@ -85,6 +85,7 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 		if err != nil {
 			logger := log.GetLogger("Server", "process")
 			logger.Error(err)
+			return nil, err
 		}
 	}
 

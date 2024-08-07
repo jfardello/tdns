@@ -118,6 +118,7 @@ func run() {
 		server.WithCacheGet(),
 		server.WithCacheSet(),
 		server.WithZenFile(c.ZenModeFile),
+		server.WithStatus(),
 	)
 
 	port := 9953
@@ -128,11 +129,13 @@ func run() {
 			m, err := server.Handler(r)
 			if err != nil {
 				logger.Errorf("Failed lookup for %s with error: %s\n", r, err.Error())
-				m.SetReply(r)
-				err := w.WriteMsg(m)
-				if err != nil {
-					logger.Error(err)
-				}
+
+				dns.HandleFailed(w, r)
+				m := new(dns.Msg)
+				m.SetRcode(r, dns.RcodeServerFailure)
+				// does not matter if this write fails
+				w.WriteMsg(m)
+				logger.Error(err)
 				return
 			}
 			if len(m.Answer) > 0 {

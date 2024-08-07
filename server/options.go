@@ -31,6 +31,25 @@ func WithStaticResponse(hostFile string) func(*Server) {
 	}
 }
 
+func WithStatus() func(*Server) {
+	return func(s *Server) {
+		sp := &plugin.StatusPlugin{}
+		err := sp.Config(s.Config)
+		logger := log.GetLogger("serve", "config")
+		if err != nil {
+			logger.Fatal(err)
+		}
+		err = sp.Init()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		n, _ := sp.Info()
+		s.Plugins[n] = sp
+
+		logger.Infof("Loaded Status plugin")
+	}
+}
+
 func WithZenFile(zenFile string) func(*Server) {
 
 	return func(s *Server) {

@@ -45,9 +45,10 @@ var configCmd = &cobra.Command{
 	Long: `Genarates a starting configuration for both, server and client with
 	 self-signed certificates and a random signing key.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("config called")
 		if destinaton == "" {
 			fmt.Println("output-dir is a mandatory option.")
+			cmd.Help()
+			return
 		}
 		if _, err := os.Stat(destinaton); os.IsNotExist(err) {
 			err := os.Mkdir(destinaton, os.ModePerm)

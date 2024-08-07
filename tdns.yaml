@@ -8,6 +8,7 @@ timeout: 1000
 blackhole_exempt:
   - domain.tld
   - facebook.com
+enable_status: true
 #enable_static_response: true
 #static_response_file: /etc/hosts
 #enable_zenmode: true

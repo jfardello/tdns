@@ -2,21 +2,18 @@
  
 **A DNS over TLS forwarder with caching, black hole, and runtime reconfiguration features.**
 
-TDNS focuses on privacy, it is a DNS over TLS proxy, that can act as a DNS sinkhole to improve privacy network-wide and
-prevents data gathering by carriers and trackers. 
-
-It can also broke DNS requests to stub servers for local internal networks in changing scenarios, like public Wi-Fi, VPN or 5G services.
+TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments like public Wi-Fi, VPNs, or 5G services.
 
 ## Features
 
 * Supports TLS and clear DNS upstreams.
 * Static host file responses.
 * Routes DNS calls to specific domains via stub servers for internal services.
-* Zen mode (disable social sites for a period of time).
+* Zen mode (disables social sites for a period of time).
 * Caching.
-* Black-hole service, responds with A records to 0.0.0.0 to black listed services, also supports white listing.
-* Cli tool.
-* ReST management API.
+* Black-hole service (responds with A records to 0.0.0.0 for blacklisted services and supports whitelisting).
+* CLI tool.
+* REST management API.
 
 ```mermaid
 flowchart TD
@@ -49,49 +46,48 @@ $ sudo tdns serve -f /etc/hosts -b /tmp/bhole.hosts
 
 ### Generate configuration bootstrap
 
-The `config` sub-command will generate a sample configuration directory as well as a systemd entry.
-
-`$ tdns config -o ./sample -path /etc/tdns`
-
+The `config` sub-command will generate a sample configuration directory and systemd entry.
 
 ```bash 
+`$ tdns config -o ./sample -path /etc/tdns`
 $ sudo mv ./sample /etc/tdns
 $ sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
 $ sudo systemctl config-reload
 $ sudo systemctl start tdns
-
 ```
-Just review the files and move it, the `-o` switch will template the configuration path 
-for the generated files.
 
-If the service is started, change your local DNS configuration to the address on which 
-TDNS listens to, the default is 127.0.0.1.
+### Test the server 
 
-you can interact with the service via the ``tdns`` command, see `tdns help` and `tdns adm help`.
+```bash
+$ dig TXT status.tdns.local @127.0.0.1 
+```
+
+If the service is started, change your local DNS configuration to the address on which TDNS listens (default is 127.0.0.1). Interact with the service using the tdns command (``tdns help``  and ``tdns adm help``).
+
 
 ## Getting black hole lists
 
-TDNS uses plain hosts files, usually pointing to 0.0.0.0, there are plenty projects providing quality hosts files, TDNS was tested with stevenblack/hosts produced files, you can test pulling http://sbc.io/hosts/hosts your your milestone may vary, at the end of the day TDNS used standard Unix hosts files, it ignores the IP address and uses 0.0.0.0 as the sink hole.
+TDNS uses plain hosts files, usually pointing to 0.0.0.0. Various projects provide quality hosts files. TDNS has been tested with files from stevenblack/hosts. You can test by pulling http://sbc.io/hosts/hosts. TDNS uses standard Unix hosts files, ignoring the IP address and using 0.0.0.0 as the sinkhole.
 
 ## Upstream format
 
-Configuration files have the upstream concept, which is just a URL, the format is:
+Configuration files use the upstream concept, which is just a URL, the format is:
 
 `proto://address:port#DNS-name`
 
 **Proto:**
   Either TCP, UDP, or TLS
 **Address:**
-  IP address for the DNS server
+  IP address of the DNS server
 **Port:**
   Server port
 **DNS name (optional):**
-  Named host allowed in the certificate, if this is set, then the certificate will be checked for this host name to be present. 
+  Named host allowed in the certificate; if set, the certificate will be checked for this host name. 
 
 
 ## Configuration options
 
-Some configuration options can be set by command line options for the `tdns serve` command, all the rest can be set either by environment variables or configfile file option, the override order is cli, env, then config file.
+Some configuration options can be set via command line for the tdns serve command. Others can be set via environment variables or configuration files. The override order is CLI, env, then config file.
 
 ### server options:
 
@@ -131,23 +127,16 @@ server:
 ca_cert: 
 
 
-
-
-
 ## ReST API and tdns client
 
-Making rest calls will require a TLS connection and a JWT token, tokens can be generated with `tdns adm token` command, 
-the server certificate will be needed if it is serf signed, the default configuration creates a self signed certificate and key
-similar equivalent to the ones created by the following command:
-
+REST calls require a TLS connection and a JWT token. Tokens can be generated with the tdns adm token command. The server certificate is needed if it is self-signed. The default configuration creates a self-signed certificate and key, similar to those created by:
 
 ```
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -days 3650 \
   -nodes -keyout fixtures/tdns.key -out fixtures/tdns.crt -subj "/CN=tdns.kubewire.net" \
   -addext "subjectAltName=DNS:localhost,DNS:*.example.com,IP:127.0.0.1"
-
 ```
 
-So the connection between tdns client to the server is always TLS based and authorized by a long lasting JWT token which
-is validated with an HMAC signature, you can create such tokens with the `tdns adm token` command, this way you can control 
-tdns runtime features remotely either by issuing rest commands or with the built in client.
+The connection between the TDNS client and the server is always TLS-based and authorized by a long-lasting JWT token validated with an HMAC signature. You can create such tokens with the ``tdns adm token`` command to control TDNS runtime features remotely, either by issuing REST commands or with the built-in client.
+
+### TBD: curl example, swagger.
