@@ -36,13 +36,10 @@ func (sc *StatusPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
 	if !sc.Enabled {
 		return nil, false, nil
 	}
-
 	domain := m.Question[0].Name
-	//Idealy regexes should be precompiled, but with caching enables this is negligible.
-
 	logger := log.GetLogger("StatusPlugin", "resolve")
 	logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
-	if domain == StatusDefaultDomain {
+	if domain == StatusDefaultDomain && m.Question[0].Qtype == dns.TypeTXT {
 		rr, err := dns.NewRR(fmt.Sprintf(`%s 3600 IN TXT "%s"`, domain, getStatus(sc.Since)))
 		if err != nil {
 			return nil, false, err

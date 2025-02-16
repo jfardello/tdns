@@ -84,7 +84,7 @@ func (cs *CacheSet) Run(m *dns.Msg) (*dns.RR, bool, error) {
 	if m.Rcode == dns.RcodeSuccess {
 		if len(m.Question) > 0 {
 			q := m.Question[0]
-			logger.Debugf("Setting cache for %s", q.Name)
+			logger.Debugf("Setting cache for %s, key: %s", q.Name, cache.Key(&q))
 			err := cache.Set(cache.Key(&q), m)
 			return nil, false, err
 		}
@@ -128,6 +128,9 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 	}
 
 	idx := len(m.Answer) - 1
+	if idx < 0 {
+		return nil
+	}
 
 	//Just cache Anchoss, ivv6 anchors and cnames.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
@@ -162,7 +165,7 @@ func NewCache() *Cache {
 		Shards:           64,
 		HardMaxCacheSize: 32,
 		Verbose:          true,
-		MaxEntrySize:     256,
+		MaxEntrySize:     512,
 		CleanWindow:      1 * time.Minute,
 		LifeWindow:       3 * time.Minute,
 	}

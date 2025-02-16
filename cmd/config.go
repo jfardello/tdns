@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 
 	"github.com/jfardello/tdns/api"
@@ -75,10 +76,12 @@ func init() {
 	configCmd.PersistentFlags().StringVarP(&dnsListen, "listendns", "l", ":53", "Listen addr for DNS")
 	configCmd.PersistentFlags().StringVarP(&apiListen, "listenapi", "a", ":8443", "Listen addr for rest API")
 
+	viper.SetDefault("server.listen_addr", configCmd.PersistentFlags().Lookup("listendns").DefValue)
+	_ = viper.BindPFlag("server.listen_addr", configCmd.PersistentFlags().Lookup("listenaddr"))
+
 }
 
 func WriteSampleConfig(fname, cert, key string) {
-
 	logger := log.GetLogger("config", "writesampleconfig")
 	c := newConf()
 	k := config.GenKey()

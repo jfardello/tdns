@@ -50,26 +50,23 @@ func WithStatus() func(*Server) {
 	}
 }
 
-func WithZenFile(zenFile string) func(*Server) {
+func WithZenPlugin() func(*Server) {
 
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
-		if zenFile != "" {
-
-			z := &plugin.ZenmodePlugin{}
-			err := z.Config(s.Config)
-			if err != nil {
-				logger.Fatal(err)
-			}
-			err = z.Init()
-			if err != nil {
-				logger.Fatal(err)
-			}
-			n, _ := z.Info()
-			s.Plugins[n] = z
-
-			logger.Infof("Loaded %d hosts for zen mode", len(z.Hosts))
+		z := &plugin.ZenmodePlugin{}
+		err := z.Config(s.Config)
+		if err != nil {
+			logger.Fatal(err)
 		}
+		err = z.Init()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		n, _ := z.Info()
+		s.Plugins[n] = z
+
+		logger.Infof("Loaded %d hosts for zen mode", len(z.Hosts))
 	}
 }
 

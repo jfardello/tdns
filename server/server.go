@@ -92,7 +92,9 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 	for _, p := range pi.postRouting {
 		_, _, err := s.Plugins[p].Run(currentResponse)
 		if err != nil {
-			return nil, err
+			logger := log.GetLogger("Server", "post-process")
+			name, _ := s.Plugins[p].Info()
+			logger.Debugf("Pluggin [%s] returning err : %s", name, err.Error())
 		}
 
 	}

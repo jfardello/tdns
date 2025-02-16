@@ -27,12 +27,10 @@ flowchart TD
 
 # Download
 
-Download from here: TDB and add it to your `$PATH`. 
+Download from here: [releases](https://github.com/jfardllo/tdns/releases) and add it to your `$PATH`, recommended one is `/usr/local/bin` 
 
 
 ## Quick start
-
-TODO: release link
 
 ```
 $ curl XXXXX -o ~/bin/tdns && chmod +x ~/bin/tdns

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"regexp"
-	"strconv"
 
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
@@ -117,11 +116,9 @@ func run() {
 		server.WithBHoleList(c.BlackHoleFile),
 		server.WithCacheGet(),
 		server.WithCacheSet(),
-		server.WithZenFile(c.ZenModeFile),
+		server.WithZenPlugin(),
 		server.WithStatus(),
 	)
-
-	port := 9953
 
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		switch r.Opcode {
@@ -160,7 +157,7 @@ func run() {
 		api.Serve(server)
 	}()
 
-	srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
+	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp"}
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Fatalf("Failed to set udp listener %s\n", err.Error())
 	}

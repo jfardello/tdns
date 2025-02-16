@@ -66,12 +66,18 @@ func (z *ZenmodePlugin) Init() error {
 	logger := log.GetLogger("ZenmodePlugin", "init")
 	z.enabled = false
 	z.initDone = true
-	h, err := ReadHosts(z.c.ZenModeFile)
-	if err != nil {
-		logger.Error(err)
-		return err
+	z.Hosts = map[string]string{}
+	if z.c.ZenModeFile != "" {
+		h, err := ReadHosts(z.c.ZenModeFile)
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+		z.Hosts = h
 	}
-	z.Hosts = h
+	for _, each := range z.c.ZenModeDomains {
+		z.Hosts[each] = "0.0.0.0"
+	}
 	return nil
 }
 

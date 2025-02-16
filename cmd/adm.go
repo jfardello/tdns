@@ -20,6 +20,7 @@ var manageCmd = &cobra.Command{
 }
 
 func init() {
+	initConfig()
 	rootCmd.AddCommand(manageCmd)
 
 }
