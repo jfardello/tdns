@@ -1,5 +1,5 @@
 /*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
+Copyright © 2024 NAME HERE <jmfardello@gmail.com>
 */
 package cmd
 
@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -21,21 +22,21 @@ import (
 )
 
 var (
-	certHosts  []string
-	basepath   string
-	basename   string
-	duration   time.Duration
-	destinaton string
-	dnsListen  string
-	apiListen  string
+	certHosts   []string
+	basepath    string
+	basename    string
+	duration    time.Duration
+	destination string
+	dnsListen   string
+	apiListen   string
 )
 
 var unitTemplate = `[Unit]
 Description=tDNS service unit file.
 
 [Service]
-ExecStart={{.Path}} -c {{.ConfigFile}}
-
+ExecStart={{.Path}} serve -c {{.ConfigFile}}
+User=root
 [Install]
 WantedBy=multi-user.target`
 
@@ -46,22 +47,29 @@ var configCmd = &cobra.Command{
 	Long: `Genarates a starting configuration for both, server and client with
 	 self-signed certificates and a random signing key.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if destinaton == "" {
+		if destination == "" {
 			fmt.Println("output-dir is a mandatory option.")
-			cmd.Help()
+			err := cmd.Help()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 			return
 		}
-		if _, err := os.Stat(destinaton); os.IsNotExist(err) {
-			err := os.Mkdir(destinaton, os.ModePerm)
+		if _, err := os.Stat(destination); os.IsNotExist(err) {
+			err := os.Mkdir(destination, os.ModePerm)
 			if err != nil {
 				panic(err)
 			}
 		}
-		certname, keyname := config.Generate384Cert(destinaton, basename, duration, certHosts)
+		certname, keyname := config.Generate384Cert(destination, basename, duration, certHosts)
+
+		certname = strings.Replace(certname, destination, basepath, 1)
+		keyname = strings.Replace(keyname, destination, basepath, 1)
 
 		WriteSampleConfig("tdns.yaml", certname, keyname)
 		abs, _ := os.Executable()
-		createUnit(abs, path.Join(basepath, "etc"), path.Join(destinaton, "tdns.service"))
+		createUnit(abs, path.Join(basepath, "etc"), path.Join(destination, "tdns.service"))
 	},
 }
 
@@ -72,7 +80,7 @@ func init() {
 	configCmd.PersistentFlags().StringSliceVarP(&certHosts, "hosts", "H", []string{"127.0.0.1", "localhost"}, "Certificate host.")
 	configCmd.PersistentFlags().StringVarP(&basename, "basename", "b", "tdns_", "basename for the generated certificates.")
 	configCmd.PersistentFlags().StringVarP(&basepath, "basepath", "p", "/etc/tdns", "basepath for the generated config.")
-	configCmd.PersistentFlags().StringVarP(&destinaton, "output-dir", "o", "", "basepath for the generated config.")
+	configCmd.PersistentFlags().StringVarP(&destination, "output-dir", "o", "", "basepath for the generated config.")
 	configCmd.PersistentFlags().StringVarP(&dnsListen, "listendns", "l", ":53", "Listen addr for DNS")
 	configCmd.PersistentFlags().StringVarP(&apiListen, "listenapi", "a", ":8443", "Listen addr for rest API")
 
@@ -82,7 +90,7 @@ func init() {
 }
 
 func WriteSampleConfig(fname, cert, key string) {
-	logger := log.GetLogger("config", "writesampleconfig")
+	logger := log.GetLogger("config", "WriteSampleConfig")
 	c := newConf()
 	k := config.GenKey()
 	c.Server.SigningKey = base64.StdEncoding.EncodeToString(*k)
@@ -97,7 +105,7 @@ func WriteSampleConfig(fname, cert, key string) {
 	c.Server.APIKeyFile = key
 	c.Client.CAcert = cert
 
-	yamlOut, err := os.Create(path.Join(destinaton, fname))
+	yamlOut, err := os.Create(path.Join(destination, fname))
 	if err != nil {
 		logger.Fatalf("Failed to open %s for writing: %v", path.Join(basepath, fname), err)
 	}
