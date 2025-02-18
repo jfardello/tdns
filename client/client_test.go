@@ -17,7 +17,7 @@ type FakeClient struct {
 	Fail      bool
 }
 
-func (f *FakeClient) Exchange(m *dns.Msg, server string) (*dns.Msg, time.Duration, error) {
+func (f *FakeClient) Exchange(m *dns.Msg, _ string) (*dns.Msg, time.Duration, error) {
 	time.Sleep(f.Wait)
 	response := new(dns.Msg)
 	domain := m.Question[0].Name

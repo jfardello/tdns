@@ -9,8 +9,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var verbose bool
-var configFile string
+var (
+	ver         *string
+	gitcommit   *string
+	compiledate *string
+	verbose     bool
+	configFile  string
+)
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
@@ -23,7 +28,11 @@ new interfaces like wifi or VPN tun/tap can configure internal network specific 
 servers for its search domains.`,
 }
 
-func Execute() {
+func Execute(version, commit, date string) {
+	ver = &version
+	gitcommit = &commit
+	compiledate = &date
+
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)
@@ -40,5 +49,4 @@ func init() {
 	if verbose {
 		log.SetLevel(logrus.DebugLevel)
 	}
-
 }

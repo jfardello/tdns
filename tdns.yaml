@@ -19,6 +19,7 @@ enable_status: true
 #  - dw.com
 #zenmode_time: 20
 #enable_stubs: true
+loglevel: INFO
 stubs:
   - google.com,udp://8.8.8.8,udp://8.8.4.4
   - google.es,udp://8.8.8.8,udp://8.8.4.4

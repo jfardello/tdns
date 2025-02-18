@@ -2,7 +2,9 @@
  
 **A DNS over TLS forwarder with caching, black hole, and runtime reconfiguration features.**
 
-TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments like public Wi-Fi, VPNs, or 5G services.
+TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and 
+trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments 
+like public Wi-Fi, VPNs, or 5G services.
 
 ## Features
 
@@ -27,17 +29,15 @@ flowchart TD
 
 # Download
 
-Download from here: [releases](https://github.com/jfardllo/tdns/releases) and add it to your `$PATH`, recommended one is `/usr/local/bin` 
+Download from here: [releases](https://github.com/jfardllo/tdns/releases) and add it to your `$PATH`, recommended one 
+is `/usr/local/sbin`. 
 
 
 ## Quick start
 
 ```
-$ curl XXXXX -o ~/bin/tdns && chmod +x ~/bin/tdns
-$ export PATH=$PATH:~/bin
-$ curl http://sbc.io/hosts/hosts -o /tmp/bhole.hosts
-$ sudo tdns serve -f /etc/hosts -b /tmp/bhole.hosts
-
+$ curl XXXXX -o tdns && chmod +x tdns && sudo mv ./tdns /usr/local/sbin/tdns
+$ sudo tdns serve -f /etc/hosts
 ```
 
 ## Install 
@@ -47,8 +47,8 @@ $ sudo tdns serve -f /etc/hosts -b /tmp/bhole.hosts
 The `config` sub-command will generate a sample configuration directory and systemd entry.
 
 ```bash 
-`$ tdns config -o ./sample -path /etc/tdns`
-$ sudo mv ./sample /etc/tdns
+$ sudo tdns config -o /etc/tdns
+$ curl http://sbc.io/hosts/hosts | sudo tee /etc/tdns/bhole.hosts 1>/dev/null 
 $ sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
 $ sudo systemctl config-reload
 $ sudo systemctl start tdns
@@ -60,12 +60,15 @@ $ sudo systemctl start tdns
 $ dig TXT status.tdns.local @127.0.0.1 
 ```
 
-If the service is started, change your local DNS configuration to the address on which TDNS listens (default is 127.0.0.1). Interact with the service using the tdns command (``tdns help``  and ``tdns adm help``).
+If the service is started, change your local DNS configuration to the address on which TDNS listens 
+(default is 127.0.0.1). Interact with the service using the tdns command (``tdns help``  and ``tdns adm help``).
 
 
 ## Getting black hole lists
 
-TDNS uses plain hosts files, usually pointing to 0.0.0.0. Various projects provide quality hosts files. TDNS has been tested with files from stevenblack/hosts. You can test by pulling http://sbc.io/hosts/hosts. TDNS uses standard Unix hosts files, ignoring the IP address and using 0.0.0.0 as the sinkhole.
+TDNS uses plain hosts files, usually pointing to 0.0.0.0. Various projects provide quality hosts files. TDNS has been 
+tested with files from stevenblack/hosts. You can test by pulling http://sbc.io/hosts/hosts. TDNS uses standard Unix 
+hosts files, ignoring the IP address and using 0.0.0.0 as the sinkhole.
 
 ## Upstream format
 
@@ -85,7 +88,8 @@ Configuration files use the upstream concept, which is just a URL, the format is
 
 ## Configuration options
 
-Some configuration options can be set via command line for the tdns serve command. Others can be set via environment variables or configuration files. The override order is CLI, env, then config file.
+Some configuration options can be set via command line for the tdns serve command. Others can be set via environment 
+variables or configuration files. The override order is CLI, env, then config file.
 
 ### server options:
 
@@ -127,7 +131,9 @@ ca_cert:
 
 ## ReST API and tdns client
 
-REST calls require a TLS connection and a JWT token. Tokens can be generated with the tdns adm token command. The server certificate is needed if it is self-signed. The default configuration creates a self-signed certificate and key, similar to those created by:
+REST calls require a TLS connection and a JWT token. Tokens can be generated with the tdns adm token command. 
+The server certificate is needed if it is self-signed. The default configuration creates a self-signed certificate and 
+key, similar to those created by:
 
 ```
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -days 3650 \
@@ -135,6 +141,7 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -days 3650 \
   -addext "subjectAltName=DNS:localhost,DNS:*.example.com,IP:127.0.0.1"
 ```
 
-The connection between the TDNS client and the server is always TLS-based and authorized by a long-lasting JWT token validated with an HMAC signature. You can create such tokens with the ``tdns adm token`` command to control TDNS runtime features remotely, either by issuing REST commands or with the built-in client.
+The connection between the TDNS client and the server is always TLS-based and authorized by a long-lasting JWT token 
+validated with an HMAC signature. You can create such tokens with the ``tdns adm token`` command to control TDNS runtime features remotely, either by issuing REST commands or with the built-in client.
 
 ### TBD: curl example, swagger.

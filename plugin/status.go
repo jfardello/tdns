@@ -16,10 +16,10 @@ type StatusPlugin struct {
 	Since   time.Time
 }
 
-func (sr *StatusPlugin) Config(c config.Config) error {
-	sr.Enabled = c.Status
+func (sc *StatusPlugin) Config(c config.Config) error {
+	sc.Enabled = c.Status
 	if c.Status {
-		sr.Since = time.Now()
+		sc.Since = time.Now()
 		logger := log.GetLogger("Statuslugin", "config")
 		logger.Info("Status plugin starting.")
 		return nil

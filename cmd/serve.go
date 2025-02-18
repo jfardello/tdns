@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"regexp"
+	"strings"
 
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
@@ -20,7 +24,9 @@ var (
 	zenFile         string
 	zenTime         int
 	timeOut         int
-	DefaultUpstream string = "tls://1.1.1.1:853#cloudflare-dns.com"
+	blue            = "\033[34m"
+	reset           = "\033[0m"
+	DefaultUpstream = "tls://1.1.1.1:853#cloudflare-dns.com"
 )
 
 // serveCmd represents the serve command.
@@ -50,14 +56,11 @@ func initConfig() {
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
 
 			logger.Infof("config file not found %v", err)
 			return
-		} else {
-			logger.Error(err)
-			panic(err)
-
 		}
 	}
 	logger.Infof("Loaded config file %s", viper.ConfigFileUsed())
@@ -97,11 +100,13 @@ func init() {
 	viper.SetDefault("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
 	_ = viper.BindPFlag("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime"))
 	_ = viper.BindPFlag("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile"))
+	viper.SetDefault("enable_status", true)
+	viper.SetDefault("loglevel", "INFO")
 
 }
 
 func run() {
-	logger := log.GetLogger("server", "lookup")
+	logger := log.GetLogger("newServer", "lookup")
 	c := &config.Config{}
 	err := viper.Unmarshal(c)
 	if err != nil {
@@ -109,7 +114,26 @@ func run() {
 	}
 	config.SetRunningConfig(c)
 
-	server := server.NewServer(
+	if strings.ToUpper(c.LogLevel) == "INFO" {
+		log.SetLevel(logrus.InfoLevel)
+	} else if strings.ToUpper(c.LogLevel) == "DEBUG" {
+		log.SetLevel(logrus.DebugLevel)
+	} else if strings.ToUpper(c.LogLevel) == "ERROR" {
+		log.SetLevel(logrus.ErrorLevel)
+	}
+	fmt.Print(blue + `
+   __      __          
+  / /_____/ /___  _____
+ / __/ __  / __ \/ ___/
+/ /_/ /_/ / / / (__  ) 
+\__/\__,_/_/ /_/____/  
+`)
+
+	fmt.Printf("\nVersion   : %s\n", *ver)
+	fmt.Printf("Build date: %s\n", *compiledate)
+	fmt.Printf("Git commit: %s\n\n"+reset, *gitcommit)
+
+	newServer := server.NewServer(
 		server.WithStaticResponse(c.StaticReposnsefile),
 		server.WithUpstreams(c.Upstreams),
 		server.WithStubs(c.StubResolverStubs),
@@ -123,15 +147,14 @@ func run() {
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		switch r.Opcode {
 		case dns.OpcodeQuery:
-			m, err := server.Handler(r)
+			m, err := newServer.Handler(r)
 			if err != nil {
 				logger.Errorf("Failed lookup for %s with error: %s\n", r, err.Error())
-
-				dns.HandleFailed(w, r)
+				//dns.HandleFailed(w, r)
 				m := new(dns.Msg)
 				m.SetRcode(r, dns.RcodeServerFailure)
-				// does not matter if this write fails
-				w.WriteMsg(m)
+				// does not matter if this WriteMsg call fails
+				_ = w.WriteMsg(m)
 				logger.Error(err)
 				return
 			}
@@ -154,7 +177,7 @@ func run() {
 	})
 
 	go func() {
-		api.Serve(server)
+		api.Serve(newServer)
 	}()
 
 	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp"}

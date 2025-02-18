@@ -119,8 +119,8 @@ func (s *Server) tryResolve(currentResponse *dns.Msg, pi *PluginIndex, requestMs
 	return currentResponse, false, nil, nil
 }
 
-func (s *Server) StubsToogle(state bool) bool {
-	logger := log.GetLogger("server", "StubsToogle")
+func (s *Server) StubsToggle(state bool) bool {
+	logger := log.GetLogger("server", "StubsToggle")
 	c := config.GetRunningConfig()
 	config.Lock()
 	c.StubResolver = state
@@ -132,8 +132,8 @@ func (s *Server) StubsToogle(state bool) bool {
 	return c.StubResolver
 }
 
-func (s *Server) BholeToogle(state bool) bool {
-	logger := log.GetLogger("server", "BholeToogle")
+func (s *Server) BholeToggle(state bool) bool {
+	logger := log.GetLogger("server", "BholeToggle")
 	c := config.GetRunningConfig()
 	c.BlackHole = state
 	config.SetRunningConfig(c)
@@ -152,7 +152,7 @@ func (s *Server) ClearCache() error {
 
 func (s *Server) resolve(m *dns.Msg) (*dns.Msg, error) {
 	logger := log.GetLogger("Server", "resolve")
-	logger.Infof("Asking uppstream %s for %s", s.defaultUpstream.Upstreams[0].Address, m.Question[0].Name)
+	logger.Debugf("Asking uppstream %s for %s", s.defaultUpstream.Upstreams[0].Address, m.Question[0].Name)
 
 	response, _, err := s.defaultUpstream.Resolve(m)
 

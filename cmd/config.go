@@ -80,7 +80,7 @@ func init() {
 	configCmd.PersistentFlags().StringSliceVarP(&certHosts, "hosts", "H", []string{"127.0.0.1", "localhost"}, "Certificate host.")
 	configCmd.PersistentFlags().StringVarP(&basename, "basename", "b", "tdns_", "basename for the generated certificates.")
 	configCmd.PersistentFlags().StringVarP(&basepath, "basepath", "p", "/etc/tdns", "basepath for the generated config.")
-	configCmd.PersistentFlags().StringVarP(&destination, "output-dir", "o", "", "basepath for the generated config.")
+	configCmd.PersistentFlags().StringVarP(&destination, "output-dir", "o", "", "output for the generated config.")
 	configCmd.PersistentFlags().StringVarP(&dnsListen, "listendns", "l", ":53", "Listen addr for DNS")
 	configCmd.PersistentFlags().StringVarP(&apiListen, "listenapi", "a", ":8443", "Listen addr for rest API")
 

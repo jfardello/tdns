@@ -64,7 +64,7 @@ type v1 struct {
 	server *server.Server
 }
 
-func (api *v1) StubToogle(w http.ResponseWriter, r *http.Request) {
+func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 	action := r.PathValue("action")
 	curr := "disabled"
 	var state bool
@@ -74,7 +74,7 @@ func (api *v1) StubToogle(w http.ResponseWriter, r *http.Request) {
 	case "stop":
 		state = false
 	}
-	if api.server.StubsToogle(state) {
+	if api.server.StubsToggle(state) {
 		curr = "enabled"
 	}
 	res := Response{Message: MESSAGE_OK, CurrentStatus: curr, Kind: STUB_RESPONSE_KIND}
@@ -82,7 +82,7 @@ func (api *v1) StubToogle(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (api *v1) BholeToogle(w http.ResponseWriter, r *http.Request) {
+func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
 	action := r.PathValue("action")
 	var state bool
 
@@ -94,7 +94,7 @@ func (api *v1) BholeToogle(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	st := api.server.BholeToogle(state)
+	st := api.server.BholeToggle(state)
 
 	resp := Response{
 		Kind:          BHOLE_RESPONSE_KIND,
@@ -301,8 +301,8 @@ func Serve(dns *server.Server) {
 
 	http.HandleFunc("POST /api/stubs", Require(api.StubReplace, protected))
 	http.HandleFunc("POST /api/zen", Require(api.ZenDomainsReplace, protected))
-	http.HandleFunc("POST /api/stubs/{action}", Require(api.StubToogle, protected))
-	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToogle, protected))
+	http.HandleFunc("POST /api/stubs/{action}", Require(api.StubToggle, protected))
+	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToggle, protected))
 	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResposeToogle, protected))
 	http.HandleFunc("POST /api/zen/start", Require(api.ZenModeStart, protected))
 	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))

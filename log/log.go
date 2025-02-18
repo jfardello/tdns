@@ -13,7 +13,7 @@ func SetLevel(level log.Level) {
 func GetLogger(cmd string, action string) *log.Entry {
 
 	logger := log.WithFields(log.Fields{"entity": cmd, "action": action})
-	logger.Logger.SetLevel(log.DebugLevel)
+	logger.Logger.SetLevel(loggerLevel)
 	//log.SetReportCaller(true)
 	return logger
 
