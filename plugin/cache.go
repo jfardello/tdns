@@ -161,13 +161,14 @@ func (c *Cache) Status() bigcache.Stats {
 }
 
 func NewCache() *Cache {
+	conf := config.GetRunningConfig()
 	cf := bigcache.Config{
 		Shards:           64,
 		HardMaxCacheSize: 32,
 		Verbose:          true,
 		MaxEntrySize:     512,
 		CleanWindow:      1 * time.Minute,
-		LifeWindow:       3 * time.Minute,
+		LifeWindow:       time.Duration(conf.Cache.Ttl) * time.Minute,
 	}
 	c, _ := bigcache.New(context.Background(), cf)
 	return &Cache{
