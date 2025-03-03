@@ -16,11 +16,11 @@ var manageCmd = &cobra.Command{
 	Long:  `Iteract with remote TDNS instances ReST API.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("adm called")
+		initConfig()
 	},
 }
 
 func init() {
-	initConfig()
 	rootCmd.AddCommand(manageCmd)
 
 }

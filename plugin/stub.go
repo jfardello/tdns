@@ -38,7 +38,7 @@ func (sr *StubresolverPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
 				logger.Debugf("Resove %s via server %s", domain, mux.Upstreams[0].Address)
 				response, _, err := mux.Resolve(m)
 				if err != nil {
-					logger.Errorf("HHHHEEEEREE: %s", err.Error())
+					logger.Error(err)
 					return nil, false, nil
 				}
 				return &response.Answer[0], false, nil
@@ -57,12 +57,13 @@ func (sr *StubresolverPlugin) Config(c config.Config) error {
 func (sr *StubresolverPlugin) Replace(m map[string]*client.ClientMux) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
-	sr.Stubs = m
-
+	for each := range m {
+		sr.Stubs[each] = m[each]
+	}
 }
 
 func (sr *StubresolverPlugin) Init() error {
-	stubs, err := ParseStubList(sr.config.StubResolverStubs)
+	stubs, err := ParseStubList(sr.config.StubResolver.Stubs)
 	if err != nil {
 		return err
 	}

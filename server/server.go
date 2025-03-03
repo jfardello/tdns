@@ -123,26 +123,26 @@ func (s *Server) StubsToggle(state bool) bool {
 	logger := log.GetLogger("server", "StubsToggle")
 	c := config.GetRunningConfig()
 	config.Lock()
-	c.StubResolver = state
+	c.StubResolver.Enabled = state
 	config.Unlock()
 	err := s.Plugins["stubresolver"].Config(*c)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	return c.StubResolver
+	return c.StubResolver.Enabled
 }
 
 func (s *Server) BholeToggle(state bool) bool {
 	logger := log.GetLogger("server", "BholeToggle")
 	c := config.GetRunningConfig()
-	c.BlackHole = state
+	c.BlackHole.Enabled = state
 	config.SetRunningConfig(c)
 	err := s.Plugins["blacklist"].Config(*c)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	return c.BlackHole
+	return c.BlackHole.Enabled
 }
 
 func (s *Server) ClearCache() error {

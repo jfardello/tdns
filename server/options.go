@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/jfardello/tdns/config"
 	"time"
 
 	"github.com/armon/go-radix"
@@ -9,8 +10,10 @@ import (
 	"github.com/jfardello/tdns/plugin"
 )
 
-func WithStaticResponse(hostFile string) func(*Server) {
+func WithStaticResponse() func(*Server) {
 
+	c := config.GetRunningConfig()
+	hostFile := c.Static.File
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 		if hostFile != "" {
@@ -92,22 +95,26 @@ func WithStubs(u []string) func(*Server) {
 			EnableStubs: true,
 			Stubs:       stubs,
 		}
+		c := config.GetRunningConfig()
+		err = p.Config(*c)
+		if err != nil {
+			logger.Fatal(err)
+		}
 		err = p.Init()
 		if err != nil {
 			logger.Fatal(err)
 		}
 		n, _ := p.Info()
 		s.Plugins[n] = p
-		logger.Infof("Loaded %d stubs", len(stubs))
+		logger.Infof("Loaded %d stubs", len(p.Stubs))
 	}
 }
 
-func WithBHoleList(holeFile string) func(*Server) {
+func WithBHoleList() func(*Server) {
+	c := config.GetRunningConfig()
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
-		if holeFile != "" {
-			s.Config.BlackHoleFile = holeFile
-
+		if c.BlackHole.File != "" {
 			b := &plugin.BlackListPlugin{
 				Hole: radix.New(),
 			}

@@ -13,6 +13,8 @@ import (
 	"github.com/miekg/dns"
 )
 
+var DefaultStaticFile = "/etc/hosts"
+
 type StaticResponsePlugin struct {
 	hostsFile string
 	Hosts     map[string]string
@@ -20,35 +22,35 @@ type StaticResponsePlugin struct {
 }
 
 func (sr *StaticResponsePlugin) Config(c config.Config) error {
-	sr.Enabled = c.StaticResponse
-	if c.StaticReposnsefile != "" {
+	sr.Enabled = c.Static.Enabled
+	if c.Static.File != "" {
 		logger := log.GetLogger("StaticResponsePlugin", "config")
-		logger.Infof("Using file %s", c.StaticReposnsefile)
-		sr.hostsFile = c.StaticReposnsefile
+		logger.Infof("Using file %s", c.Static.File)
+		sr.hostsFile = c.Static.File
 		return nil
 	}
 	return errors.New("StaticResponseFile is mandatory")
 }
 
-func (sc *StaticResponsePlugin) Init() error {
+func (sr *StaticResponsePlugin) Init() error {
 	logger := log.GetLogger("StaticResponsePlugin", "init")
-	h, err := ReadHosts(sc.hostsFile)
+	h, err := ReadHosts(sr.hostsFile)
 	if err != nil {
 		logger.Error(err)
 		return err
 	}
-	sc.Hosts = h
+	sr.Hosts = h
 	return nil
 }
 
-func (sc *StaticResponsePlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
-	if !sc.Enabled {
+func (sr *StaticResponsePlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
+	if !sr.Enabled {
 		return nil, false, nil
 	}
 
 	domain := m.Question[0].Name
-	//Idealy regexes should be precompiled, but with caching enables this is negligible.
-	for k, v := range sc.Hosts {
+	//Ideally regexes should be precompiled, but with caching enables this is negligible.
+	for k, v := range sr.Hosts {
 		match, _ := regexp.MatchString(k+"\\.", domain)
 		if match {
 			rr, err := dns.NewRR(fmt.Sprintf("%s A %s", domain, v))
@@ -61,7 +63,7 @@ func (sc *StaticResponsePlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
 	return nil, false, nil
 }
 
-func (sc *StaticResponsePlugin) Info() (string, Ptype) {
+func (sr *StaticResponsePlugin) Info() (string, Ptype) {
 	return "staticresponse", PreRouting
 }
 
@@ -70,7 +72,12 @@ func ReadHosts(filePath string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer readFile.Close()
+	defer func(readFile *os.File) {
+		err := readFile.Close()
+		if err != nil {
+
+		}
+	}(readFile)
 	scanner := bufio.NewScanner(readFile)
 	var hosts map[string]string = map[string]string{}
 	for scanner.Scan() {

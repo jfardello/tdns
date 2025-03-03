@@ -26,7 +26,7 @@ var (
 	})
 
 	cache     *Cache
-	cacheInit bool = false
+	cacheInit = false
 )
 
 // GetCache returns the cache singleton.
@@ -66,7 +66,7 @@ func (cs *CacheGet) Run(m *dns.Msg) (*dns.RR, bool, error) {
 func (cs *CacheGet) Info() (string, Ptype) {
 	return "cacheget", PreRouting
 }
-func (cs *CacheGet) Config(c config.Config) error {
+func (cs *CacheGet) Config(_ config.Config) error {
 	return nil
 
 }
@@ -121,7 +121,7 @@ func (c *Cache) Get(k string) (string, bool) {
 
 func (c *Cache) Set(k string, m *dns.Msg) error {
 	if k == "" {
-		//Don't fail if theres no cache key
+		//Don't fail if there is no cache key
 		logger := log.GetLogger("Cache", "Set")
 		logger.Debugf("No cache key, skipping chache phase.")
 		return nil
@@ -132,7 +132,7 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 		return nil
 	}
 
-	//Just cache Anchoss, ivv6 anchors and cnames.
+	//Just cache ipv4/ipv6 anchors and aliases.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
 		return c.backend.Set(k, []byte(t.String()))
 	} else if t, ok := m.Answer[idx].(*dns.CNAME); ok {
@@ -161,7 +161,7 @@ func (c *Cache) Status() bigcache.Stats {
 }
 
 func NewCache() *Cache {
-	config := bigcache.Config{
+	cf := bigcache.Config{
 		Shards:           64,
 		HardMaxCacheSize: 32,
 		Verbose:          true,
@@ -169,7 +169,7 @@ func NewCache() *Cache {
 		CleanWindow:      1 * time.Minute,
 		LifeWindow:       3 * time.Minute,
 	}
-	c, _ := bigcache.New(context.Background(), config)
+	c, _ := bigcache.New(context.Background(), cf)
 	return &Cache{
 		backend: c,
 	}

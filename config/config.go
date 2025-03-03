@@ -15,7 +15,7 @@ func GetRunningConfig() *Config {
 	mu.Lock()
 	defer mu.Unlock()
 	if conf == nil {
-		panic("Unitialized config")
+		panic("Uninitialized config")
 	}
 	conf.Server.loadSigningKey()
 	return conf
@@ -37,25 +37,53 @@ func Unlock() {
 }
 
 type Config struct {
-	Timeout            int      `mapstructure:"timeout" yaml:"timeout,omitempty"`
-	LogLevel           string   `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
-	VerifyTLS          bool     `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
-	EnablAPI           bool     `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
-	Upstreams          []string `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
-	BlackHole          bool     `mapstructure:"enable_blackhole" yaml:"enable_blackhole,omitempty"`
-	BlackHoleFile      string   `mapstructure:"blackhole_file" yaml:"blackhole_file,omitempty"`
-	BlackHoleExempt    []string `mapstructure:"blackhole_exempt" yaml:"blackhole_exempt,omitempty"`
-	StaticResponse     bool     `mapstructure:"enable_static_response" yaml:"enable_static_response,omitempty"`
-	StaticReposnsefile string   `mapstructure:"static_response_file" yaml:"static_response_file,omitempty"`
-	ZenMode            bool     `mapstructure:"enable_zenmode" yaml:"enable_zenmode,omitempty"`
-	ZenModeFile        string   `mapstructure:"zenmode_file" yaml:"zenmode_file,omitempty"`
-	ZenModeDomains     []string `mapstructure:"zenmode_domains" yaml:"zenmode_domains,omitempty"`
-	ZenModeTime        int      `mapstructure:"zenmode_time" yaml:"zenmode_time,omitempty"`
-	Status             bool     `mapstructure:"enable_status" yaml:"enable_status,omitempty"`
-	StubResolver       bool     `mapstructure:"enable_stubs" yaml:"enable_stubs,omitempty"`
-	StubResolverStubs  []string `mapstructure:"stubs" yaml:"stubs,omitempty"`
-	Client             Client   `mapstructure:"client" yaml:"client,omitempty"`
-	Server             Server   `mapstructure:"server" yaml:"server,omitempty"`
+	Timeout   int           `mapstructure:"timeout" yaml:"timeout,omitempty"`
+	LogLevel  string        `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
+	VerifyTLS bool          `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
+	EnableAPI bool          `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
+	Upstreams []string      `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
+	Cache     CacheConf     `mapstructure:"cache" yaml:"enable_cache,omitempty"`
+	BlackHole BlackHoleConf `mapstructure:"blackhole" yaml:"blackhole,omitempty"`
+	Static    StaticConf    `mapstructure:"static" yaml:"static,omitempty"`
+	ZenMode   ZenConfig     `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
+	//todo: implement status expose_stats & expose_uptime
+	Status       StatusConf       `mapstructure:"status" yaml:"status,omitempty"`
+	StubResolver StubResolverConf `mapstructure:"stubs"  yaml:"stubs,omitempty"`
+	Client       Client           `mapstructure:"client" yaml:"client,omitempty"`
+	Server       Server           `mapstructure:"server" yaml:"server,omitempty"`
+}
+
+type CacheConf struct {
+	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
+	Ttl     int  `mapstructure:"ttl" yaml:"ttl"`
+}
+type BlackHoleConf struct {
+	Enabled  bool     `mapstructure:"enabled" yaml:"enabled"`
+	File     string   `mapstructure:"file" yaml:"file"`
+	Excludes []string `mapstructure:"exclude" yaml:"excludes"`
+}
+
+type StaticConf struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
+	File    string `mapstructure:"file" yaml:"file"`
+}
+
+type StatusConf struct {
+	Enabled      bool `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	ExposeUptime bool `mapstructure:"expose_uptime" yaml:"expose_uptime,omitempty"`
+	ExposeStats  bool `mapstructure:"expose_stats" yaml:"expose_stats,omitempty"`
+}
+
+type ZenConfig struct {
+	Enabled bool     `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	File    string   `mapstructure:"file" yaml:"file,omitempty"`
+	Domains []string `mapstructure:"domains" yaml:"domains,omitempty"`
+	Time    int      `mapstructure:"time" yaml:"time,omitempty"`
+}
+
+type StubResolverConf struct {
+	Enabled bool     `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	Stubs   []string `mapstructure:"stubs" yaml:"stubs,omitempty"`
 }
 
 type Client struct {

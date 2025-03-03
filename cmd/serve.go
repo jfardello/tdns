@@ -75,6 +75,7 @@ func initConfig() {
 }
 
 func init() {
+
 	rootCmd.AddCommand(serveCmd)
 	serveCmd.PersistentFlags().StringSliceVarP(&upstream, "upstream", "u", []string{DefaultUpstream}, "default upstream")
 	serveCmd.PersistentFlags().StringSliceVarP(&stubs, "stub", "s", []string{}, "Stubs servers for domains ex: domain.tld,udp://8.8.8.8")
@@ -90,25 +91,27 @@ func init() {
 
 	viper.SetDefault("upstreams", []string{DefaultUpstream})
 	_ = viper.BindPFlag("upstreams", serveCmd.PersistentFlags().Lookup("upstream"))
-	viper.SetDefault("stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
-	_ = viper.BindPFlag("stubs", serveCmd.PersistentFlags().Lookup("stub"))
-	viper.SetDefault("static_response_file", serveCmd.PersistentFlags().Lookup("hosts").DefValue)
+	viper.SetDefault("stubs.config.stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
+	_ = viper.BindPFlag("stubs.config.stubs", serveCmd.PersistentFlags().Lookup("stub"))
+	viper.SetDefault("static.config.file", serveCmd.PersistentFlags().Lookup("hosts").DefValue)
 	_ = viper.BindPFlag("static_response_file", serveCmd.PersistentFlags().Lookup("hosts"))
 	viper.SetDefault("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole").DefValue)
 	_ = viper.BindPFlag("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole"))
-	viper.SetDefault("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile").DefValue)
-	viper.SetDefault("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
-	_ = viper.BindPFlag("zenmode_time", serveCmd.PersistentFlags().Lookup("zentime"))
-	_ = viper.BindPFlag("zenmode_file", serveCmd.PersistentFlags().Lookup("zenfile"))
-	viper.SetDefault("enable_status", true)
+	viper.SetDefault("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile").DefValue)
+	viper.SetDefault("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
+	_ = viper.BindPFlag("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime"))
+	_ = viper.BindPFlag("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile"))
+	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("loglevel", "INFO")
 
 }
 
 func run() {
 	logger := log.GetLogger("newServer", "lookup")
+	logger.Debug("HERE")
 	c := &config.Config{}
 	err := viper.Unmarshal(c)
+	logger.Debugf("HERE c: %#v", c)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -133,11 +136,14 @@ func run() {
 	fmt.Printf("Build date: %s\n", *compiledate)
 	fmt.Printf("Git commit: %s\n\n"+reset, *gitcommit)
 
+	if err != nil {
+		logger.Fatal(err)
+	}
 	newServer := server.NewServer(
-		server.WithStaticResponse(c.StaticReposnsefile),
+		server.WithStaticResponse(),
 		server.WithUpstreams(c.Upstreams),
-		server.WithStubs(c.StubResolverStubs),
-		server.WithBHoleList(c.BlackHoleFile),
+		server.WithStubs(c.StubResolver.Stubs),
+		server.WithBHoleList(),
 		server.WithCacheGet(),
 		server.WithCacheSet(),
 		server.WithZenPlugin(),

@@ -17,8 +17,8 @@ type StatusPlugin struct {
 }
 
 func (sc *StatusPlugin) Config(c config.Config) error {
-	sc.Enabled = c.Status
-	if c.Status {
+	sc.Enabled = c.Status.Enabled
+	if c.Status.Enabled {
 		sc.Since = time.Now()
 		logger := log.GetLogger("Statuslugin", "config")
 		logger.Info("Status plugin starting.")
@@ -39,6 +39,7 @@ func (sc *StatusPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
 	domain := m.Question[0].Name
 	logger := log.GetLogger("StatusPlugin", "resolve")
 	logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
+	//TODO: configure status options.
 	if domain == StatusDefaultDomain && m.Question[0].Qtype == dns.TypeTXT {
 		rr, err := dns.NewRR(fmt.Sprintf(`%s 3600 IN TXT "%s"`, domain, getStatus(sc.Since)))
 		if err != nil {

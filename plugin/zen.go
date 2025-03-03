@@ -14,6 +14,11 @@ import (
 
 const ZENMODE_IP string = "127.0.0.1"
 
+var (
+	DefaultZenTimeMinutes int = 20
+	DefaultZenDomains         = []string{"wwww.instagram.com", "x.com", "www.facebook.com"}
+)
+
 type ZenmodePlugin struct {
 	ZenFile  string
 	enabled  bool
@@ -23,7 +28,7 @@ type ZenmodePlugin struct {
 	Hosts    map[string]string
 }
 
-// Ptype indicates where to hook the plugin.
+// Info ... Ptype indicates where to hook the plugin.
 func (z *ZenmodePlugin) Info() (string, Ptype) {
 	return "zenmode", PreRouting
 }
@@ -41,7 +46,7 @@ func (z *ZenmodePlugin) GetDomains() []string {
 func (z *ZenmodePlugin) Run(m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
 	if z.enabled {
 		domain := m.Question[0].Name
-		//Idealy regexes should be precompiled, but with caching enables this is negligible.
+		//Ideally regexes should be precompiled, but with caching enabled this is negligible.
 		for k, v := range z.Hosts {
 			match, _ := regexp.MatchString(k+"\\.", domain)
 			if match {
@@ -67,15 +72,15 @@ func (z *ZenmodePlugin) Init() error {
 	z.enabled = false
 	z.initDone = true
 	z.Hosts = map[string]string{}
-	if z.c.ZenModeFile != "" {
-		h, err := ReadHosts(z.c.ZenModeFile)
+	if z.c.ZenMode.File != "" {
+		h, err := ReadHosts(z.c.ZenMode.File)
 		if err != nil {
 			logger.Error(err)
 			return err
 		}
 		z.Hosts = h
 	}
-	for _, each := range z.c.ZenModeDomains {
+	for _, each := range z.c.ZenMode.Domains {
 		z.Hosts[each] = "0.0.0.0"
 	}
 	return nil
@@ -83,7 +88,7 @@ func (z *ZenmodePlugin) Init() error {
 
 func (z *ZenmodePlugin) ReplaceDomains(hosts map[string]string) error {
 	if len(hosts) == 0 {
-		return errors.New("Can't replace with an empty map")
+		return errors.New("can't replace with an empty map")
 	}
 	z.Hosts = hosts
 	return nil
@@ -100,9 +105,10 @@ func (z *ZenmodePlugin) Start() {
 	case z.mu <- struct{}{}:
 		// lock acquired
 		z.enabled = true
-		logger.WithFields(logrus.Fields{"action": "start"}).Infof("Starting Zen period (%d) minutes", z.c.ZenModeTime)
+		zt := z.c.ZenMode.Time
+		logger.WithFields(logrus.Fields{"action": "start"}).Infof("Starting Zen period (%d) minutes", zt)
 		go func() {
-			<-time.After(time.Duration(z.c.ZenModeTime) * time.Minute)
+			<-time.After(time.Duration(zt) * time.Minute)
 			z.enabled = false
 			<-z.mu // unlock
 			logger.WithFields(logrus.Fields{"action": "stop"}).Info("Zen period ended")

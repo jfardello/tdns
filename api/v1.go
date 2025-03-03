@@ -120,7 +120,7 @@ func (api *v1) StaticResposeToogle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := config.GetRunningConfig()
-	c.StaticResponse = state
+	c.Static.Enabled = state
 	config.SetRunningConfig(c)
 	err = p.Config(*c)
 	if err != nil {
@@ -208,7 +208,7 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Replacing stubs")
 	st := p.(*plugin.StubresolverPlugin)
 	c := config.GetRunningConfig()
-	c.BlackHoleExempt = stubRequest.Stubs
+	c.BlackHole.Excludes = stubRequest.Stubs
 	config.SetRunningConfig(c)
 	err = st.Config(*c)
 	if err != nil {

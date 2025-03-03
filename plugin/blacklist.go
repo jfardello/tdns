@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	BLACKLIST_ADDR string = "0.0.0.0"
+	BlacklistAddr string = "0.0.0.0"
 )
 
 type None struct{}
@@ -29,7 +29,7 @@ type BlackListPlugin struct {
 	DefaultAddr string
 }
 
-// Ptype indicates where to hook the plugin.
+// Info Ptype indicates where to hook the plugin.
 func (bp *BlackListPlugin) Info() (string, Ptype) {
 	return "blacklist", PreRouting
 }
@@ -59,13 +59,14 @@ func (bp *BlackListPlugin) Run(m *dns.Msg) (rr *dns.RR, cacheSafe bool, err erro
 }
 
 func (bp *BlackListPlugin) Config(c config.Config) error {
-	bp.Enabled = c.BlackHole
-	if c.BlackHoleFile != "" {
-		bp.HoleFile = c.BlackHoleFile
-		bp.WhiteList = c.BlackHoleExempt
+	bp.Enabled = c.BlackHole.Enabled
+	bf := c.BlackHole.File
+	if bf != "" {
+		bp.HoleFile = bf
+		bp.WhiteList = c.BlackHole.Excludes
 		return nil
 	}
-	bp.DefaultAddr = BLACKLIST_ADDR
+	bp.DefaultAddr = BlacklistAddr
 	return errors.New("BlackholeFile is mandatory")
 }
 
@@ -75,7 +76,13 @@ func (bp *BlackListPlugin) Init() error {
 	if err != nil {
 		return err
 	}
-	defer readFile.Close()
+	defer func(readFile *os.File) {
+		err := readFile.Close()
+		if err != nil {
+			logger := log.GetLogger("blacklist", "Init/deferred")
+			logger.Errorf("Error closing file %s: %s", bp.HoleFile, err.Error())
+		}
+	}(readFile)
 	scanner := bufio.NewScanner(readFile)
 OUTER:
 	for scanner.Scan() {

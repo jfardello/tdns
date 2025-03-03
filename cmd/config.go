@@ -122,17 +122,25 @@ func WriteSampleConfig(fname, cert, key string) {
 
 func newConf() *config.Config {
 	c := &config.Config{
-		Timeout:            1000,
-		VerifyTLS:          true,
-		Upstreams:          []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
-		BlackHole:          true,
-		BlackHoleFile:      path.Join(basepath, "bhole.hosts"),
-		StaticResponse:     true,
-		StaticReposnsefile: path.Join(basepath, "static.hosts"),
-		ZenMode:            true,
-		ZenModeDomains:     []string{"facebook.com", "x.com", "instagram.com"},
-		ZenModeTime:        20,
-		StubResolver:       true,
+		Timeout:   1000,
+		VerifyTLS: true,
+		Upstreams: []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
+		BlackHole: config.BlackHoleConf{
+			Enabled: true,
+			File:    "fixtures/bhole_testfile",
+		},
+		Static: config.StaticConf{
+			Enabled: true,
+			File:    "fixtures/hosts_testfile",
+		},
+		ZenMode: config.ZenConfig{
+			Enabled: true,
+			Domains: []string{"x.com"},
+			Time:    20,
+		},
+		StubResolver: config.StubResolverConf{Enabled: true,
+			Stubs: []string{"google.com,udp://8.8.8.8"},
+		},
 		Server: config.Server{
 			ListenAddr:  dnsListen,
 			APIAddr:     apiListen,
