@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"github.com/jfardello/tdns/config"
 	"github.com/miekg/dns"
 )
@@ -14,7 +15,7 @@ const (
 )
 
 type Plugin interface {
-	Run(*dns.Msg) (*dns.RR, bool, error)
+	Run(context.Context, *dns.Msg) (*dns.RR, bool, error)
 	Info() (string, Ptype)
 	Config(config.Config) error
 	Init() error

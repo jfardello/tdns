@@ -44,7 +44,7 @@ type CacheGet struct {
 	cache *Cache
 }
 
-func (cs *CacheGet) Run(m *dns.Msg) (*dns.RR, bool, error) {
+func (cs *CacheGet) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 	logger := log.GetLogger("CacheGet", "Run")
 	q := m.Question[0]
 	r, err := cs.cache.backend.Get(cache.Key(&q))
@@ -79,10 +79,10 @@ type CacheSet struct {
 	cache *Cache
 }
 
-func (cs *CacheSet) Run(m *dns.Msg) (*dns.RR, bool, error) {
-	logger := log.GetLogger("CacheSet", "Run")
+func (cs *CacheSet) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+	logger := log.GetLogger("DNSLog", "Run")
 	if m.Rcode == dns.RcodeSuccess {
-		if len(m.Question) > 0 {
+		if m.Response && len(m.Answer) > 0 {
 			q := m.Question[0]
 			logger.Debugf("Setting cache for %s, key: %s", q.Name, cache.Key(&q))
 			err := cache.Set(cache.Key(&q), m)
@@ -120,9 +120,9 @@ func (c *Cache) Get(k string) (string, bool) {
 }
 
 func (c *Cache) Set(k string, m *dns.Msg) error {
+	logger := log.GetLogger("Cache", "Set")
 	if k == "" {
 		//Don't fail if there is no cache key
-		logger := log.GetLogger("Cache", "Set")
 		logger.Debugf("No cache key, skipping chache phase.")
 		return nil
 	}
@@ -134,10 +134,13 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 
 	//Just cache ipv4/ipv6 anchors and aliases.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
+		logger.Debugf("Seting cache for %s", k)
 		return c.backend.Set(k, []byte(t.String()))
 	} else if t, ok := m.Answer[idx].(*dns.CNAME); ok {
+		logger.Debugf("Seting cache for %s", k)
 		return c.backend.Set(k, []byte(t.String()))
 	} else if t, ok := m.Answer[idx].(*dns.AAAA); ok {
+		logger.Debugf("Seting cache for %s", k)
 		return c.backend.Set(k, []byte(t.String()))
 	}
 	return nil

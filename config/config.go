@@ -3,10 +3,17 @@ package config
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"net"
 	"sync"
 
 	"github.com/jfardello/tdns/log"
 )
+
+var CtxKey = "values"
+
+type CtxValue struct {
+	RemoteAddr net.Addr
+}
 
 var mu sync.Mutex
 var conf *Config
@@ -54,8 +61,8 @@ type Config struct {
 }
 
 type CacheConf struct {
-	Enabled bool `mapstructure:"enabled" yaml:"enabled"`
-	Ttl     int  `mapstructure:"ttl" yaml:"ttl"`
+	Enabled bool `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
+	Ttl     int  `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
 }
 type BlackHoleConf struct {
 	Enabled  bool     `mapstructure:"enabled" yaml:"enabled"`

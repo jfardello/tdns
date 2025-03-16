@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -32,15 +33,15 @@ func (sc *StatusPlugin) Init() error {
 	return nil
 }
 
-func (sc *StatusPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
+func (sc *StatusPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 	if !sc.Enabled {
 		return nil, false, nil
 	}
 	domain := m.Question[0].Name
 	logger := log.GetLogger("StatusPlugin", "resolve")
-	logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
 	//TODO: configure status options.
 	if domain == StatusDefaultDomain && m.Question[0].Qtype == dns.TypeTXT {
+		logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
 		rr, err := dns.NewRR(fmt.Sprintf(`%s 3600 IN TXT "%s"`, domain, getStatus(sc.Since)))
 		if err != nil {
 			return nil, false, err

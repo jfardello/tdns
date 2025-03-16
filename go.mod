@@ -6,6 +6,8 @@ require (
 	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/armon/go-radix v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/miekg/dns v1.1.58
 	github.com/prometheus/client_golang v1.18.0
 	github.com/sirupsen/logrus v1.9.3

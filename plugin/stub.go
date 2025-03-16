@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"regexp"
 	"strings"
 	"sync"
@@ -23,7 +24,7 @@ func (sr *StubresolverPlugin) Info() (string, Ptype) {
 	return "stubresolver", Resolving
 }
 
-func (sr *StubresolverPlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
+func (sr *StubresolverPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 	logger := log.GetLogger("plugin", "StubResolver")
 	domain := m.Question[0].Name
 

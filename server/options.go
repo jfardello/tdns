@@ -82,6 +82,26 @@ func WithUpstreams(u []string) func(*Server) {
 	}
 }
 
+func WithDNSLog() func(*Server) {
+	return func(s *Server) {
+		logger := log.GetLogger("serve", "config")
+		dl := &plugin.DNSLog{}
+		err := dl.Config(s.Config)
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		err = dl.Init()
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		n, _ := dl.Info()
+		logger.Debugf("About to add dnslog to plug resitry: %#v", dl)
+		s.Plugins[n] = dl
+	}
+}
+
 func WithStubs(u []string) func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")

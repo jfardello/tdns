@@ -148,12 +148,13 @@ func run() {
 		server.WithCacheSet(),
 		server.WithZenPlugin(),
 		server.WithStatus(),
+		server.WithDNSLog(),
 	)
 
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		switch r.Opcode {
 		case dns.OpcodeQuery:
-			m, err := newServer.Handler(r)
+			m, err := newServer.Handler(r, w.RemoteAddr())
 			if err != nil {
 				logger.Errorf("Failed lookup for %s with error: %s\n", r, err.Error())
 				//dns.HandleFailed(w, r)

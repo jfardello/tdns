@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -35,7 +36,7 @@ func (bp *BlackListPlugin) Info() (string, Ptype) {
 }
 
 // Run performs the plugin logic, returns a resource record, a cache flag, and an error indicating failiure.
-func (bp *BlackListPlugin) Run(m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
+func (bp *BlackListPlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
 	logger := log.GetLogger("plugin", "BHole")
 	if !bp.Enabled {
 		logger.Debug("Blackhole disabled.")

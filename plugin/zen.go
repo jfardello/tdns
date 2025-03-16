@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -43,7 +44,7 @@ func (z *ZenmodePlugin) GetDomains() []string {
 }
 
 // Run performs the plugin logic, returns a resource record, a cache flag, and an error indicating failiure.
-func (z *ZenmodePlugin) Run(m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
+func (z *ZenmodePlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
 	if z.enabled {
 		domain := m.Question[0].Name
 		//Ideally regexes should be precompiled, but with caching enabled this is negligible.

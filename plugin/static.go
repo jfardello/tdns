@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -43,7 +44,7 @@ func (sr *StaticResponsePlugin) Init() error {
 	return nil
 }
 
-func (sr *StaticResponsePlugin) Run(m *dns.Msg) (*dns.RR, bool, error) {
+func (sr *StaticResponsePlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 	if !sr.Enabled {
 		return nil, false, nil
 	}

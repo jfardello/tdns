@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/plugin"
 	"github.com/miekg/dns"
+	"net"
 )
 
 type Server struct {
@@ -21,10 +23,14 @@ type PluginIndex struct {
 	postRouting []string
 }
 
-func (s *Server) Handler(requestMsg *dns.Msg) (*dns.Msg, error) {
+func (s *Server) Handler(requestMsg *dns.Msg, remoteAddr net.Addr) (*dns.Msg, error) {
+	v := config.CtxValue{RemoteAddr: remoteAddr}
+	ctx := context.WithValue(context.Background(), config.CtxKey, v)
+
+	//TODO: pass down remoteAddr to process() and also plugin.Run
 	responseMsg := new(dns.Msg)
 	if len(requestMsg.Question) > 0 {
-		return s.process(requestMsg)
+		return s.process(ctx, requestMsg)
 	}
 	return responseMsg, nil
 }
@@ -56,13 +62,12 @@ func answerMsg(r *dns.RR) *dns.Msg {
 
 }
 
-func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
+func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, error) {
 	pi := s.getIndexes()
-
 	//Handle Prerouting
 	var currentResponse *dns.Msg
 	for _, p := range pi.preRouting {
-		rr, _, err := s.Plugins[p].Run(requestMsg)
+		rr, _, err := s.Plugins[p].Run(ctx, requestMsg)
 		if err != nil {
 			continue
 		}
@@ -72,9 +77,9 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 		}
 	}
 	//If we didn't resolve at preRouting time, then try resolving plugins.
-	currentResponse, shouldReturn, returnValue, returnValue1 := s.tryResolve(currentResponse, pi, requestMsg)
+	currentResponse, shouldReturn, returnValue, err1 := s.tryResolve(ctx, currentResponse, pi, requestMsg)
 	if shouldReturn {
-		return returnValue, returnValue1
+		return returnValue, err1
 	}
 
 	//no response from resolving plugins, just resolve with the default upstream.
@@ -90,11 +95,11 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 	}
 
 	for _, p := range pi.postRouting {
-		_, _, err := s.Plugins[p].Run(currentResponse)
+		_, _, err := s.Plugins[p].Run(ctx, currentResponse)
 		if err != nil {
 			logger := log.GetLogger("Server", "post-process")
 			name, _ := s.Plugins[p].Info()
-			logger.Debugf("Pluggin [%s] returning err : %s", name, err.Error())
+			logger.Debugf("Plugin [%s] returning err : %s", name, err.Error())
 		}
 
 	}
@@ -103,10 +108,10 @@ func (s *Server) process(requestMsg *dns.Msg) (*dns.Msg, error) {
 }
 
 // try resolving plugins.
-func (s *Server) tryResolve(currentResponse *dns.Msg, pi *PluginIndex, requestMsg *dns.Msg) (*dns.Msg, bool, *dns.Msg, error) {
+func (s *Server) tryResolve(ctx context.Context, currentResponse *dns.Msg, pi *PluginIndex, requestMsg *dns.Msg) (*dns.Msg, bool, *dns.Msg, error) {
 	if currentResponse == nil {
 		for _, p := range pi.resolving {
-			rr, _, err := s.Plugins[p].Run(requestMsg)
+			rr, _, err := s.Plugins[p].Run(ctx, requestMsg)
 			if err != nil {
 				return nil, true, nil, err
 			}
