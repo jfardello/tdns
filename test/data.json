@@ -1,0 +1,107 @@
+{
+  "test": [
+    {
+      "domains": [
+        "google.com",
+        "root-servers.net",
+        "googleapis.com",
+        "apple.com",
+        "gstatic.com",
+        "cloudflare.com",
+        "facebook.com",
+        "microsoft.com",
+        "amazonaws.com",
+        "googlevideo.com",
+        "tiktokcdn.com",
+        "fbcdn.net",
+        "whatsapp.net",
+        "doubleclick.net",
+        "youtube.com",
+        "instagram.com"
+      ]
+    },
+    {
+      "domains": [
+        "googleusercontent.com",
+        "akamai.net",
+        "cloudfront.net",
+        "live.com",
+        "ntp.org",
+        "googlesyndication.com",
+        "tiktokv.com",
+        "cloudflare-dns.com",
+        "akamaiedge.net",
+        "gvt2.com",
+        "aaplimg.com",
+        "bing.com",
+        "cdninstagram.com",
+        "netflix.com",
+        "ytimg.com",
+        "cdn77.org"
+      ]
+    },
+    {
+      "domains": [
+        "yahoo.com",
+        "tiktokrow-cdn.com",
+        "googleadservices.com",
+        "samsung.com",
+        "google-analytics.com",
+        "cdn20.com",
+        "dns.google",
+        "snapchat.com",
+        "app-analytics-services.com",
+        "one.one",
+        "envisioncn.com",
+        "fastly.net",
+        "amazon-adsystem.com",
+        "applovin.com",
+        "msftncsi.com"
+      ]
+    },
+    {
+      "domains": [
+        "unity3d.com",
+        "googletagmanager.com",
+        "wikipedia.org",
+        "msn.com",
+        "ui.com",
+        "azure.com",
+        "appsflyersdk.com",
+        "rocket-cdn.com",
+        "apple-dns.net",
+        "icloud.com",
+        "akadns.net",
+        "bytefcdn-oversea.com",
+        "gvt1.com",
+        "office.com",
+        "trafficmanager.net",
+        "app-measurement.com"
+      ]
+    },
+    {
+      "domains": [
+        "ggpht.com",
+        "roblox.com",
+        "skype.com",
+        "linkedin.com",
+        "steamserver.net",
+        "baidu.com",
+        "ttlivecdn.com",
+        "office.net",
+        "tiktokcdn-us.com",
+        "sentry.io",
+        "rubiconproject.com",
+        "a2z.com",
+        "microsoftonline.com",
+        "adnxs.com",
+        "windows.net",
+        "spotify.com",
+        "amazon.com",
+        "criteo.com"
+      ]
+    }
+  ]
+}
+
+

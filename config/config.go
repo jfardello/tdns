@@ -54,10 +54,16 @@ type Config struct {
 	Static    StaticConf    `mapstructure:"static" yaml:"static,omitempty"`
 	ZenMode   ZenConfig     `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
 	//todo: implement status expose_stats & expose_uptime
+	DNSLog       DNSLogConf       `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
 	Status       StatusConf       `mapstructure:"status" yaml:"status,omitempty"`
 	StubResolver StubResolverConf `mapstructure:"stubs"  yaml:"stubs,omitempty"`
 	Client       Client           `mapstructure:"client" yaml:"client,omitempty"`
 	Server       Server           `mapstructure:"server" yaml:"server,omitempty"`
+}
+
+type DNSLogConf struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	File    string `mapstructure:"file" yaml:"file"`
 }
 
 type CacheConf struct {

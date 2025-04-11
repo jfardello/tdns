@@ -102,6 +102,9 @@ func init() {
 	_ = viper.BindPFlag("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime"))
 	_ = viper.BindPFlag("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile"))
 	viper.SetDefault("status.enabled", true)
+	viper.SetDefault("dns_log.enabled", true)
+	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
+
 	viper.SetDefault("loglevel", "INFO")
 
 }

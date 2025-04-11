@@ -5,6 +5,9 @@ loglevel: DEBUG
 upstreams:
   - tls://1.1.1.1:853#cloudflare-dns.com
   - tls://1.0.0.1:853#cloudflare-dns.com
+dns_log:
+  enabled: true
+  file: /tmp/tdns.sqlite
 blackhole:
   enable: true
   file: ./fixtures/bhole_testfile

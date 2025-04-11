@@ -6,6 +6,8 @@ import (
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/miekg/dns"
+	"net"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -60,6 +62,7 @@ type LogEvent struct {
 	Msg       *dns.Msg
 }
 
+
 type DNSLog struct {
 	db *sqlx.DB
 
@@ -67,7 +70,9 @@ type DNSLog struct {
 	done         chan bool
 	mustExit     chan bool
 	full         chan bool
-	incomingData chan interface{}
+	incomingData chan LogEvent
+	queue        []LogEvent
+	mu           sync.Mutex
 }
 
 func (cs *DNSLog) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
@@ -79,21 +84,14 @@ func (cs *DNSLog) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 			CtxValue:  cv,
 			Msg:       m,
 		})
-		if m.MsgHdr.Rcode == dns.RcodeSuccess {
-			logger.Debugf("Client : %#v domain: %s, result: %#v", cv.RemoteAddr.String(), m.Answer[0].Header().Name, m.Answer[0])
-			return nil, false, nil
-		}
-		//So its is a question
-		logger.Debugf("Client : %#v, Domain: %s, Error: %s", cv.RemoteAddr.String(), m.Question[0].Name, DNSErrorString(m.MsgHdr.Rcode))
-
 	} else {
-		logger.Debugf("Domain: %#v", m)
+		logger.Debugf("#### Domain: %#v", m)
 	}
 
 	return nil, false, nil
 }
 
-func (cs *DNSLog) Append(d interface{}) {
+func (cs *DNSLog) Append(d LogEvent) {
 	if !cs.put(d) {
 		//Notify that buffer is full
 		//<- will wait until space available
@@ -102,7 +100,7 @@ func (cs *DNSLog) Append(d interface{}) {
 	}
 }
 
-func (cs *DNSLog) put(d interface{}) bool {
+func (cs *DNSLog) put(d LogEvent) bool {
 	//Try to append the data
 	//If channel is full, do nothing, then return false
 	select {
@@ -116,53 +114,62 @@ func (cs *DNSLog) put(d interface{}) bool {
 
 func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
 	//Extract details from CtxValue and Msg
-	var domain string
-	var ok bool
-	logger := log.GetLogger("DNSLog", "Run")
+	domain := m.Question[0].Name
+	ok := false
+	logger := log.GetLogger("DNSLog", "getEventDomain")
 	logger.Debugf("Getting  message: %#v", m)
 	if m.MsgHdr.Rcode == dns.RcodeSuccess {
-		domain = m.Answer[0].Header().Name
-		ok = true
-	} else {
-		domain = m.Question[0].Name
-		ok = false
+		if len(m.Answer) > 0 {
+			domain = m.Answer[0].Header().Name
+			ok = true
+		}
 	}
-	return c.RemoteAddr.String(), domain, ok
+	var remote string
+	switch addr := c.RemoteAddr.(type) {
+	case *net.UDPAddr:
+		remote = addr.IP.String()
+	case *net.TCPAddr:
+		remote = addr.IP.String()
+	}
+	return remote, domain, ok
 }
 
 func (cs *DNSLog) doInsert() {
 	logger := log.GetLogger("DNSLog", "doInsert")
 	logger.Debugf("dnslog: %#v", cs)
-	tx, err := cs.db.Begin()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	inserted := false
-	for data := range cs.incomingData {
-		logEvent, ok := data.(LogEvent)
-		if !ok {
-			logger.Error("Incoming message is not a dns.Msg")
-			continue
+	if len(cs.queue) > 0 {
+		tx, err := cs.db.Begin()
+		if err != nil {
+			logger.Fatal(err)
 		}
-		logger.Debugf("Incoming message: %#v", logEvent)
-		client, domain, _ := getEventDomain(logEvent.CtxValue, logEvent.Msg)
-		cs.db.MustExec("INSERT INTO tdnslog (dt, client, domain) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?)",
-			logEvent.Timestamp.UTC().UnixNano(), client, domain)
-		inserted = true
+		cs.mu.Lock()
+		for _, logEvent := range cs.queue {
+			logger.Debugf("Incoming message: %#v", logEvent)
+			client, domain, _ := getEventDomain(logEvent.CtxValue, logEvent.Msg)
+			cs.db.MustExec("INSERT INTO tdnslog (dt, client, domain) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?)",
+				logEvent.Timestamp.UTC().UnixNano(), client, domain)
 
-	}
-	if inserted {
+		}
 		err = tx.Commit()
 		if err != nil {
 			logger.Fatal(err)
 		}
-		return
+		cs.queue = nil
+		cs.mu.Unlock()
 	}
-	err = tx.Rollback()
-	if err != nil {
-		logger.Fatal(err)
-	}
+}
 
+func (cs *DNSLog) append() {
+	for {
+		logEvent, closed := <-cs.incomingData
+		if !closed {
+			return
+		}
+
+		cs.mu.Lock()
+		cs.queue = append(cs.queue, logEvent)
+		cs.mu.Unlock()
+	}
 }
 
 func (cs *DNSLog) runAsync() {
@@ -198,12 +205,15 @@ func (cs *DNSLog) runAsync() {
 func (cs *DNSLog) Info() (string, Ptype) {
 	return "dnslog", PostRouting
 }
-func (cs *DNSLog) Config(_ config.Config) error {
+func (cs *DNSLog) Config(cf config.Config) error {
+	if !cf.DNSLog.Enabled {
+		return nil
+	}
 	logger := log.GetLogger("DNSLog", "Config")
 	logger.Debug(">>>> Calling config!")
 	//connect to db
 	var err error
-	cs.db, err = sqlx.Open("sqlite3", "/tmp/tdns.db")
+	cs.db, err = sqlx.Open("sqlite3", cf.DNSLog.File)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -221,7 +231,7 @@ func (cs *DNSLog) Config(_ config.Config) error {
 		return err
 	}
 
-	cs.incomingData = make(chan interface{}, 200)
+	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second
 	cs.full = make(chan bool)
 	cs.done = make(chan bool, 1)
@@ -232,6 +242,7 @@ func (cs *DNSLog) Config(_ config.Config) error {
 }
 
 func (cs *DNSLog) Init() error {
+	go cs.append()
 	go cs.runAsync()
 	return nil
 }
