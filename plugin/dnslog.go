@@ -62,7 +62,6 @@ type LogEvent struct {
 	Msg       *dns.Msg
 }
 
-
 type DNSLog struct {
 	db *sqlx.DB
 
@@ -145,6 +144,7 @@ func (cs *DNSLog) doInsert() {
 		cs.mu.Lock()
 		for _, logEvent := range cs.queue {
 			logger.Debugf("Incoming message: %#v", logEvent)
+			logger.Debugf("  Message unix nano: %d", logEvent.Timestamp.UTC().UnixNano())
 			client, domain, _ := getEventDomain(logEvent.CtxValue, logEvent.Msg)
 			cs.db.MustExec("INSERT INTO tdnslog (dt, client, domain) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?)",
 				logEvent.Timestamp.UTC().UnixNano(), client, domain)
@@ -222,11 +222,16 @@ func (cs *DNSLog) Config(cf config.Config) error {
 	// Create logs table if not exists
 	schema := `create table if not exists tdnslog ( dt INTEGER primary key autoincrement, domain  TEXT, client  TEXT, blocked INT default 0);`
 	schemaHosts := `create table if not exists hosts ( ipAddr TEXT not null constraint hosts_pk primary key, host   text );`
+	sqlSequence := `INSERT into sqlite_sequence (seq,name) VALUES (0, 'tdnslog');`
 	if _, err := cs.db.Exec(schema); err != nil {
 		logger.Error(err)
 		return err
 	}
 	if _, err := cs.db.Exec(schemaHosts); err != nil {
+		logger.Error(err)
+		return err
+	}
+	if _, err := cs.db.Exec(sqlSequence); err != nil {
 		logger.Error(err)
 		return err
 	}

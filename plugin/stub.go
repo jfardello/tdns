@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
@@ -77,7 +78,8 @@ func ParseStubList(s []string) (map[string]*client.ClientMux, error) {
 	for _, each := range s {
 		splitted := strings.Split(each, ",")
 		servers := splitted[1:]
-		mux := client.NewClientMux(servers)
+		//TODO: fix hardcoded value
+		mux := client.NewClientMux(servers, client.WithGlobalTimeout(1000*time.Millisecond))
 		stubs[splitted[0]] = mux
 	}
 	return stubs, nil
