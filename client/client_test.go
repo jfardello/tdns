@@ -49,7 +49,7 @@ type resolveStruct struct {
 	name    string
 	query   string
 	want    string
-	mux     ClientMux
+	mux     Mux
 	wantErr bool
 }
 
@@ -59,7 +59,7 @@ func TestClientMux_Resolve(t *testing.T) {
 	client2 := GetFakeClient(FStore{"foo.tld.": "127.0.0.99", "bar.tld.": "127.0.0.3"}, 5, false)
 	client3 := GetFakeClient(FStore{"foo.tld.": "127.0.0.99", "bar.tld.": "127.0.0.3"}, 90*time.Millisecond, true)
 
-	mux1 := &ClientMux{
+	mux1 := &Mux{
 		Upstreams: []*Upstream{
 			{
 				NetType: NetTLS,
@@ -75,7 +75,7 @@ func TestClientMux_Resolve(t *testing.T) {
 		globalTimeout: 120 * time.Millisecond,
 	}
 
-	mux2 := &ClientMux{
+	mux2 := &Mux{
 		Upstreams: []*Upstream{
 			{
 				NetType: NetTLS,
@@ -131,8 +131,8 @@ func TestNewClientMux(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewClientMux(tt.args.servers, tt.args.opts...)
-			if got.Upstreams[0].Timemout != tt.want {
-				t.Errorf("ClientMux.upstreams[0].Timemout = %v, want %v", got, tt.want)
+			if got.Upstreams[0].Timeout != tt.want {
+				t.Errorf("ClientMux.upstreams[0].Timeout = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -196,7 +196,7 @@ func TestClientMuxSRVFail(t *testing.T) {
 	client1 := GetFakeClient(FStore{"foo.tld.": "127.0.0.2", "bar.tld.": "127.0.0.1"}, 0, true) //fail will jump to the next upstream.
 	client2 := GetFakeClient(FStore{"foo.tld.": "127.0.0.99", "bar.tld.": "127.0.0.3"}, 0, false)
 
-	mux1 := &ClientMux{
+	mux1 := &Mux{
 		Upstreams: []*Upstream{
 			{
 				NetType: NetTLS,
@@ -215,7 +215,7 @@ func TestClientMuxSRVFail(t *testing.T) {
 		name    string
 		query   string
 		want    string
-		mux     ClientMux
+		mux     Mux
 		wantErr bool
 	}{
 		{name: "test1", query: "foo.tld.", mux: *mux1, want: "127.0.0.99"},

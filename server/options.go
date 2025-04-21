@@ -10,6 +10,8 @@ import (
 	"github.com/jfardello/tdns/plugin"
 )
 
+var DEFAULT_TIMEOUT_MILLIS int = 1000
+
 func WithStaticResponse() func(*Server) {
 
 	c := config.GetRunningConfig()
@@ -74,10 +76,10 @@ func WithZenPlugin() func(*Server) {
 }
 
 func WithUpstreams(u []string) func(*Server) {
+
 	return func(s *Server) {
 		ds := client.NewClientMux(u,
-			//TODO: Fix hardcoded values
-			client.WithMuxUpstreamOptions(client.WithTimeout(1000*time.Millisecond)),
+			client.WithMuxUpstreamOptions(client.WithTimeout(300*time.Millisecond)),
 			client.WithGlobalTimeout(1000*time.Millisecond))
 		s.defaultUpstream = *ds
 	}
@@ -105,11 +107,11 @@ func WithDNSLog() func(*Server) {
 	}
 }
 
-func WithStubs(u []string) func(*Server) {
+func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 
-		stubs, err := plugin.ParseStubList(u)
+		stubs, err := plugin.ParseStubList(u, globalTimeOut, upstreamTimeout)
 		if err != nil {
 			logger.Errorf("Malformed stub strings: %#v", u)
 			return

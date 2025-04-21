@@ -44,15 +44,16 @@ func Unlock() {
 }
 
 type Config struct {
-	Timeout   int           `mapstructure:"timeout" yaml:"timeout,omitempty"`
-	LogLevel  string        `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
-	VerifyTLS bool          `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
-	EnableAPI bool          `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
-	Upstreams []string      `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
-	Cache     CacheConf     `mapstructure:"cache" yaml:"enable_cache,omitempty"`
-	BlackHole BlackHoleConf `mapstructure:"blackhole" yaml:"blackhole,omitempty"`
-	Static    StaticConf    `mapstructure:"static" yaml:"static,omitempty"`
-	ZenMode   ZenConfig     `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
+	Timeout         int           `mapstructure:"timeout" yaml:"timeout,omitempty"`
+	UpstreamTimeout int           `mapstructure:"upstream_timeout" yaml:"timeout,omitempty"`
+	LogLevel        string        `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
+	VerifyTLS       bool          `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
+	EnableAPI       bool          `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
+	Upstreams       []string      `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
+	Cache           CacheConf     `mapstructure:"cache" yaml:"enable_cache,omitempty"`
+	BlackHole       BlackHoleConf `mapstructure:"blackhole" yaml:"blackhole,omitempty"`
+	Static          StaticConf    `mapstructure:"static" yaml:"static,omitempty"`
+	ZenMode         ZenConfig     `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
 	//todo: implement status expose_stats & expose_uptime
 	DNSLog       DNSLogConf       `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
 	Status       StatusConf       `mapstructure:"status" yaml:"status,omitempty"`

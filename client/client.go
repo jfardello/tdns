@@ -28,8 +28,8 @@ type Upstream struct {
 	Address string
 	TLSName string
 	//Exchanger interface helps mocking the client in unittests.
-	Client   Exchanger
-	Timemout time.Duration
+	Client  Exchanger
+	Timeout time.Duration
 }
 
 func (u *Upstream) BuildClient() {
@@ -46,7 +46,7 @@ func (u *Upstream) BuildClient() {
 	}
 	if u.TLSName != "" {
 
-		u.Client = &dns.Client{Net: stype, Timeout: u.Timemout, TLSConfig: &tls.Config{
+		u.Client = &dns.Client{Net: stype, Timeout: u.Timeout, TLSConfig: &tls.Config{
 			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 				logger.Debugf("Verifying host name: %s", u.TLSName)
 				for _, rawCert := range rawCerts {
@@ -59,25 +59,25 @@ func (u *Upstream) BuildClient() {
 			},
 		}}
 	} else {
-		u.Client = &dns.Client{Net: stype, Timeout: u.Timemout}
+		u.Client = &dns.Client{Net: stype, Timeout: u.Timeout}
 	}
 
 }
 
-type ClientMux struct {
+type Mux struct {
 	Upstreams     []*Upstream
 	globalTimeout time.Duration
 	clientOptions []UpstreamOption
 }
 
-func (c *ClientMux) Resolve(m *dns.Msg) (r *dns.Msg, rtt time.Duration, err error) {
+func (c *Mux) Resolve(m *dns.Msg) (r *dns.Msg, rtt time.Duration, err error) {
 
 	logger := log.GetLogger("ClientMux", "resolve")
 
 	select {
 
 	case <-time.After(c.globalTimeout):
-		return nil, c.globalTimeout, errors.New("timed out")
+		return nil, c.globalTimeout, errors.New("reached global mux time-out")
 	default:
 
 		for _, u := range c.Upstreams {
@@ -101,11 +101,11 @@ type UpstreamOption func(*Upstream)
 
 func WithTimeout(t time.Duration) UpstreamOption {
 	return func(u *Upstream) {
-		u.Timemout = t
+		u.Timeout = t
 	}
 }
 
-// Returns a new Upstream from a url string valid schemas are, "tls", "tcp", and "udp"  .
+// NewUpstream returns a new Upstream from a url string valid schemas are, "tls", "tcp", and "udp"  .
 // url-part is reserved for tls domain validation.
 // ex: tls://1.1.1.1:853/#cloudflare-dns.com
 func NewUpstream(upstreamUrl string, opts ...UpstreamOption) (*Upstream, error) {
@@ -149,23 +149,23 @@ func NewUpstream(upstreamUrl string, opts ...UpstreamOption) (*Upstream, error) 
 	return up, nil
 }
 
-type UpstreamMuxOption func(*ClientMux)
+type UpstreamMuxOption func(*Mux)
 
 func WithGlobalTimeout(t time.Duration) UpstreamMuxOption {
-	return func(u *ClientMux) {
+	return func(u *Mux) {
 		u.globalTimeout = t
 	}
 }
 
 func WithMuxUpstreamOptions(opts ...UpstreamOption) UpstreamMuxOption {
-	return func(m *ClientMux) {
+	return func(m *Mux) {
 		m.clientOptions = opts
 	}
 }
 
-func NewClientMux(servers []string, opts ...UpstreamMuxOption) *ClientMux {
+func NewClientMux(servers []string, opts ...UpstreamMuxOption) *Mux {
 
-	m := &ClientMux{}
+	m := &Mux{}
 	for _, o := range opts {
 		o(m)
 	}

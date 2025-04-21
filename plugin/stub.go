@@ -17,7 +17,7 @@ import (
 type StubresolverPlugin struct {
 	mu          sync.Mutex
 	EnableStubs bool
-	Stubs       map[string]*client.ClientMux
+	Stubs       map[string]*client.Mux
 	config      config.Config
 }
 
@@ -56,7 +56,7 @@ func (sr *StubresolverPlugin) Config(c config.Config) error {
 	return nil
 }
 
-func (sr *StubresolverPlugin) Replace(m map[string]*client.ClientMux) {
+func (sr *StubresolverPlugin) Replace(m map[string]*client.Mux) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 	for each := range m {
@@ -65,7 +65,7 @@ func (sr *StubresolverPlugin) Replace(m map[string]*client.ClientMux) {
 }
 
 func (sr *StubresolverPlugin) Init() error {
-	stubs, err := ParseStubList(sr.config.StubResolver.Stubs)
+	stubs, err := ParseStubList(sr.config.StubResolver.Stubs, sr.config.Timeout, sr.config.UpstreamTimeout)
 	if err != nil {
 		return err
 	}
@@ -73,13 +73,14 @@ func (sr *StubresolverPlugin) Init() error {
 	return nil
 }
 
-func ParseStubList(s []string) (map[string]*client.ClientMux, error) {
-	stubs := map[string]*client.ClientMux{}
+func ParseStubList(s []string, globalTimeOut int, upstreamTimeOut int) (map[string]*client.Mux, error) {
+	stubs := map[string]*client.Mux{}
 	for _, each := range s {
 		splitted := strings.Split(each, ",")
 		servers := splitted[1:]
-		//TODO: fix hardcoded value
-		mux := client.NewClientMux(servers, client.WithGlobalTimeout(1000*time.Millisecond))
+		mux := client.NewClientMux(servers,
+			client.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond),
+			client.WithMuxUpstreamOptions(client.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)))
 		stubs[splitted[0]] = mux
 	}
 	return stubs, nil

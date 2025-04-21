@@ -14,7 +14,7 @@ type Server struct {
 	Plugins         map[string]plugin.Plugin
 	pluginIndex     *PluginIndex
 	Config          config.Config
-	defaultUpstream client.ClientMux
+	defaultUpstream client.Mux
 }
 
 type PluginIndex struct {

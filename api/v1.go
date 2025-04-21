@@ -193,7 +193,8 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	ups, err := plugin.ParseStubList(stubRequest.Stubs)
+	c := config.GetRunningConfig()
+	ups, err := plugin.ParseStubList(stubRequest.Stubs, c.Timeout, c.UpstreamTimeout)
 	if err != nil {
 		st := p.(*plugin.StubresolverPlugin)
 		logger.Error("Error parsing stubs: ", err)
@@ -207,7 +208,6 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info("Replacing stubs")
 	st := p.(*plugin.StubresolverPlugin)
-	c := config.GetRunningConfig()
 	c.BlackHole.Excludes = stubRequest.Stubs
 	config.SetRunningConfig(c)
 	err = st.Config(*c)

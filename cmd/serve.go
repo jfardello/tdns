@@ -23,10 +23,11 @@ var (
 	bholeFile       string
 	zenFile         string
 	zenTime         int
-	timeOut         int
 	blue            = "\033[34m"
 	reset           = "\033[0m"
 	DefaultUpstream = "tls://1.1.1.1:853#cloudflare-dns.com"
+	timeout         int
+	upstreamTimeout int
 )
 
 // serveCmd represents the serve command.
@@ -42,7 +43,7 @@ var serveCmd = &cobra.Command{
 }
 
 func initConfig() {
-	logger := log.GetLogger("serve", "init")
+	logger := log.GetLogger("serve", "InintFlags")
 	viper.SetConfigName("tdns")
 	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("tdns")
@@ -83,7 +84,8 @@ func init() {
 	serveCmd.PersistentFlags().StringVarP(&bholeFile, "blackhole", "b", "", "Black hole list file to filter ads & tracking systems.")
 	serveCmd.PersistentFlags().StringVarP(&zenFile, "zenfile", "z", "", "Temporarily filter domains from this file.")
 	serveCmd.PersistentFlags().IntVarP(&zenTime, "zentime", "T", 20, "Zen mode session time (in minutes).")
-	serveCmd.PersistentFlags().IntVarP(&timeOut, "timeout", "t", 1000, "Global timeout for forwarding DNS requests")
+	serveCmd.PersistentFlags().IntVarP(&timeout, "timeout", "t", 1000, "Global timeout for forwarding DNS requests")
+	serveCmd.PersistentFlags().IntVarP(&upstreamTimeout, "upstream-timeout", "U", 300, "Upstream timeout for forwarding DNS requests")
 
 	//Viper will try pflags, environment variables and config file, in that order, default values
 	//are mapped to oflags if they exist, or just viper default in case there is no config option
@@ -101,6 +103,10 @@ func init() {
 	viper.SetDefault("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
 	_ = viper.BindPFlag("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime"))
 	_ = viper.BindPFlag("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile"))
+	viper.SetDefault("timeout", serveCmd.PersistentFlags().Lookup("timeout").DefValue)
+	viper.SetDefault("upstream-timeout", serveCmd.PersistentFlags().Lookup("upstream-timeout").DefValue)
+	_ = viper.BindPFlag("timeout", serveCmd.PersistentFlags().Lookup("timeout"))
+	_ = viper.BindPFlag("upstream-timeout", serveCmd.PersistentFlags().Lookup("upstream-timeout"))
 	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
@@ -111,10 +117,8 @@ func init() {
 
 func run() {
 	logger := log.GetLogger("newServer", "lookup")
-	logger.Debug("HERE")
 	c := &config.Config{}
 	err := viper.Unmarshal(c)
-	logger.Debugf("HERE c: %#v", c)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -145,7 +149,7 @@ func run() {
 	newServer := server.NewServer(
 		server.WithStaticResponse(),
 		server.WithUpstreams(c.Upstreams),
-		server.WithStubs(c.StubResolver.Stubs),
+		server.WithStubs(c.StubResolver.Stubs, c.Timeout, c.UpstreamTimeout),
 		server.WithBHoleList(),
 		server.WithCacheGet(),
 		server.WithCacheSet(),

@@ -10,7 +10,7 @@ import (
 
 func TestStubresolverPlugin_Run(t *testing.T) {
 
-	stubs, err := ParseStubList([]string{"google.es,udp://8.8.8.8"})
+	stubs, err := ParseStubList([]string{"google.es,udp://8.8.8.8"}, 1000, 300)
 	if err != nil {
 		t.Fatalf("Malformed stub strings: %#v", err)
 		return
