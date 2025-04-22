@@ -36,3 +36,7 @@ client:
   token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5NTQ5NDcsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.iR9Y_n_YyZcqOa8WhH0kUDS-7CjdxYUuun93BHhF4pK8zqlFYfgbrhM824Jra86bcB-qaDPO9lgxiQWQ6uSBBQ
   server: https://localhost:8443
   ca_cert: fixtures/tdns.crt
+status:
+  enabled: true
+  expose_stats : true
+  expose_uptime: true

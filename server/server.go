@@ -27,7 +27,6 @@ func (s *Server) Handler(requestMsg *dns.Msg, remoteAddr net.Addr) (*dns.Msg, er
 	v := config.CtxValue{RemoteAddr: remoteAddr}
 	ctx := context.WithValue(context.Background(), config.CtxKey, v)
 
-	//TODO: pass down remoteAddr to process() and also plugin.Run
 	responseMsg := new(dns.Msg)
 	if len(requestMsg.Question) > 0 {
 		return s.process(ctx, requestMsg)

@@ -122,9 +122,10 @@ func WriteSampleConfig(fname, cert, key string) {
 
 func newConf() *config.Config {
 	c := &config.Config{
-		Timeout:   1000,
-		VerifyTLS: true,
-		Upstreams: []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
+		Timeout:         1000,
+		UpstreamTimeout: 300,
+		VerifyTLS:       true,
+		Upstreams:       []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
 		BlackHole: config.BlackHoleConf{
 			Enabled: true,
 			File:    "fixtures/bhole_testfile",
@@ -152,6 +153,11 @@ func newConf() *config.Config {
 			Server: "https://localhost:8443",
 			Token:  "",
 			CAcert: "",
+		},
+		Status: config.StatusConf{
+			Enabled:      true,
+			ExposeUptime: true,
+			ExposeStats:  true,
 		},
 	}
 	return c
