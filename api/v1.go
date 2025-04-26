@@ -81,6 +81,65 @@ func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(res, w)
 
 }
+func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	w.Header().Set("Content-Type", "application/json")
+	jr := new(DNSLogAliasRequest)
+	err := json.NewDecoder(r.Body).Decode(jr)
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLOG_RESPONSE_KIND,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+	err = p.AddAlias(jr.Name, jr.Addr)
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLOG_RESPONSE_KIND,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+
+	res := Response{
+		Kind:          DNSLOG_RESPONSE_KIND,
+		Message:       MESSAGE_OK,
+		CurrentStatus: "Enabled",
+	}
+	writeJSON(res, w)
+}
+
+func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	w.Header().Set("Content-Type", "application/json")
+	top, err := strconv.Atoi(r.PathValue("top"))
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLOG_RESPONSE_KIND,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+	items, err := p.GetTop(top)
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLOG_RESPONSE_KIND,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+	res := Response{
+		Kind:          DNSLOG_RESPONSE_KIND,
+		Message:       MESSAGE_OK,
+		CurrentStatus: "Enabled",
+		LogItems:      items}
+	writeJSON(res, w)
+}
 
 func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
 	action := r.PathValue("action")
@@ -304,6 +363,8 @@ func Serve(dns *server.Server) {
 	http.HandleFunc("POST /api/stubs/{action}", Require(api.StubToggle, protected))
 	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToggle, protected))
 	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResposeToogle, protected))
+	http.HandleFunc("GET /api/dnslog/top/{top}", Require(api.DNSLogTop, protected))
+	http.HandleFunc("POST /api/dnslog/alias", Require(api.DNSLogAlias, protected))
 	http.HandleFunc("POST /api/zen/start", Require(api.ZenModeStart, protected))
 	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
 	http.Handle("GET /metrics", promhttp.Handler())

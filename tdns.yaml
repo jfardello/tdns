@@ -1,4 +1,5 @@
 timeout: 1000
+upstream_timeout: 500
 enable_status: true
 verify_tls: true
 loglevel: DEBUG

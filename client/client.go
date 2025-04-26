@@ -34,7 +34,7 @@ type Upstream struct {
 
 func (u *Upstream) BuildClient() {
 	logger := log.GetLogger("Upstream", "BuildClient")
-	logger.Debugf("Build client for %s", u.Address)
+	logger.Debugf("Build client for %s, with timeout: %d", u.Address, u.Timeout/time.Millisecond)
 	var stype string
 	switch u.NetType {
 	case NetTCP:
@@ -45,7 +45,6 @@ func (u *Upstream) BuildClient() {
 		stype = "udp"
 	}
 	if u.TLSName != "" {
-
 		u.Client = &dns.Client{Net: stype, Timeout: u.Timeout, TLSConfig: &tls.Config{
 			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 				logger.Debugf("Verifying host name: %s", u.TLSName)

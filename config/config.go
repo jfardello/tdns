@@ -45,7 +45,7 @@ func Unlock() {
 
 type Config struct {
 	Timeout         int              `mapstructure:"timeout" yaml:"timeout,omitempty"`
-	UpstreamTimeout int              `mapstructure:"upstream_timeout" yaml:"timeout,omitempty"`
+	UpstreamTimeout int              `mapstructure:"upstreamtimeout" yaml:"timeout,omitempty"`
 	LogLevel        string           `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
 	VerifyTLS       bool             `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
 	EnableAPI       bool             `mapstructure:"enable_api" yaml:"enable_api,omitempty"`

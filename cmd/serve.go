@@ -85,7 +85,7 @@ func init() {
 	serveCmd.PersistentFlags().StringVarP(&zenFile, "zenfile", "z", "", "Temporarily filter domains from this file.")
 	serveCmd.PersistentFlags().IntVarP(&zenTime, "zentime", "T", 20, "Zen mode session time (in minutes).")
 	serveCmd.PersistentFlags().IntVarP(&timeout, "timeout", "t", 1000, "Global timeout for forwarding DNS requests")
-	serveCmd.PersistentFlags().IntVarP(&upstreamTimeout, "upstream-timeout", "U", 300, "Upstream timeout for forwarding DNS requests")
+	serveCmd.PersistentFlags().IntVarP(&upstreamTimeout, "upstreamtimeout", "U", 300, "Upstream timeout for forwarding DNS requests")
 
 	//Viper will try pflags, environment variables and config file, in that order, default values
 	//are mapped to oflags if they exist, or just viper default in case there is no config option
@@ -104,9 +104,9 @@ func init() {
 	_ = viper.BindPFlag("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime"))
 	_ = viper.BindPFlag("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile"))
 	viper.SetDefault("timeout", serveCmd.PersistentFlags().Lookup("timeout").DefValue)
-	viper.SetDefault("upstream-timeout", serveCmd.PersistentFlags().Lookup("upstream-timeout").DefValue)
+	viper.SetDefault("upstreamtimeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout").DefValue)
 	_ = viper.BindPFlag("timeout", serveCmd.PersistentFlags().Lookup("timeout"))
-	_ = viper.BindPFlag("upstream-timeout", serveCmd.PersistentFlags().Lookup("upstream-timeout"))
+	_ = viper.BindPFlag("upstreamtimeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout"))
 	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
@@ -148,7 +148,7 @@ func run() {
 	}
 	newServer := server.NewServer(
 		server.WithStaticResponse(),
-		server.WithUpstreams(c.Upstreams),
+		server.WithUpstreams(c.Upstreams, c.Timeout, c.UpstreamTimeout),
 		server.WithStubs(c.StubResolver.Stubs, c.Timeout, c.UpstreamTimeout),
 		server.WithBHoleList(),
 		server.WithCacheGet(),

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/jfardello/tdns/plugin"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,18 +18,20 @@ import (
 )
 
 const (
-	GET                 = "GET"
-	POST                = "POST"
-	STUB_RESPONSE_KIND  = "api.tdns/stub/response"
-	ZEN_RESPONSE_KIND   = "api.tdns/zen/response"
-	BHOLE_RESPONSE_KIND = "api.tdns/bhole/response"
+	GET                  = "GET"
+	POST                 = "POST"
+	STUB_RESPONSE_KIND   = "api.tdns/stub/response"
+	ZEN_RESPONSE_KIND    = "api.tdns/zen/response"
+	BHOLE_RESPONSE_KIND  = "api.tdns/bhole/response"
+	DNSLOG_RESPONSE_KIND = "api.tdns/dnslog/response"
 )
 
 type Response struct {
-	Kind          string   `json:"kind"`
-	Message       string   `json:"message"`
-	CurrentStatus string   `json:"current_status"`
-	Items         []string `json:"items,omitempty"`
+	Kind          string              `json:"kind"`
+	Message       string              `json:"message"`
+	CurrentStatus string              `json:"current_status"`
+	Items         []string            `json:"items,omitempty"`
+	LogItems      []plugin.LogDetails `json:"log_items,omitempty"`
 }
 
 type StubReplaceRequest struct {
@@ -37,6 +40,10 @@ type StubReplaceRequest struct {
 
 type ZenReplaceRequest struct {
 	ZenDomains []string `json:"zen_domains"`
+}
+type DNSLogAliasRequest struct {
+	Name string `json:"name"`
+	Addr string `json:"addr"`
 }
 
 func Get(ctx context.Context, url string) (*Response, error) {

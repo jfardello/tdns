@@ -64,6 +64,7 @@ func handleStubs(stubs []string) error {
 	sreq := api.StubReplaceRequest{
 		Stubs: stubs,
 	}
+	//TODO: debug this
 	resp, err := api.Post(context.Background(), c.Client.Server, sreq)
 	if err != nil {
 		return err

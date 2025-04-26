@@ -75,12 +75,12 @@ func WithZenPlugin() func(*Server) {
 	}
 }
 
-func WithUpstreams(u []string) func(*Server) {
+func WithUpstreams(u []string, globalTimeOut int, upstreamTimeOut int) func(*Server) {
 
 	return func(s *Server) {
 		ds := client.NewClientMux(u,
-			client.WithMuxUpstreamOptions(client.WithTimeout(300*time.Millisecond)),
-			client.WithGlobalTimeout(1000*time.Millisecond))
+			client.WithMuxUpstreamOptions(client.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)),
+			client.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond))
 		s.defaultUpstream = *ds
 	}
 }

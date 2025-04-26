@@ -56,6 +56,8 @@ func DNSErrorString(errorCode int) string {
 	return fmt.Sprintf("Unknown error %d", errorCode)
 }
 
+var MaxDNSLogEntries int = 50
+
 type LogEvent struct {
 	Timestamp time.Time
 	CtxValue  config.CtxValue
@@ -131,6 +133,39 @@ func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
 		remote = addr.IP.String()
 	}
 	return remote, domain, ok
+}
+
+type LogDetails struct {
+	Domain  string `db:"domain"`
+	Counter int    `db:"counter"`
+	Host    string `db:"host"`
+}
+
+func (cs *DNSLog) AddAlias(alias string, addr string) error {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return fmt.Errorf("invalid address: %s", addr)
+	}
+	sql := `INSERT INTO hosts (host, ipAddr) values (?, ?) ON CONFLICT DO UPDATE SET host=excluded.host`
+	_, err := cs.db.Exec(sql, alias, ip.String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cs *DNSLog) GetTop(top int) ([]LogDetails, error) {
+	sql := `SELECT d.domain, COUNT(d.domain) as counter,  coalesce(h.host, d.client) as host from tdnslog d
+	LEFT JOIN hosts h on d.client == h.ipAddr group by d.domain, d.client order by counter DESC limit ?`
+	if top > MaxDNSLogEntries {
+		top = MaxDNSLogEntries
+	}
+	dest := make([]LogDetails, 0)
+	err := cs.db.Select(&dest, sql, top)
+	if err != nil {
+		return dest, err
+	}
+	return dest, nil
 }
 
 func (cs *DNSLog) doInsert() {
