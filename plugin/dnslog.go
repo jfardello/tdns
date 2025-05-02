@@ -2,11 +2,14 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/miekg/dns"
+	str2duration "github.com/xhit/go-str2duration/v2"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,6 +57,44 @@ func DNSErrorString(errorCode int) string {
 		return "BadCookie"
 	}
 	return fmt.Sprintf("Unknown error %d", errorCode)
+}
+
+type SQLStmt struct {
+	SelectStr string
+	From      string
+	Where     string
+	OrderBy   string
+	Limit     string
+	GroupBy   string
+}
+
+// Build is a naive Sql statement builder for this use case, it handles conditional where clause in the SQLStmt type
+func (sq *SQLStmt) Build() (string, error) {
+	logger := log.GetLogger("dbslog", "SQLStmt")
+	var sb strings.Builder
+	if sq.SelectStr != "" {
+		sb.WriteString(sq.SelectStr)
+		sb.WriteString(" ")
+	} else {
+		return "", errors.New("selectStr is empty")
+	}
+	if sq.From != "" {
+		sb.WriteString(sq.From)
+		sb.WriteString(" ")
+	} else {
+		return "", errors.New("from is empty")
+	}
+	sb.WriteString(sq.Where)
+	sb.WriteString(" ")
+	sb.WriteString(sq.GroupBy)
+	sb.WriteString(" ")
+	sb.WriteString(sq.OrderBy)
+	sb.WriteString(" ")
+	sb.WriteString(sq.Limit)
+
+	statement := strings.TrimSpace(sb.String())
+	logger.Info(statement)
+	return statement, nil
 }
 
 var MaxDNSLogEntries int = 50
@@ -154,14 +195,32 @@ func (cs *DNSLog) AddAlias(alias string, addr string) error {
 	return nil
 }
 
-func (cs *DNSLog) GetTop(top int) ([]LogDetails, error) {
-	sql := `SELECT d.domain, COUNT(d.domain) as counter,  coalesce(h.host, d.client) as host from tdnslog d
-	LEFT JOIN hosts h on d.client == h.ipAddr group by d.domain, d.client order by counter DESC limit ?`
+func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
+	where := ""
+	if since != "" {
+		d, err := str2duration.ParseDuration(since)
+		if err != nil {
+			return nil, err
+		}
+		where = fmt.Sprintf("Where (d.dt between  unixepoch()*1000000000 - %d  and unixepoch()*1000000000)", d.Nanoseconds())
+	}
+	ss := SQLStmt{
+		SelectStr: `SELECT d.domain, COUNT(d.domain) AS counter,  COALESCE(h.host, d.client) AS host`,
+		From:      `FROM tdnslog d LEFT JOIN hosts h ON d.client == h.ipAddr`,
+		Where:     where,
+		GroupBy:   "GROUP BY d.domain, d.client",
+		OrderBy:   "ORDER BY counter DESC",
+		Limit:     "LIMIT ?",
+	}
+	sql, err := ss.Build()
+	if err != nil {
+		return nil, err
+	}
 	if top > MaxDNSLogEntries {
 		top = MaxDNSLogEntries
 	}
 	dest := make([]LogDetails, 0)
-	err := cs.db.Select(&dest, sql, top)
+	err = cs.db.Select(&dest, sql, top)
 	if err != nil {
 		return dest, err
 	}
@@ -219,7 +278,6 @@ func (cs *DNSLog) runAsync() {
 		select {
 		case <-timer.C:
 			cs.doInsert()
-			fmt.Println("Timer Expired")
 			timer.Reset(cs.duration)
 		case <-cs.full:
 			if !timer.Stop() {

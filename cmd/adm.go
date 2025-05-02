@@ -4,8 +4,6 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +13,6 @@ var manageCmd = &cobra.Command{
 	Short: "TDNS management commands",
 	Long:  `Iteract with remote TDNS instances ReST API.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("adm called")
 		initConfig()
 	},
 }

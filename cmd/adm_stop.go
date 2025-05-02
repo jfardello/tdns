@@ -17,6 +17,7 @@ var stopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stops interceptor services.",
 	Run: func(cmd *cobra.Command, args []string) {
+		setPersitentOpst()
 		err := cmd.Help()
 		if err != nil {
 			panic(err)

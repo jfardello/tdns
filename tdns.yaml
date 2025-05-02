@@ -2,7 +2,7 @@ timeout: 1000
 upstream_timeout: 500
 enable_status: true
 verify_tls: true
-loglevel: DEBUG
+loglevel: INFO
 upstreams:
   - tls://1.1.1.1:853#cloudflare-dns.com
   - tls://1.0.0.1:853#cloudflare-dns.com

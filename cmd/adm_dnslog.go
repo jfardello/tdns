@@ -15,6 +15,7 @@ var (
 	topLimit  int
 	hostName  string
 	ipAddress string
+	since     string
 )
 
 var topCmd = &cobra.Command{
@@ -23,6 +24,7 @@ var topCmd = &cobra.Command{
 	Short: "Get top queried DNS records",
 	Long:  `Get top queried DNS records grouped by consumin client.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		setPersitentOpst()
 		initConfig()
 		logger := log.GetLogger("cmd", "topCmd")
 		err := getTop()
@@ -66,21 +68,28 @@ func handleAlias(hostName, ipAddress string) error {
 
 func init() {
 	manageCmd.AddCommand(topCmd)
-	topCmd.PersistentFlags().IntVarP(&topLimit, "limit", "l", 20, "Top query limit")
 	manageCmd.AddCommand(aliasCmd)
-	aliasCmd.PersistentFlags().StringVarP(&hostName, "hostname", "n", "", "hostname")
-	aliasCmd.PersistentFlags().StringVarP(&ipAddress, "address", "a", "", "hostname")
+	topCmd.Flags().StringVarP(&since, "since", "s", "1w", "Return logs newer than a relative duration like 5s, 2m, or 3h. (default 1w)")
+	topCmd.Flags().IntVarP(&topLimit, "limit", "l", 20, "Top query limit")
+	aliasCmd.Flags().StringVarP(&hostName, "hostname", "n", "", "hostname")
+	aliasCmd.Flags().StringVarP(&ipAddress, "address", "a", "", "hostname")
 
 }
 
 func getTop() error {
 	logger := log.GetLogger("cmd", "getTop")
-	resp, err := api.Get(context.Background(), fmt.Sprintf("/api/dnslog/top/%d", topLimit))
+	u := fmt.Sprintf("/api/dnslog/top/%d", topLimit)
+	if since != "" {
+		u = fmt.Sprintf("%s?since=%s", u, since)
+	}
+	resp, err := api.Get(context.Background(), u)
 	if err != nil {
 		return err
 	}
 	tw := tabwriter.NewWriter(os.Stdout, 10, 4, 3, ' ', tabwriter.AlignRight)
 	if len(resp.LogItems) == 0 {
+
+		logger.Debug("no records found")
 		fmt.Println("No dnslog records.")
 		return nil
 	}

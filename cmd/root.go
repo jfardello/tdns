@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/jfardello/tdns/log"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -32,19 +32,24 @@ func Execute(version, commit, date string) {
 	ver = &version
 	gitcommit = &commit
 	compiledate = &date
-
 	err := rootCmd.Execute()
+	setPersitentOpst()
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "V", false, "Verbose output.")
-	rootCmd.PersistentFlags().StringVarP(&configFile, "configfile", "c", "", "Config file.")
+	rf := rootCmd.PersistentFlags()
+	rf.BoolVarP(&verbose, "verbose", "v", false, "Show verbose output.")
+	rf.StringVarP(&configFile, "configfile", "c", "", "Config file.")
+
+}
+
+func setPersitentOpst() {
+
 	if configFile != "" {
 		viper.SetConfigFile(configFile)
-
 	}
 	if verbose {
 		log.SetLevel(logrus.DebugLevel)

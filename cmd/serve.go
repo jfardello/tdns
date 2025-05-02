@@ -37,6 +37,7 @@ var serveCmd = &cobra.Command{
 	Long: `TDNS is a TLS dns forwarder that accepts plain DNS calls locally and forwards 
 	queries to different upstreams based on its routing configuration.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		setPersitentOpst()
 		initConfig()
 		run()
 	},
@@ -124,12 +125,14 @@ func run() {
 	}
 	config.SetRunningConfig(c)
 
-	if strings.ToUpper(c.LogLevel) == "INFO" {
-		log.SetLevel(logrus.InfoLevel)
-	} else if strings.ToUpper(c.LogLevel) == "DEBUG" {
-		log.SetLevel(logrus.DebugLevel)
-	} else if strings.ToUpper(c.LogLevel) == "ERROR" {
-		log.SetLevel(logrus.ErrorLevel)
+	if !verbose {
+		if strings.ToUpper(c.LogLevel) == "INFO" {
+			log.SetLevel(logrus.InfoLevel)
+		} else if strings.ToUpper(c.LogLevel) == "DEBUG" {
+			log.SetLevel(logrus.DebugLevel)
+		} else if strings.ToUpper(c.LogLevel) == "ERROR" {
+			log.SetLevel(logrus.ErrorLevel)
+		}
 	}
 	fmt.Print(blue + `
    __      __          

@@ -116,6 +116,8 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
 	w.Header().Set("Content-Type", "application/json")
 	top, err := strconv.Atoi(r.PathValue("top"))
+	since := r.URL.Query().Get("since")
+
 	if err != nil {
 		writeJSON(Response{
 			Kind:          DNSLOG_RESPONSE_KIND,
@@ -124,7 +126,7 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 		}, w)
 		return
 	}
-	items, err := p.GetTop(top)
+	items, err := p.GetTop(top, since)
 	if err != nil {
 		writeJSON(Response{
 			Kind:          DNSLOG_RESPONSE_KIND,

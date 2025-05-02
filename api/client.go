@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
@@ -55,11 +56,17 @@ func Post(ctx context.Context, url string, data any) (*Response, error) {
 }
 
 func Do(ctx context.Context, urlPath string, method string, data any) (*Response, error) {
-	logger := log.GetLogger("api", "post")
+	logger := log.GetLogger("api", "Do")
 	conf := config.GetRunningConfig()
+
+	splitted := strings.Split(urlPath, "?")
+	urlPath = splitted[0]
+	qs := splitted[1]
 
 	addr := conf.Client.Server
 	fullUrl, err := url.JoinPath(addr, urlPath)
+	fullUrl = fmt.Sprintf("%s?%s", fullUrl, qs)
+	logger.Infof("fullUrl: %s", fullUrl)
 	if err != nil {
 		logger.Error(err.Error())
 		return nil, err

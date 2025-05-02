@@ -20,6 +20,7 @@ var tokenCmd = &cobra.Command{
 	Use:   "token",
 	Short: "create a token for the cli command",
 	Run: func(cmd *cobra.Command, args []string) {
+		setPersitentOpst()
 		c := &config.Config{}
 		err := viper.Unmarshal(c)
 		if err != nil {

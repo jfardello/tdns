@@ -15,7 +15,7 @@ var signingCmd = &cobra.Command{
 	Use:   "genkey",
 	Short: "Write signing key to stdout",
 	Run: func(cmd *cobra.Command, args []string) {
-
+		setPersitentOpst()
 		c := &config.Config{}
 		err := viper.Unmarshal(c)
 		if err != nil {
