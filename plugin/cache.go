@@ -44,22 +44,30 @@ type CacheGet struct {
 	cache *Cache
 }
 
-func (cs *CacheGet) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (cs *CacheGet) Run(mess *Message) (*Message, error) {
 	logger := log.GetLogger("CacheGet", "Run")
+	m, err := mess.GetMsg()
+	if err != nil {
+		return nil, err
+	}
 	q := m.Question[0]
 	r, err := cs.cache.backend.Get(cache.Key(&q))
+	//ToDO: distinguish EntryNotFoudErr from err
 	if err != nil {
 		misses.Inc()
-		return nil, false, err
+		return mess, nil
 	}
 	logger.Debugf("Responding from cache for %s", q.Name)
 	rr, err := dns.NewRR(string(r))
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
+	m.Answer = append(m.Answer, rr)
+	mess.SetMsg(m)
+	mess.Resolved(true)
 	hits.Inc()
-	return &rr, true, nil
+	return mess, nil
 
 }
 
@@ -79,17 +87,21 @@ type CacheSet struct {
 	cache *Cache
 }
 
-func (cs *CacheSet) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (cs *CacheSet) Run(mess *Message) (*Message, error) {
 	logger := log.GetLogger("DNSLog", "Run")
+	m, err := mess.GetMsg()
+	if err != nil {
+		return nil, err
+	}
 	if m.Rcode == dns.RcodeSuccess {
 		if m.Response && len(m.Answer) > 0 {
 			q := m.Question[0]
 			logger.Debugf("Setting cache for %s, key: %s", q.Name, cache.Key(&q))
 			err := cache.Set(cache.Key(&q), m)
-			return nil, false, err
+			return mess, err
 		}
 	}
-	return nil, false, nil
+	return mess, nil
 }
 
 func (cs *CacheSet) Info() (string, Ptype) {
@@ -132,6 +144,7 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 		return nil
 	}
 
+	//ToDo: cache a all the RRs for th answer,
 	//Just cache ipv4/ipv6 anchors and aliases.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
 		logger.Debugf("Seting cache for %s", k)

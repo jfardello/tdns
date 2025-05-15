@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
@@ -54,7 +55,7 @@ func (s *Server) getIndexes() *PluginIndex {
 
 }
 
-func answerMsg(r *dns.RR) *dns.Msg {
+func AnswerMsg(r *dns.RR) *dns.Msg {
 	responseMsg := new(dns.Msg)
 	responseMsg.Answer = append(responseMsg.Answer, *r)
 	return responseMsg
@@ -62,39 +63,44 @@ func answerMsg(r *dns.RR) *dns.Msg {
 }
 
 func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, error) {
+	logger := log.GetLogger("server", "process")
 	pi := s.getIndexes()
-	//Handle Prerouting
-	var currentResponse *dns.Msg
+	//Handle Pre-routing
+	req := new(plugin.Message)
+	req.SetCtx(ctx)
+	req.SetMsg(requestMsg)
+
 	for _, p := range pi.preRouting {
-		rr, _, err := s.Plugins[p].Run(ctx, requestMsg)
+		name, _ := s.Plugins[p].Info()
+		logger.Debug("Calling pre-routing plugin ", name)
+		req, err := s.Plugins[p].Run(req)
 		if err != nil {
 			continue
 		}
-		if rr != nil {
-			currentResponse = answerMsg(rr)
+		if req.IsResolved() {
 			break
 		}
 	}
 	//If we didn't resolve at preRouting time, then try resolving plugins.
-	currentResponse, shouldReturn, returnValue, err1 := s.tryResolve(ctx, currentResponse, pi, requestMsg)
-	if shouldReturn {
-		return returnValue, err1
+	req, err := s.tryResolve(req, pi)
+	if err != nil {
+		return nil, err
 	}
 
 	//no response from resolving plugins, just resolve with the default upstream.
-
-	var err error
-	if currentResponse == nil {
-		currentResponse, err = s.resolve(requestMsg)
+	if !req.IsResolved() {
+		_m, err := s.resolve(req.Answer())
 		if err != nil {
 			logger := log.GetLogger("Server", "process")
 			logger.Error(err)
 			return nil, err
 		}
+		req.SetMsg(_m)
+		req.Resolved(true)
 	}
 
 	for _, p := range pi.postRouting {
-		_, _, err := s.Plugins[p].Run(ctx, currentResponse)
+		req, err = s.Plugins[p].Run(req)
 		if err != nil {
 			logger := log.GetLogger("Server", "post-process")
 			name, _ := s.Plugins[p].Info()
@@ -102,25 +108,32 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 		}
 
 	}
-
-	return currentResponse, nil
+	if req != nil {
+		return req.Answer(), nil
+	} else {
+		return nil, errors.New("plugin error")
+	}
 }
 
 // try resolving plugins.
-func (s *Server) tryResolve(ctx context.Context, currentResponse *dns.Msg, pi *PluginIndex, requestMsg *dns.Msg) (*dns.Msg, bool, *dns.Msg, error) {
-	if currentResponse == nil {
+func (s *Server) tryResolve(req *plugin.Message, pi *PluginIndex) (*plugin.Message, error) {
+	logger := log.GetLogger("Server", "tryResolve")
+	if !req.IsResolved() {
 		for _, p := range pi.resolving {
-			rr, _, err := s.Plugins[p].Run(ctx, requestMsg)
+			//Todo: change plugin.Run 2nd argument to be a full response and not a bool and use it instead of building one.
+			//	also, dont cache.
+			name, _ := s.Plugins[p].Info()
+			logger.Debug("Calling resolving plugin ", name)
+			req, err := s.Plugins[p].Run(req)
 			if err != nil {
-				return nil, true, nil, err
+				return nil, err
 			}
-			if rr != nil {
-				currentResponse = answerMsg(rr)
+			if req.IsResolved() {
 				break
 			}
 		}
 	}
-	return currentResponse, false, nil, nil
+	return req, nil
 }
 
 func (s *Server) StubsToggle(state bool) bool {

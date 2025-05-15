@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -44,8 +43,12 @@ func (z *ZenmodePlugin) GetDomains() []string {
 }
 
 // Run performs the plugin logic, returns a resource record, a cache flag, and an error indicating failiure.
-func (z *ZenmodePlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
+func (z *ZenmodePlugin) Run(mess *Message) (*Message, error) {
 	if z.enabled {
+		m, err := mess.GetMsg()
+		if err != nil {
+			return mess, err
+		}
 		domain := m.Question[0].Name
 		//Ideally regexes should be precompiled, but with caching enabled this is negligible.
 		for k, v := range z.Hosts {
@@ -53,13 +56,20 @@ func (z *ZenmodePlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cacheS
 			if match {
 				rr, err := dns.NewRR(fmt.Sprintf("%s A %s", domain, v))
 				if err != nil {
-					return nil, false, err
+					return mess, err
 				}
-				return &rr, true, nil
+				m.Answer = append(m.Answer, rr)
+				mess.SetMsg(m)
+				mess.Resolved(true)
+				err = mess.AddValue("tdsn/zenmode", "true")
+				if err != nil {
+					return mess, err
+				}
+				return mess, nil
 			}
 		}
 	}
-	return nil, false, nil
+	return mess, nil
 }
 
 func (z *ZenmodePlugin) Config(c config.Config) error {

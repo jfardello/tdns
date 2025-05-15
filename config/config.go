@@ -13,6 +13,7 @@ var CtxKey = "values"
 
 type CtxValue struct {
 	RemoteAddr net.Addr
+	Values     map[string]string
 }
 
 var mu sync.Mutex

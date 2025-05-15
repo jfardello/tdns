@@ -61,7 +61,10 @@ func Do(ctx context.Context, urlPath string, method string, data any) (*Response
 
 	splitted := strings.Split(urlPath, "?")
 	urlPath = splitted[0]
-	qs := splitted[1]
+	qs := ""
+	if len(splitted) > 1 {
+		qs = splitted[1]
+	}
 
 	addr := conf.Client.Server
 	fullUrl, err := url.JoinPath(addr, urlPath)

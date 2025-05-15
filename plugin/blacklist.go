@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -35,14 +34,16 @@ func (bp *BlackListPlugin) Info() (string, Ptype) {
 	return "blacklist", PreRouting
 }
 
-// Run performs the plugin logic, returns a resource record, a cache flag, and an error indicating failiure.
-func (bp *BlackListPlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cacheSafe bool, err error) {
+func (bp *BlackListPlugin) Run(mess *Message) (message *Message, err error) {
 	logger := log.GetLogger("plugin", "BHole")
 	if !bp.Enabled {
 		logger.Debug("Blackhole disabled.")
-		return nil, false, nil
+		return mess, nil
 	}
-
+	m, err := mess.GetMsg()
+	if err != nil {
+		return mess, err
+	}
 	domain := strings.TrimSuffix(m.Question[0].Name, ".")
 
 	_, ok := bp.Hole.Get(domain)
@@ -50,12 +51,15 @@ func (bp *BlackListPlugin) Run(ctx context.Context, m *dns.Msg) (rr *dns.RR, cac
 		logger.Debugf("%s found in the list", domain)
 		rr, err := dns.NewRR(fmt.Sprintf("%s A 0.0.0.0", domain))
 		if err != nil {
-			return nil, false, err
+			return mess, err
 		}
-		return &rr, true, nil
+		m.Answer = append(m.Answer, rr)
+		mess.SetMsg(m)
+		mess.Resolved(true)
+		return mess, nil
 	}
 	logger.Debugf("%s not found in the list", domain)
-	return nil, false, nil
+	return mess, nil
 
 }
 

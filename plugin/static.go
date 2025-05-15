@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -44,9 +43,13 @@ func (sr *StaticResponsePlugin) Init() error {
 	return nil
 }
 
-func (sr *StaticResponsePlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (sr *StaticResponsePlugin) Run(mess *Message) (*Message, error) {
 	if !sr.Enabled {
-		return nil, false, nil
+		return mess, nil
+	}
+	m, err := mess.GetMsg()
+	if err != nil {
+		return mess, err
 	}
 
 	domain := m.Question[0].Name
@@ -56,12 +59,15 @@ func (sr *StaticResponsePlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, b
 		if match {
 			rr, err := dns.NewRR(fmt.Sprintf("%s A %s", domain, v))
 			if err != nil {
-				return nil, false, err
+				return mess, err
 			}
-			return &rr, true, nil
+			m.Answer = append(m.Answer, rr)
+			mess.SetMsg(m)
+			mess.Resolved(true)
+			return mess, nil
 		}
 	}
-	return nil, false, nil
+	return mess, nil
 }
 
 func (sr *StaticResponsePlugin) Info() (string, Ptype) {

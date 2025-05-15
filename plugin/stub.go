@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"context"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,11 +25,14 @@ func (sr *StubresolverPlugin) Info() (string, Ptype) {
 	return "stubresolver", Resolving
 }
 
-func (sr *StubresolverPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (sr *StubresolverPlugin) Run(mess *Message) (*Message, error) {
 	logger := log.GetLogger("plugin", "StubResolver")
+	m, err := mess.GetMsg()
+	if err != nil {
+		return mess, err
+	}
 	domain := m.Question[0].Name
 
-	//there should be a channel for toogling enableStubs
 	if sr.EnableStubs {
 		logger.Debug("Stubs are enabled")
 		sr.mu.Lock()
@@ -40,15 +43,24 @@ func (sr *StubresolverPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, boo
 				logger.Debugf("Resove %s via server %s", domain, mux.Upstreams[0].Address)
 				response, _, err := mux.Resolve(m)
 				if err != nil {
-					logger.Error(err)
-					return nil, false, nil
+					return mess, err
 				}
-				return &response.Answer[0], false, nil
+				//TODO: check response
+				if response.Rcode != dns.RcodeSuccess || len(response.Answer) == 0 {
+					return mess, fmt.Errorf("stub resolver returned no answers, rcode: %s", dns.RcodeToString[response.Rcode])
+				}
+				mess.SetMsg(response)
+				err = mess.AddValue("tdns/stub", "true")
+				if err != nil {
+					return mess, err
+				}
+				mess.Resolved(true)
+				return mess, nil
 			}
 		}
 
 	}
-	return nil, false, nil
+	return mess, nil
 }
 
 func (sr *StubresolverPlugin) Config(c config.Config) error {

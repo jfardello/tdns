@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -37,9 +36,13 @@ func (sc *StatusPlugin) Init() error {
 	return nil
 }
 
-func (sc *StatusPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (sc *StatusPlugin) Run(mess *Message) (*Message, error) {
 	if !sc.Enabled {
-		return nil, false, nil
+		return mess, nil
+	}
+	m, err := mess.GetMsg()
+	if err != nil {
+		return mess, err
 	}
 	domain := m.Question[0].Name
 	logger := log.GetLogger("StatusPlugin", "resolve")
@@ -47,12 +50,15 @@ func (sc *StatusPlugin) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, err
 		logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
 		rr, err := dns.NewRR(fmt.Sprintf(`%s 3600 IN TXT "%s"`, domain, getStatus(sc.Since, sc)))
 		if err != nil {
-			return nil, false, err
+			return mess, err
 		}
-		return &rr, false, nil
+		m.Answer = append(m.Answer, rr)
+		mess.SetMsg(m)
+		mess.Resolved(true)
+		return mess, nil
 	}
 
-	return nil, false, nil
+	return mess, nil
 }
 
 func (sc *StatusPlugin) Info() (string, Ptype) {

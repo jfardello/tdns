@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/jfardello/tdns/config"
@@ -117,7 +116,12 @@ type DNSLog struct {
 	mu           sync.Mutex
 }
 
-func (cs *DNSLog) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
+func (cs *DNSLog) Run(mess *Message) (*Message, error) {
+	m, err := mess.GetMsg()
+	if err != nil {
+		return mess, err
+	}
+	ctx := mess.Context()
 	logger := log.GetLogger("DNSLog", "Run")
 	cv, ok := ctx.Value(config.CtxKey).(config.CtxValue)
 	if ok {
@@ -129,8 +133,7 @@ func (cs *DNSLog) Run(ctx context.Context, m *dns.Msg) (*dns.RR, bool, error) {
 	} else {
 		logger.Debugf("#### Domain: %#v", m)
 	}
-
-	return nil, false, nil
+	return mess, nil
 }
 
 func (cs *DNSLog) Append(d LogEvent) {
@@ -155,7 +158,7 @@ func (cs *DNSLog) put(d LogEvent) bool {
 }
 
 func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
-	//Extract details from CtxValue and Msg
+	//Extract details from CtxValue and msg
 	domain := m.Question[0].Name
 	ok := false
 	logger := log.GetLogger("DNSLog", "getEventDomain")
@@ -229,7 +232,6 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 
 func (cs *DNSLog) doInsert() {
 	logger := log.GetLogger("DNSLog", "doInsert")
-	logger.Debugf("dnslog: %#v", cs)
 	if len(cs.queue) > 0 {
 		tx, err := cs.db.Begin()
 		if err != nil {
