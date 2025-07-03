@@ -1,10 +1,11 @@
 package plugin
 
 import (
-	"github.com/jmoiron/sqlx"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jfardello/tdns/config"
@@ -21,6 +22,7 @@ func TestDNSLog_doInsert(t *testing.T) {
 	addr, _ := net.ResolveUDPAddr("udp", "1.1.1.1:53")
 	ctx1 := config.CtxValue{
 		RemoteAddr: addr,
+		Values:     map[string]string{},
 	}
 	tests := []LogEvent{
 		{
@@ -31,11 +33,12 @@ func TestDNSLog_doInsert(t *testing.T) {
 	}
 
 	cs := &DNSLog{}
-	mockDB, mock, err := sqlmock.New()
+	mockDB, mock, _ := sqlmock.New()
+
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 
 	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO tdnslog").WithArgs(tests[0].Timestamp.UnixNano(), "1.1.1.1", "www.google.com.").WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO tdnslog").WithArgs(tests[0].Timestamp.UnixNano(), "1.1.1.1", "www.google.com.", 0).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
 
 	t.Run("test insert", func(t *testing.T) {

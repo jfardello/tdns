@@ -111,6 +111,28 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(res, w)
 }
+func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	w.Header().Set("Content-Type", "application/json")
+
+	since := r.URL.Query().Get("since")
+
+	err := p.Rotate(since)
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLOG_RESPONSE_KIND,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+	res := Response{
+		Kind:          DNSLOG_RESPONSE_KIND,
+		Message:       MESSAGE_OK,
+		CurrentStatus: "Rotate OK",
+	}
+	writeJSON(res, w)
+}
 
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
@@ -366,6 +388,7 @@ func Serve(dns *server.Server) {
 	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToggle, protected))
 	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResposeToogle, protected))
 	http.HandleFunc("GET /api/dnslog/top/{top}", Require(api.DNSLogTop, protected))
+	http.HandleFunc("GET /api/dnslog/rotate", Require(api.DNSLogRotate, protected))
 	http.HandleFunc("POST /api/dnslog/alias", Require(api.DNSLogAlias, protected))
 	http.HandleFunc("POST /api/zen/start", Require(api.ZenModeStart, protected))
 	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))

@@ -10,8 +10,11 @@ dns_log:
   enabled: true
   file: /tmp/tdns.sqlite
 blackhole:
-  enable: true
-  file: ./fixtures/bhole_testfile
+  enabled: true
+  file: /tmp/tds-bhole-file
+  external_file: /alternates/gambling/hosts
+  external_repo: https://github.com/StevenBlack/hosts.git
+  external_pull_period: "0 */6 * * *"
   excludes:
     - domain.tld
     - facebook.com

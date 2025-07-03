@@ -101,7 +101,6 @@ func WithDNSLog() func(*Server) {
 				return
 			}
 			n, _ := dl.Info()
-			logger.Debugf("About to add dnslog to plug resitry: %#v", dl)
 			s.Plugins[n] = dl
 		}
 	}
@@ -153,7 +152,7 @@ func WithBHoleList() func(*Server) {
 			}
 			n, _ := b.Info()
 			s.Plugins[n] = b
-			logger.Infof("Loaded %d hosts th the black hole list.", b.Hole.Len())
+			logger.Infof("Loaded %d hosts from the black hole list.", b.Hole.Len())
 		}
 	}
 }

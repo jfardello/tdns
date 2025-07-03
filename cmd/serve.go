@@ -3,9 +3,12 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/go-co-op/gocron"
+	"github.com/jfardello/tdns/sched"
 	"github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
@@ -111,6 +114,7 @@ func init() {
 	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
+	viper.SetDefault("dns_log.purge", "180d")
 
 	viper.SetDefault("loglevel", "INFO")
 
@@ -196,6 +200,18 @@ func run() {
 	go func() {
 		api.Serve(newServer)
 	}()
+
+	if len(sched.TaskRegistry) > 0 {
+		scheduler := gocron.NewScheduler(time.UTC)
+		for _, task := range sched.TaskRegistry {
+			_, err = sched.AddCron(scheduler, task.Expr, task.Fn)
+			if err != nil {
+				//ToDo: check all the Fatal calls that could be Error
+				logger.Fatal(err)
+			}
+		}
+		scheduler.StartAsync()
+	}
 
 	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp"}
 	if err := srv.ListenAndServe(); err != nil {

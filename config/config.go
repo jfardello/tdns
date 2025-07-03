@@ -65,6 +65,7 @@ type Config struct {
 type DNSLogConf struct {
 	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
 	File    string `mapstructure:"file" yaml:"file"`
+	Purge   string `mapstructure:"purge" yaml:"purge,omitempty"`
 }
 
 type CacheConf struct {
@@ -72,9 +73,13 @@ type CacheConf struct {
 	Ttl     int  `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
 }
 type BlackHoleConf struct {
-	Enabled  bool     `mapstructure:"enabled" yaml:"enabled"`
-	File     string   `mapstructure:"file" yaml:"file"`
-	Excludes []string `mapstructure:"exclude" yaml:"excludes"`
+	Enabled            bool     `mapstructure:"enabled" yaml:"enabled"`
+	File               string   `mapstructure:"file" yaml:"file"`
+	ExternalFile       string   `mapstructure:"external_file" yaml:"external_file,omitempty"`
+	ExternalRepo       string   `mapstructure:"external_repo" yaml:"external_repo,omitempty"`
+	ExternalRepoBranch string   `mapstructure:"external_repo" yaml:"external_repo,omitempty"`
+	ExternalPullPeriod string   `mapstructure:"external_pull_period" yaml:"external_pull_period,omitempty"`
+	Excludes           []string `mapstructure:"exclude" yaml:"excludes"`
 }
 
 type StaticConf struct {

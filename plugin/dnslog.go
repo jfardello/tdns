@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/sched"
 	"github.com/miekg/dns"
 	str2duration "github.com/xhit/go-str2duration/v2"
+	"golang.org/x/net/context"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +18,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+// RIPPER_FUZZINESS defines the maximum wait time for dnslog's ripper tasks,
+// it will wait randomly from 0 to this value before starting periodic tasks,
+// this prevents jamming CPU intensive tasks at certain hours.
+const RIPPER_FUZZINESS = 30
 
 func DNSErrorString(errorCode int) string {
 	switch errorCode {
@@ -108,12 +116,16 @@ type DNSLog struct {
 	db *sqlx.DB
 
 	duration     time.Duration
+	purge        chan time.Duration
 	done         chan bool
 	mustExit     chan bool
 	full         chan bool
 	incomingData chan LogEvent
 	queue        []LogEvent
 	mu           sync.Mutex
+	qmu          sync.Mutex
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 func (cs *DNSLog) Run(mess *Message) (*Message, error) {
@@ -137,22 +149,30 @@ func (cs *DNSLog) Run(mess *Message) (*Message, error) {
 }
 
 func (cs *DNSLog) Append(d LogEvent) {
+	logger := log.GetLogger("DNSLog", "Append")
+	logger.Debug("Append(): calling cs.put()")
 	if !cs.put(d) {
+		logger.Debug("Append(): cs.put() returned false, waiting")
 		//Notify that buffer is full
 		//<- will wait until space available
 		cs.full <- true
 		cs.incomingData <- d
+		logger.Debug("Append(): directly wrote to incomingData channel")
 	}
 }
 
 func (cs *DNSLog) put(d LogEvent) bool {
 	//Try to append the data
 	//If channel is full, do nothing, then return false
+	logger := log.GetLogger("DNSLog", "put")
+	logger.Debug("called")
 	select {
 	case cs.incomingData <- d:
+		logger.Debug("put() sent")
 		return true
 	default:
 		//channel is full
+		logger.Debug("put() failed, channel is full.")
 		return false
 	}
 }
@@ -187,24 +207,30 @@ type LogDetails struct {
 
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
 	ip := net.ParseIP(addr)
+	logger := log.GetLogger("DNSLog", "AddAlias")
+	dbl := &log.SQLLogger{
+		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
+	}
+
 	if ip == nil {
 		return fmt.Errorf("invalid address: %s", addr)
 	}
 	sql := `INSERT INTO hosts (host, ipAddr) values (?, ?) ON CONFLICT DO UPDATE SET host=excluded.host`
-	_, err := cs.db.Exec(sql, alias, ip.String())
-	if err != nil {
-		return err
-	}
+	_ = sqlx.MustExec(dbl, sql, alias, ip.String())
 	return nil
 }
 
+//Todo Add a Query(domain, start) method  and expose it in the API
+
 func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
+	logger := log.GetLogger("DNSLog", "GetTop")
 	where := ""
 	if since != "" {
 		d, err := str2duration.ParseDuration(since)
 		if err != nil {
 			return nil, err
 		}
+		//ToDo: d.Nanoseconds() should be passed as an arguemnt.
 		where = fmt.Sprintf("Where (d.dt between  unixepoch()*1000000000 - %d  and unixepoch()*1000000000)", d.Nanoseconds())
 	}
 	ss := SQLStmt{
@@ -223,7 +249,11 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 		top = MaxDNSLogEntries
 	}
 	dest := make([]LogDetails, 0)
-	err = cs.db.Select(&dest, sql, top)
+	dbl := &log.SQLLogger{
+		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
+	}
+	//err = cs.db.Select(&dest, sql, top)
+	err = sqlx.Select(dbl, &dest, sql, top)
 	if err != nil {
 		return dest, err
 	}
@@ -232,18 +262,33 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 
 func (cs *DNSLog) doInsert() {
 	logger := log.GetLogger("DNSLog", "doInsert")
+	dbl := &log.SQLLogger{
+		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
+	}
 	if len(cs.queue) > 0 {
 		tx, err := cs.db.Begin()
 		if err != nil {
 			logger.Fatal(err)
 		}
+
 		cs.mu.Lock()
 		for _, logEvent := range cs.queue {
 			logger.Debugf("Incoming message: %#v", logEvent)
 			logger.Debugf("  Message unix nano: %d", logEvent.Timestamp.UTC().UnixNano())
 			client, domain, _ := getEventDomain(logEvent.CtxValue, logEvent.Msg)
-			cs.db.MustExec("INSERT INTO tdnslog (dt, client, domain) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?)",
-				logEvent.Timestamp.UTC().UnixNano(), client, domain)
+			blocked := 0
+			_blocked, ok := logEvent.CtxValue.Values["blocked"]
+			if ok {
+				blocked, err = strconv.Atoi(_blocked)
+				if err != nil {
+					logger.Errorf("Error parsing blocked value from context: %s", err)
+					blocked = 0
+				}
+			} else {
+				blocked = 0
+			}
+			sqlx.MustExec(dbl, "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?, ?)",
+				logEvent.Timestamp.UTC().UnixNano(), client, domain, blocked)
 
 		}
 		err = tx.Commit()
@@ -256,19 +301,22 @@ func (cs *DNSLog) doInsert() {
 }
 
 func (cs *DNSLog) append() {
+	logger := log.GetLogger("DNSLog", "append")
 	for {
 		logEvent, closed := <-cs.incomingData
+		logger.Debugf("append() got: %#v from channel", logEvent)
+
 		if !closed {
 			return
 		}
-
-		cs.mu.Lock()
+		cs.qmu.Lock()
 		cs.queue = append(cs.queue, logEvent)
-		cs.mu.Unlock()
+		cs.qmu.Unlock()
 	}
 }
 
 func (cs *DNSLog) runAsync() {
+	logger := log.GetLogger("DNSLog", "runAsync")
 	defer func() {
 		cs.doInsert()
 		fmt.Println("Last insert")
@@ -286,7 +334,13 @@ func (cs *DNSLog) runAsync() {
 				<-timer.C
 			}
 			cs.doInsert()
-			fmt.Println("Full")
+			timer.Reset(cs.duration)
+		case s := <-cs.purge:
+			err := cs.rotate(s)
+			if err != nil {
+				//Todo: dunno if recoverable.
+				logger.Error("$$ ", err)
+			}
 			timer.Reset(cs.duration)
 		case <-cs.mustExit:
 			if !timer.Stop() {
@@ -301,11 +355,12 @@ func (cs *DNSLog) Info() (string, Ptype) {
 	return "dnslog", PostRouting
 }
 func (cs *DNSLog) Config(cf config.Config) error {
+
+	logger := log.GetLogger("DNSLog", "Config")
 	if !cf.DNSLog.Enabled {
+		logger.Debug("DNSLog disabled")
 		return nil
 	}
-	logger := log.GetLogger("DNSLog", "Config")
-	logger.Debug(">>>> Calling config!")
 	//connect to db
 	var err error
 	cs.db, err = sqlx.Open("sqlite3", cf.DNSLog.File)
@@ -317,7 +372,7 @@ func (cs *DNSLog) Config(cf config.Config) error {
 	// Create logs table if not exists
 	schema := `create table if not exists tdnslog ( dt INTEGER primary key autoincrement, domain  TEXT, client  TEXT, blocked INT default 0);`
 	schemaHosts := `create table if not exists hosts ( ipAddr TEXT not null constraint hosts_pk primary key, host   text );`
-	sqlSequence := `INSERT into sqlite_sequence (seq,name) VALUES (0, 'tdnslog');`
+	sqlSequence := `INSERT INTO sqlite_sequence (seq, name) SELECT 0, 'tdnslog' WHERE NOT EXISTS ( SELECT 1 FROM sqlite_sequence WHERE name = 'tdnslog');`
 	if _, err := cs.db.Exec(schema); err != nil {
 		logger.Error(err)
 		return err
@@ -333,15 +388,75 @@ func (cs *DNSLog) Config(cf config.Config) error {
 
 	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second
+	cs.purge = make(chan time.Duration, 1)
 	cs.full = make(chan bool)
 	cs.done = make(chan bool, 1)
 	cs.mustExit = make(chan bool, 1)
+	cs.ctx, cs.cancel = context.WithCancel(context.Background())
 
 	return nil
 
 }
 
+func (cs *DNSLog) Rotate(since string) error {
+	s, err := str2duration.ParseDuration(since)
+	if err != nil {
+		return err
+	}
+	cs.purge <- s
+	return nil
+
+}
+
+func (cs *DNSLog) rotate(since time.Duration) error {
+	logger := log.GetLogger("DNSLog", "rotate")
+
+	tx, err := cs.db.Begin()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	logger.Debug("Rotating db")
+	now := time.Now().UTC().UnixNano()
+	dbl := &log.SQLLogger{
+		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
+	}
+	res := sqlx.MustExec(dbl, "DELETE from tdnslog Where (tdnslog.dt < ?);", now-since.Nanoseconds())
+	affected, err := res.RowsAffected()
+	if err != nil {
+		logger.Error(err)
+	}
+	logger.Debugf("Deleted %d rows", affected)
+	err = tx.Commit()
+	cs.db.MustExec("VACUUM;")
+
+	if err != nil {
+		logger.Fatal(err)
+	}
+	//	_, err = cs.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	//  if err != nil {
+	//	logger.Fatal(err)
+	//}
+
+	return nil
+}
+
 func (cs *DNSLog) Init() error {
+	cf := config.GetRunningConfig()
+	mf := int64(RIPPER_FUZZINESS * time.Second)
+	t := sched.Task{
+		Name: "DnsLogRipper",
+		Fn: sched.FuzzyTask("DnsLogRipper", cs.ctx, mf, func(context.Context) {
+			err := cs.Rotate(cf.DNSLog.Purge)
+			if err != nil {
+				panic(err)
+			}
+		}),
+		Expr: "*/5 * * * *",
+	}
+	sched.Add(t)
 	go cs.append()
 	go cs.runAsync()
 	return nil
