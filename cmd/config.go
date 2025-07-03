@@ -76,7 +76,8 @@ var configCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(configCmd)
 
-	configCmd.PersistentFlags().DurationVarP(&duration, "validfor", "v", 365*24*time.Hour, "Valid-for string ej 1y 2m 265d.")
+	configCmd.PersistentFlags().DurationVarP(&duration, "validfor", "f", 365*24*time.Hour, "Valid-for string ej 1y 2m 265d.")
+	//configCmd.PersistentFlags().DurationVarP(&duration, "validfor", "v", 365*24*time.Hour, "Valid-for string ej 1y 2m 265d.")
 	configCmd.PersistentFlags().StringSliceVarP(&certHosts, "hosts", "H", []string{"127.0.0.1", "localhost"}, "Certificate host.")
 	configCmd.PersistentFlags().StringVarP(&basename, "basename", "b", "tdns_", "basename for the generated certificates.")
 	configCmd.PersistentFlags().StringVarP(&basepath, "basepath", "p", "/etc/tdns", "basepath for the generated config.")
