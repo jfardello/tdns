@@ -106,6 +106,27 @@ func WithDNSLog() func(*Server) {
 	}
 }
 
+func WithTagger() func(*Server) {
+	return func(s *Server) {
+		if s.Config.Tagger.Enabled {
+			logger := log.GetLogger("serve", "config")
+			dl := &plugin.Tagger{}
+			err := dl.Config(s.Config)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			err = dl.Init()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			n, _ := dl.Info()
+			s.Plugins[n] = dl
+		}
+	}
+}
+
 func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")

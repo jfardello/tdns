@@ -23,7 +23,7 @@ var replaceCmd = &cobra.Command{
 	Long: `Replace runtime config for zen-mode domains or stub servers, this
 	won't persist changes.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		setPersitentOpst()
+		setPersistentOps()
 		logger := log.GetLogger("cmd", "replaceCmd")
 		if len(stubs) > 0 {
 			err := handleStubs(stubs)

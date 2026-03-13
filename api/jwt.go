@@ -46,8 +46,7 @@ func Validate(tokenString string, reqScope string) (jwt.MapClaims, error) {
 }
 
 func IssueToken(days int, sub string) (string, error) {
-	// Create a new token object, specifying signing method and the claims
-	// you would like it to contain.
+	// Create a new token object specifying signing method and the claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
 		"scope": RWSCOPE,
 		"exp":   time.Now().Add(time.Hour * 24 * time.Duration(days)).Unix(),

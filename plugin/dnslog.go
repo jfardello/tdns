@@ -1,19 +1,21 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/log"
-	"github.com/jfardello/tdns/sched"
-	"github.com/miekg/dns"
-	str2duration "github.com/xhit/go-str2duration/v2"
-	"golang.org/x/net/context"
 	"net"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/sched"
+	"github.com/jfardello/tdns/syncsqlite"
+	"github.com/miekg/dns"
+	str2duration "github.com/xhit/go-str2duration/v2"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -113,8 +115,7 @@ type LogEvent struct {
 }
 
 type DNSLog struct {
-	db *sqlx.DB
-
+	se           *syncsqlite.SyncExecutor
 	duration     time.Duration
 	purge        chan time.Duration
 	done         chan bool
@@ -207,16 +208,16 @@ type LogDetails struct {
 
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
 	ip := net.ParseIP(addr)
-	logger := log.GetLogger("DNSLog", "AddAlias")
-	dbl := &log.SQLLogger{
-		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
-	}
 
 	if ip == nil {
 		return fmt.Errorf("invalid address: %s", addr)
 	}
 	sql := `INSERT INTO hosts (host, ipAddr) values (?, ?) ON CONFLICT DO UPDATE SET host=excluded.host`
-	_ = sqlx.MustExec(dbl, sql, alias, ip.String())
+
+	_, err := cs.se.SyncExec(sql, []any{alias, ip.String()})
+	if err != nil {
+		return fmt.Errorf("error adding alias, %w", err)
+	}
 	return nil
 }
 
@@ -249,10 +250,16 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 		top = MaxDNSLogEntries
 	}
 	dest := make([]LogDetails, 0)
+
+	db := cs.se.GetConn()
+	dbx := sqlx.NewDb(db, "sqlite3")
 	dbl := &log.SQLLogger{
-		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
+		Queryer: dbx, Logger: logger, DebugSql: true,
 	}
-	//err = cs.db.Select(&dest, sql, top)
+
+	defer func() {
+		cs.se.FreeConn(db)
+	}()
 	err = sqlx.Select(dbl, &dest, sql, top)
 	if err != nil {
 		return dest, err
@@ -262,16 +269,9 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 
 func (cs *DNSLog) doInsert() {
 	logger := log.GetLogger("DNSLog", "doInsert")
-	dbl := &log.SQLLogger{
-		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
-	}
 	if len(cs.queue) > 0 {
-		tx, err := cs.db.Begin()
-		if err != nil {
-			logger.Fatal(err)
-		}
-
 		cs.mu.Lock()
+		stmts := make([]*syncsqlite.ExecStmt, 0, len(cs.queue))
 		for _, logEvent := range cs.queue {
 			logger.Debugf("Incoming message: %#v", logEvent)
 			logger.Debugf("  Message unix nano: %d", logEvent.Timestamp.UTC().UnixNano())
@@ -279,6 +279,7 @@ func (cs *DNSLog) doInsert() {
 			blocked := 0
 			_blocked, ok := logEvent.CtxValue.Values["blocked"]
 			if ok {
+				var err error
 				blocked, err = strconv.Atoi(_blocked)
 				if err != nil {
 					logger.Errorf("Error parsing blocked value from context: %s", err)
@@ -287,13 +288,15 @@ func (cs *DNSLog) doInsert() {
 			} else {
 				blocked = 0
 			}
-			sqlx.MustExec(dbl, "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?, ?)",
-				logEvent.Timestamp.UTC().UnixNano(), client, domain, blocked)
-
+			stmts = append(stmts, &syncsqlite.ExecStmt{
+				Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?, ?)",
+				Args:  []any{logEvent.Timestamp.UTC().UnixNano(), client, domain, blocked},
+			})
 		}
-		err = tx.Commit()
-		if err != nil {
-			logger.Fatal(err)
+		if err := cs.se.SyncExecBulk(stmts); err != nil {
+			logger.Error(err)
+			cs.mu.Unlock()
+			return
 		}
 		cs.queue = nil
 		cs.mu.Unlock()
@@ -318,8 +321,8 @@ func (cs *DNSLog) append() {
 func (cs *DNSLog) runAsync() {
 	logger := log.GetLogger("DNSLog", "runAsync")
 	defer func() {
+		logger.Debug("Writing last entries")
 		cs.doInsert()
-		fmt.Println("Last insert")
 		close(cs.done)
 	}()
 	timer := time.NewTimer(cs.duration)
@@ -355,36 +358,15 @@ func (cs *DNSLog) Info() (string, Ptype) {
 	return "dnslog", PostRouting
 }
 func (cs *DNSLog) Config(cf config.Config) error {
-
 	logger := log.GetLogger("DNSLog", "Config")
 	if !cf.DNSLog.Enabled {
 		logger.Debug("DNSLog disabled")
 		return nil
 	}
-	//connect to db
-	var err error
-	cs.db, err = sqlx.Open("sqlite3", cf.DNSLog.File)
-	if err != nil {
-		logger.Error(err)
-		return err
+	if cf.DNSLog.File == "" {
+		return errors.New("dnslog file is empty")
 	}
-
-	// Create logs table if not exists
-	schema := `create table if not exists tdnslog ( dt INTEGER primary key autoincrement, domain  TEXT, client  TEXT, blocked INT default 0);`
-	schemaHosts := `create table if not exists hosts ( ipAddr TEXT not null constraint hosts_pk primary key, host   text );`
-	sqlSequence := `INSERT INTO sqlite_sequence (seq, name) SELECT 0, 'tdnslog' WHERE NOT EXISTS ( SELECT 1 FROM sqlite_sequence WHERE name = 'tdnslog');`
-	if _, err := cs.db.Exec(schema); err != nil {
-		logger.Error(err)
-		return err
-	}
-	if _, err := cs.db.Exec(schemaHosts); err != nil {
-		logger.Error(err)
-		return err
-	}
-	if _, err := cs.db.Exec(sqlSequence); err != nil {
-		logger.Error(err)
-		return err
-	}
+	cs.se = syncsqlite.NewSyncExecutor(syncsqlite.ConnString(cf.DNSLog.File), syncsqlite.MaxReadonlyConnections)
 
 	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second
@@ -395,7 +377,6 @@ func (cs *DNSLog) Config(cf config.Config) error {
 	cs.ctx, cs.cancel = context.WithCancel(context.Background())
 
 	return nil
-
 }
 
 func (cs *DNSLog) Rotate(since string) error {
@@ -410,35 +391,44 @@ func (cs *DNSLog) Rotate(since string) error {
 
 func (cs *DNSLog) rotate(since time.Duration) error {
 	logger := log.GetLogger("DNSLog", "rotate")
-
-	tx, err := cs.db.Begin()
-	if err != nil {
-		logger.Fatal(err)
-	}
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
 	logger.Debug("Rotating db")
 	now := time.Now().UTC().UnixNano()
-	dbl := &log.SQLLogger{
-		Execer: cs.db, Queryer: cs.db, Logger: logger, DebugSql: true,
-	}
-	res := sqlx.MustExec(dbl, "DELETE from tdnslog Where (tdnslog.dt < ?);", now-since.Nanoseconds())
-	affected, err := res.RowsAffected()
-	if err != nil {
-		logger.Error(err)
-	}
-	logger.Debugf("Deleted %d rows", affected)
-	err = tx.Commit()
-	cs.db.MustExec("VACUUM;")
+
+	res, err := cs.se.SyncExec("DELETE from tdnslog Where (tdnslog.dt < ?);", []any{now - since.Nanoseconds()})
 
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
+		return err
 	}
-	//	_, err = cs.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
-	//  if err != nil {
-	//	logger.Fatal(err)
-	//}
+	ra, err := res.RowsAffected()
+
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+	logger.Debugf("Deleted %d rows", ra)
+
+	_, err = cs.se.ExecNoTx("VACUUM;", nil)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+
+	mode, err := cs.se.JournalMode()
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+	if mode == "WAL" {
+		_, err = cs.se.ExecNoTx("PRAGMA wal_checkpoint(TRUNCATE);", nil)
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+	}
 
 	return nil
 }
@@ -448,13 +438,13 @@ func (cs *DNSLog) Init() error {
 	mf := int64(RIPPER_FUZZINESS * time.Second)
 	t := sched.Task{
 		Name: "DnsLogRipper",
-		Fn: sched.FuzzyTask("DnsLogRipper", cs.ctx, mf, func(context.Context) {
+		Fn: sched.FuzzyTask("DnsLogRipper", cs.ctx, mf, func(context.Context) {
 			err := cs.Rotate(cf.DNSLog.Purge)
 			if err != nil {
-				panic(err)
+				log.GetLogger("DNSLog", "DnsLogRipper").Error(err)
 			}
 		}),
-		Expr: "*/5 * * * *",
+		Expr: "0 0 * * *",
 	}
 	sched.Add(t)
 	go cs.append()
@@ -463,7 +453,15 @@ func (cs *DNSLog) Init() error {
 }
 
 func (cs *DNSLog) Stop() {
-	cs.mustExit <- true
+	logger := log.GetLogger("DNSLog", "Stop")
+	logger.Info("Stopping dnslog storage")
+	if cs.mustExit != nil {
+		cs.mustExit <- true
+	}
+	time.Sleep(30 * time.Millisecond)
+	if cs.se != nil {
+		cs.se.Close()
+	}
 }
 
 func (cs *DNSLog) WaitDone() {

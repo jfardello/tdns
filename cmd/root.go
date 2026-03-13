@@ -33,7 +33,7 @@ func Execute(version, commit, date string) {
 	gitcommit = &commit
 	compiledate = &date
 	err := rootCmd.Execute()
-	setPersitentOpst()
+	setPersistentOps()
 	if err != nil {
 		os.Exit(1)
 	}
@@ -46,7 +46,7 @@ func init() {
 
 }
 
-func setPersitentOpst() {
+func setPersistentOps() {
 
 	if configFile != "" {
 		viper.SetConfigFile(configFile)

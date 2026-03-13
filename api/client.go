@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jfardello/tdns/plugin"
 	"io"
@@ -19,12 +20,13 @@ import (
 )
 
 const (
-	GET                  = "GET"
-	POST                 = "POST"
-	STUB_RESPONSE_KIND   = "api.tdns/stub/response"
-	ZEN_RESPONSE_KIND    = "api.tdns/zen/response"
-	BHOLE_RESPONSE_KIND  = "api.tdns/bhole/response"
-	DNSLOG_RESPONSE_KIND = "api.tdns/dnslog/response"
+	GET                   = "GET"
+	POST                  = "POST"
+	STUB_RESPONSE_KIND    = "api.tdns/stub/response"
+	ZEN_RESPONSE_KIND     = "api.tdns/zen/response"
+	BHOLE_RESPONSE_KIND   = "api.tdns/bhole/response"
+	DNSLOG_RESPONSE_KIND  = "api.tdns/dnslog/response"
+	TAGGEER_RESPONSE_KIND = "api.tdns/tagger/response"
 )
 
 type Response struct {
@@ -96,11 +98,14 @@ func Do(ctx context.Context, urlPath string, method string, data any) (*Response
 		return nil, err
 	}
 
-	r.Header.Add("Authorization", fmt.Sprintf("Bearer: %s", conf.Client.Token))
+	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", conf.Client.Token))
 	r.Header.Add("Content-Type", "application/json")
 
-	//res, err := http.DefaultClient.Do(r)
-	client := newClient()
+	client, err := newClient()
+	if err != nil {
+		logger.Errorf("Error creating http client %s", err.Error())
+		return nil, err
+	}
 	res, err := client.Do(r)
 
 	if err != nil {
@@ -136,16 +141,17 @@ func toJSON(T any) ([]byte, error) {
 	return json.Marshal(T)
 }
 
-func newClient() *http.Client {
-	logger := log.GetLogger("api", "client")
+func newClient() (*http.Client, error) {
 	c := config.GetRunningConfig()
 
 	caCert, err := os.ReadFile(c.Client.CAcert)
 	if err != nil {
-		logger.Fatal(err)
+		return nil, err
 	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
+	if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+		return nil, errors.New("unable to parse client CA certificate")
+	}
 
 	client := &http.Client{
 		Transport: &http.Transport{
@@ -155,5 +161,5 @@ func newClient() *http.Client {
 		},
 	}
 
-	return client
+	return client, nil
 }

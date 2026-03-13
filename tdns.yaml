@@ -37,10 +37,13 @@ server:
   api_key_file:  fixtures/tdns.key
   signing_key: wFLL196Y7zC8jLTDSezh6R8sGq4RqcMV/11P/MQ4u+USoEK2YCnctT7za/dPfeFjnJZJaDeBsyGXngB1657ahw==
 client:
-  token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5NTQ5NDcsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.iR9Y_n_YyZcqOa8WhH0kUDS-7CjdxYUuun93BHhF4pK8zqlFYfgbrhM824Jra86bcB-qaDPO9lgxiQWQ6uSBBQ
+  token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTgwOTYyMDYsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.77fFLykG3N8rBKRQqVRTUaeYzT4GH7SSUXJVtXH4j9SXHqQ34o3oj-QMAdewO_g6hb9IPVJ3GQHptO4KZYhvyA
   server: https://localhost:8443
   ca_cert: fixtures/tdns.crt
 status:
   enabled: true
   expose_stats : true
   expose_uptime: true
+tagger:
+  enabled: true
+  file: /tmp/tdns_tagger

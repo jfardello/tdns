@@ -1,13 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/sched"
 	"github.com/sirupsen/logrus"
+	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jfardello/tdns/api"
@@ -40,7 +44,7 @@ var serveCmd = &cobra.Command{
 	Long: `TDNS is a TLS dns forwarder that accepts plain DNS calls locally and forwards 
 	queries to different upstreams based on its routing configuration.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		setPersitentOpst()
+		setPersistentOps()
 		initConfig()
 		run()
 	},
@@ -163,6 +167,7 @@ func run() {
 		server.WithZenPlugin(),
 		server.WithStatus(),
 		server.WithDNSLog(),
+		server.WithTagger(),
 	)
 
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
@@ -214,8 +219,34 @@ func run() {
 	}
 
 	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp"}
-	if err := srv.ListenAndServe(); err != nil {
-		logger.Fatalf("Failed to set udp listener %s\n", err.Error())
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Fatalf("Failed to set udp listener %s\n", err.Error())
+		}
+
+	}()
+
+	<-ctx.Done()
+	//close the badger database
+	logger.Info("Shutting down server...")
+	err = srv.Shutdown()
+	if err != nil {
+		logger.Fatal(err)
 	}
+	if p, ok := newServer.Plugins["tagger"]; ok {
+		if closer, ok := p.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				logger.Fatal(err)
+			}
+		}
+	}
+	if p, ok := newServer.Plugins["dnslog"]; ok {
+		if stopper, ok := p.(interface{ Stop() }); ok {
+			stopper.Stop()
+		}
+	}
+	os.Exit(0)
 
 }

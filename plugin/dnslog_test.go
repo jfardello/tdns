@@ -1,57 +1,74 @@
 package plugin
 
 import (
+	"fmt"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/syncsqlite"
 	"github.com/miekg/dns"
 )
 
+func newTempConnString(t *testing.T) string {
+	t.Helper()
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	return fmt.Sprintf("file:%s?cache=shared", dbPath)
+}
+
 func TestDNSLog_doInsert(t *testing.T) {
-	c := new(dns.Client)
-	cf, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
 	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn("www.google.com"), dns.TypeANY)
-	r, _, err := c.Exchange(m, net.JoinHostPort(cf.Servers[0], cf.Port))
+	m.SetQuestion(dns.Fqdn("www.google.com"), dns.TypeA)
 
 	addr, _ := net.ResolveUDPAddr("udp", "1.1.1.1:53")
 	ctx1 := config.CtxValue{
 		RemoteAddr: addr,
 		Values:     map[string]string{},
 	}
+	ts := time.Unix(1700000000, 123456789)
 	tests := []LogEvent{
 		{
-			Timestamp: time.Now(),
-			Msg:       r,
+			Timestamp: ts,
+			Msg:       m,
 			CtxValue:  ctx1,
 		},
 	}
 
-	cs := &DNSLog{}
-	mockDB, mock, _ := sqlmock.New()
-
-	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
-
-	mock.ExpectBegin()
-	mock.ExpectExec("INSERT INTO tdnslog").WithArgs(tests[0].Timestamp.UnixNano(), "1.1.1.1", "www.google.com.", 0).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
+	se := syncsqlite.NewSyncExecutor(newTempConnString(t), 1)
+	cs := &DNSLog{se: se}
 
 	t.Run("test insert", func(t *testing.T) {
 		cs.queue = tests
-		cs.db = sqlxDB
 		cs.doInsert()
 	})
-	defer func() {
-		_ = sqlxDB.Close()
-	}()
-	err = mock.ExpectationsWereMet()
+
+	db := se.GetConn()
+	defer se.FreeConn(db)
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM tdnslog").Scan(&count)
 	if err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
+		t.Fatalf("count query error: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 row, got %d", count)
+	}
+
+	var client, domain string
+	var blocked int
+	err = db.QueryRow("SELECT client, domain, blocked FROM tdnslog").Scan(&client, &domain, &blocked)
+	if err != nil {
+		t.Fatalf("row query error: %v", err)
+	}
+	if client != "1.1.1.1" {
+		t.Fatalf("expected client 1.1.1.1, got %s", client)
+	}
+	if domain != "www.google.com." {
+		t.Fatalf("expected domain www.google.com., got %s", domain)
+	}
+	if blocked != 0 {
+		t.Fatalf("expected blocked 0, got %d", blocked)
 	}
 }
 

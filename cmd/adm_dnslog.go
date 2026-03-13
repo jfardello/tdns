@@ -24,7 +24,7 @@ var topCmd = &cobra.Command{
 	Short: "Get top queried DNS records",
 	Long:  `Get top queried DNS records grouped by consumin client.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		setPersitentOpst()
+		setPersistentOps()
 		initConfig()
 		logger := log.GetLogger("cmd", "topCmd")
 		err := getTop()

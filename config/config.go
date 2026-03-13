@@ -56,10 +56,16 @@ type Config struct {
 	Static          StaticConf       `mapstructure:"static" yaml:"static,omitempty"`
 	ZenMode         ZenConfig        `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
 	DNSLog          DNSLogConf       `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
+	Tagger          TaggerConf       `mapstructure:"tagger" yaml:"tagger,omitempty"`
 	Status          StatusConf       `mapstructure:"status" yaml:"status,omitempty"`
 	StubResolver    StubResolverConf `mapstructure:"stubs"  yaml:"stubs,omitempty"`
 	Client          Client           `mapstructure:"client" yaml:"client,omitempty"`
 	Server          Server           `mapstructure:"server" yaml:"server,omitempty"`
+}
+
+type TaggerConf struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	File    string `mapstructure:"file" yaml:"file,omitempty"`
 }
 
 type DNSLogConf struct {

@@ -188,8 +188,8 @@ func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (api *v1) StaticResposeToogle(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger("api", "StaticResposeToogle")
+func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
+	logger := log.GetLogger("api", "StaticResponseToggle")
 	p := api.server.Plugins["staticresponse"].(*plugin.StaticResponsePlugin)
 	action := r.PathValue("action")
 	state, err := actionToBool(action)
@@ -386,12 +386,23 @@ func Serve(dns *server.Server) {
 	http.HandleFunc("POST /api/zen", Require(api.ZenDomainsReplace, protected))
 	http.HandleFunc("POST /api/stubs/{action}", Require(api.StubToggle, protected))
 	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToggle, protected))
-	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResposeToogle, protected))
+	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResponseToggle, protected))
 	http.HandleFunc("GET /api/dnslog/top/{top}", Require(api.DNSLogTop, protected))
 	http.HandleFunc("GET /api/dnslog/rotate", Require(api.DNSLogRotate, protected))
 	http.HandleFunc("POST /api/dnslog/alias", Require(api.DNSLogAlias, protected))
 	http.HandleFunc("POST /api/zen/start", Require(api.ZenModeStart, protected))
 	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
+
+	http.HandleFunc("POST /api/tagger/tags", Require(api.TaggerAddTag, protected))
+	http.HandleFunc("GET /api/tagger/tags", Require(api.TaggerGetTags, protected))
+	http.HandleFunc("DELETE /api/tagger/tags/{tagName}", Require(api.TaggerDeleteTag, protected))
+
+	http.HandleFunc("GET /api/tagger/tags/{tagName}", Require(api.TaggerTagGetMembers, protected))
+	http.HandleFunc("POST /api/tagger/tags/{tagName}", Require(api.TaggerAddMember, protected))
+	http.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
+	http.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
+	http.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
+
 	http.Handle("GET /metrics", promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

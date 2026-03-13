@@ -53,7 +53,7 @@ var startStubsCmd = &cobra.Command{
 	Use:   "stubs",
 	Short: "Start stub server interceptor",
 	Run: func(cmd *cobra.Command, args []string) {
-		setPersitentOpst()
+		setPersistentOps()
 		resp, err := api.Post(cmd.Context(), "/api/stubs/start", nil)
 		if err != nil {
 			fmt.Println(err.Error())
