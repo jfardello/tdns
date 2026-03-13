@@ -26,6 +26,9 @@ var rootCmd = &cobra.Command{
 It can change non primary "domain" stub servers on runtime, so that scripts that react to
 new interfaces like wifi or VPN tun/tap can configure internal network specific DNS
 servers for its search domains.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		setPersistentOps()
+	},
 }
 
 func Execute(version, commit, date string) {
@@ -33,7 +36,6 @@ func Execute(version, commit, date string) {
 	gitcommit = &commit
 	compiledate = &date
 	err := rootCmd.Execute()
-	setPersistentOps()
 	if err != nil {
 		os.Exit(1)
 	}

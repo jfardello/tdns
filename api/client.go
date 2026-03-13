@@ -19,6 +19,8 @@ import (
 	"github.com/jfardello/tdns/log"
 )
 
+var httpClientFactory = newClient
+
 const (
 	GET                   = "GET"
 	POST                  = "POST"
@@ -101,7 +103,7 @@ func Do(ctx context.Context, urlPath string, method string, data any) (*Response
 	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", conf.Client.Token))
 	r.Header.Add("Content-Type", "application/json")
 
-	client, err := newClient()
+	client, err := httpClientFactory()
 	if err != nil {
 		logger.Errorf("Error creating http client %s", err.Error())
 		return nil, err
@@ -162,4 +164,12 @@ func newClient() (*http.Client, error) {
 	}
 
 	return client, nil
+}
+
+func SetClientFactoryForTest(factory func() (*http.Client, error)) func() {
+	prev := httpClientFactory
+	httpClientFactory = factory
+	return func() {
+		httpClientFactory = prev
+	}
 }

@@ -12,7 +12,7 @@ var manageCmd = &cobra.Command{
 	Use:   "adm",
 	Short: "TDNS management commands",
 	Long:  `Iteract with remote TDNS instances ReST API.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 	},
 }
