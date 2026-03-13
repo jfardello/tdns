@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/jfardello/tdns/plugin"
 )
@@ -14,6 +15,15 @@ type AddTagRequest struct {
 
 type AddMemberRequest struct {
 	Members []string `json:"members"`
+}
+
+type MemberLabelsRequest struct {
+	Address string   `json:"address"`
+	Tags    []string `json:"tags"`
+}
+
+type ReplaceMemberLabelsRequest struct {
+	Tags []string `json:"tags"`
 }
 
 func (api *v1) taggerPlugin() (*plugin.Tagger, error) {
@@ -51,7 +61,7 @@ func (api *v1) TaggerAddTag(w http.ResponseWriter, r *http.Request) {
 		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-	if err := p.CreateTag(jr.Name); err != nil {
+	if err := p.CreateTag(strings.TrimSpace(jr.Name)); err != nil {
 		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
@@ -74,23 +84,112 @@ func (api *v1) TaggerGetTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
-	writeTaggerResponse(w, http.StatusNotImplemented, "TaggerAddMember is pending the storage contract redesign in phase 1", nil)
+	p, err := api.taggerPlugin()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	tag := strings.TrimSpace(r.PathValue("tagName"))
+	req := new(AddMemberRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	if err := p.AddMembers(tag, req.Members); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	members, err := p.GetMembers(tag)
+	if err != nil {
+		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, members)
 }
 
 func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
-	writeTaggerResponse(w, http.StatusNotImplemented, "TaggerTagGetMembers is pending the storage contract redesign in phase 1", nil)
+	p, err := api.taggerPlugin()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	tag := strings.TrimSpace(r.PathValue("tagName"))
+	members, err := p.GetMembers(tag)
+	if err != nil {
+		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, members)
 }
 
 func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {
-	writeTaggerResponse(w, http.StatusNotImplemented, "TaggerDeleteTagMember is pending the storage contract redesign in phase 1", nil)
+	p, err := api.taggerPlugin()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	tag := strings.TrimSpace(r.PathValue("tagName"))
+	address := strings.TrimSpace(r.PathValue("address"))
+	if err := p.RemoveMember(tag, address); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, nil)
 }
 
 func (api *v1) TaggerAddressCreate(w http.ResponseWriter, r *http.Request) {
-	writeTaggerResponse(w, http.StatusNotImplemented, "TaggerAddressCreate is pending the storage contract redesign in phase 1", nil)
+	p, err := api.taggerPlugin()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	req := new(MemberLabelsRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	if err := p.UpsertMember(strings.TrimSpace(req.Address), req.Tags); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	labels, err := p.GetMemberLabels(strings.TrimSpace(req.Address))
+	if err != nil {
+		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, labels)
 }
 
 func (api *v1) TaggerAddressReplace(w http.ResponseWriter, r *http.Request) {
-	writeTaggerResponse(w, http.StatusNotImplemented, "TaggerAddressReplace is pending the storage contract redesign in phase 1", nil)
+	p, err := api.taggerPlugin()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	address := strings.TrimSpace(r.PathValue("address"))
+	if address == "" {
+		address = strings.TrimSpace(r.PathValue("tagName"))
+	}
+	req := new(ReplaceMemberLabelsRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	if err := p.UpsertMember(address, req.Tags); err != nil {
+		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	labels, err := p.GetMemberLabels(address)
+	if err != nil {
+		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, labels)
 }
 
 func (api *v1) TaggerDeleteTag(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +199,7 @@ func (api *v1) TaggerDeleteTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tag := r.PathValue("tagName")
+	tag := strings.TrimSpace(r.PathValue("tagName"))
 	if err := p.DeleteTag(tag); err != nil {
 		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
 		return

@@ -401,6 +401,7 @@ func Serve(dns *server.Server) {
 	http.HandleFunc("POST /api/tagger/tags/{tagName}", Require(api.TaggerAddMember, protected))
 	http.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
 	http.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
+	http.HandleFunc("PUT /api/tagger/address/{address}", Require(api.TaggerAddressReplace, protected))
 	http.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
 
 	http.Handle("GET /metrics", promhttp.Handler())
