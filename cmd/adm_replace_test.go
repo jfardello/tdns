@@ -71,7 +71,7 @@ func expectRequest(t *testing.T, requests <-chan apiRequest, wantMethod string, 
 func Test_handleStubs(t *testing.T) {
 	requests := newMockAPI(t, func(r *http.Request) api.Response {
 		return api.Response{
-			Kind:          api.STUB_RESPONSE_KIND,
+			Kind:          api.StubResolverResponseKind,
 			Message:       api.MESSAGE_OK,
 			CurrentStatus: "true",
 		}
@@ -80,13 +80,13 @@ func Test_handleStubs(t *testing.T) {
 	if err := handleStubs([]string{"google.es,udp://8.8.8.8", "google.com,udp://8.8.8.8"}); err != nil {
 		t.Fatalf("handleStubs error: %v", err)
 	}
-	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/stubs?")
+	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/stub-resolver?")
 }
 
 func Test_handleZenDomains(t *testing.T) {
 	requests := newMockAPI(t, func(r *http.Request) api.Response {
 		return api.Response{
-			Kind:          api.ZEN_RESPONSE_KIND,
+			Kind:          api.ZenModeResponseKind,
 			Message:       api.MESSAGE_OK,
 			CurrentStatus: "enabled",
 		}
@@ -95,5 +95,5 @@ func Test_handleZenDomains(t *testing.T) {
 	if err := handleZenDomains([]string{"example.com"}); err != nil {
 		t.Fatalf("handleZenDomains error: %v", err)
 	}
-	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/zen?")
+	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/zen-mode?")
 }

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jfardello/tdns/plugin"
+	"github.com/jfardello/tdns/middleware"
 	"io"
 	"net/http"
 	"net/url"
@@ -22,21 +22,22 @@ import (
 var httpClientFactory = newClient
 
 const (
-	GET                   = "GET"
-	POST                  = "POST"
-	STUB_RESPONSE_KIND    = "api.tdns/stub/response"
-	ZEN_RESPONSE_KIND     = "api.tdns/zen/response"
-	BHOLE_RESPONSE_KIND   = "api.tdns/bhole/response"
-	DNSLOG_RESPONSE_KIND  = "api.tdns/dnslog/response"
-	TAGGEER_RESPONSE_KIND = "api.tdns/tagger/response"
+	GET                      = "GET"
+	POST                     = "POST"
+	StubResolverResponseKind = "api.tdns/stub-resolver/response"
+	ZenModeResponseKind      = "api.tdns/zen-mode/response"
+	BlacklistResponseKind    = "api.tdns/blacklist/response"
+	StaticResponseKind       = "api.tdns/static-response/response"
+	DNSLogResponseKind       = "api.tdns/dns-log/response"
+	TaggerResponseKind       = "api.tdns/tagger/response"
 )
 
 type Response struct {
-	Kind          string              `json:"kind"`
-	Message       string              `json:"message"`
-	CurrentStatus string              `json:"current_status"`
-	Items         []string            `json:"items,omitempty"`
-	LogItems      []plugin.LogDetails `json:"log_items,omitempty"`
+	Kind          string                  `json:"kind"`
+	Message       string                  `json:"message"`
+	CurrentStatus string                  `json:"current_status"`
+	Items         []string                `json:"items,omitempty"`
+	LogItems      []middleware.LogDetails `json:"log_items,omitempty"`
 }
 
 type StubReplaceRequest struct {

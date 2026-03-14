@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"context"
@@ -8,20 +8,17 @@ import (
 	"sync"
 )
 
-type Ptype int
+type Stage int
 
 const (
-	PreRouting Ptype = iota
+	PreRouting Stage = iota
 	Resolving
 	PostRouting
 )
 
-type Plugin interface {
+type Middleware interface {
 	Run(*Message) (*Message, error)
-	Info() (string, Ptype)
-	//Info defines the plugin type and Name
-	//TODO: add priority to Info and sort the plugin indexes.
-
+	Info() (string, Stage)
 	Config(config.Config) error
 	Init() error
 }

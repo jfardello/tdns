@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/jfardello/tdns/api"
-	"github.com/jfardello/tdns/plugin"
+	"github.com/jfardello/tdns/middleware"
 	"github.com/spf13/cobra"
 )
 
@@ -19,80 +19,80 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 		handler    func(*http.Request) api.Response
 	}{
 		{
-			name: "start zen",
+			name: "start zen-mode",
 			run: func(cmd *cobra.Command) {
 				startZenCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/zen/start?",
+			wantPath:   "https://tdns.example/api/zen-mode/start?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.ZEN_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.ZenModeResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "start bhole",
+			name: "start blacklist",
 			run: func(cmd *cobra.Command) {
-				startBholeCmd.Run(cmd, nil)
+				startBlacklistCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/bhole/start?",
+			wantPath:   "https://tdns.example/api/blacklist/start?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.BHOLE_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.BlacklistResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "start stubs",
+			name: "start stub-resolver",
 			run: func(cmd *cobra.Command) {
 				startStubsCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/stubs/start?",
+			wantPath:   "https://tdns.example/api/stub-resolver/start?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.STUB_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.StubResolverResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "start static",
+			name: "start static-response",
 			run: func(cmd *cobra.Command) {
 				startStaticCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/static/start?",
+			wantPath:   "https://tdns.example/api/static-response/start?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.BHOLE_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.StaticResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "stop stubs",
+			name: "stop stub-resolver",
 			run: func(cmd *cobra.Command) {
 				stopStubsCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/stubs/stop?",
+			wantPath:   "https://tdns.example/api/stub-resolver/stop?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.STUB_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.StubResolverResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "stop static",
+			name: "stop static-response",
 			run: func(cmd *cobra.Command) {
 				stoppStaticCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/static/stop?",
+			wantPath:   "https://tdns.example/api/static-response/stop?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.BHOLE_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.StaticResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
-			name: "stop bhole",
+			name: "stop blacklist",
 			run: func(cmd *cobra.Command) {
-				stopBholeCmd.Run(cmd, nil)
+				stopBlacklistCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/bhole/stop?",
+			wantPath:   "https://tdns.example/api/blacklist/stop?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.BHOLE_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.BlacklistResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
@@ -103,9 +103,9 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				}
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/dnslog/alias?",
+			wantPath:   "https://tdns.example/api/dns-log/alias?",
 			handler: func(r *http.Request) api.Response {
-				return api.Response{Kind: api.DNSLOG_RESPONSE_KIND, Message: api.MESSAGE_OK}
+				return api.Response{Kind: api.DNSLogResponseKind, Message: api.MESSAGE_OK}
 			},
 		},
 		{
@@ -118,12 +118,12 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				}
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "https://tdns.example/api/dnslog/top/5?since=1w",
+			wantPath:   "https://tdns.example/api/dns-log/top/5?since=1w",
 			handler: func(r *http.Request) api.Response {
 				return api.Response{
-					Kind:    api.DNSLOG_RESPONSE_KIND,
+					Kind:    api.DNSLogResponseKind,
 					Message: api.MESSAGE_OK,
-					LogItems: []plugin.LogDetails{
+					LogItems: []middleware.LogDetails{
 						{Domain: "example.com.", Counter: 10, Host: "office"},
 					},
 				}

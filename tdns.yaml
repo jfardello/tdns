@@ -9,7 +9,7 @@ upstreams:
 dns_log:
   enabled: true
   file: /tmp/tdns.sqlite
-blackhole:
+blacklist:
   enabled: true
   file: /tmp/tds-bhole-file
   external_file: /alternates/gambling/hosts
@@ -18,14 +18,14 @@ blackhole:
   excludes:
     - domain.tld
     - facebook.com
-zenmode:
+zen_mode:
   enabled: true
   file: ./fixtures/zen_file
   domains:
     - www.facebook.com
     - www.instagram.com
     - x.com
-stubs:
+stub_resolver:
   enabled: true
   stubs:
     - google.com,udp://8.8.8.8,udp://8.8.4.4
@@ -33,6 +33,7 @@ stubs:
 server:
   listen_addr: ":8053"
   api_addr: ":8443"
+  pprof_addr: ":6060"
   api_cert_file: fixtures/tdns.crt
   api_key_file:  fixtures/tdns.key
   signing_key: wFLL196Y7zC8jLTDSezh6R8sGq4RqcMV/11P/MQ4u+USoEK2YCnctT7za/dPfeFjnJZJaDeBsyGXngB1657ahw==

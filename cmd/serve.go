@@ -7,6 +7,8 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/sched"
 	"github.com/sirupsen/logrus"
+	"net/http"
+	netpprof "net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
@@ -27,7 +29,7 @@ var (
 	upstream        []string
 	stubs           []string
 	hostFile        string
-	bholeFile       string
+	blacklistFile   string
 	zenFile         string
 	zenTime         int
 	blue            = "\033[34m"
@@ -89,7 +91,7 @@ func init() {
 	serveCmd.PersistentFlags().StringSliceVarP(&upstream, "upstream", "u", []string{DefaultUpstream}, "default upstream")
 	serveCmd.PersistentFlags().StringSliceVarP(&stubs, "stub", "s", []string{}, "Stubs servers for domains ex: domain.tld,udp://8.8.8.8")
 	serveCmd.PersistentFlags().StringVarP(&hostFile, "hosts", "f", "", "Respond with Anchor Resource sets from this file.")
-	serveCmd.PersistentFlags().StringVarP(&bholeFile, "blackhole", "b", "", "Black hole list file to filter ads & tracking systems.")
+	serveCmd.PersistentFlags().StringVarP(&blacklistFile, "blacklist", "b", "", "Blacklist file to filter ads and tracking systems.")
 	serveCmd.PersistentFlags().StringVarP(&zenFile, "zenfile", "z", "", "Temporarily filter domains from this file.")
 	serveCmd.PersistentFlags().IntVarP(&zenTime, "zentime", "T", 20, "Zen mode session time (in minutes).")
 	serveCmd.PersistentFlags().IntVarP(&timeout, "timeout", "t", 1000, "Global timeout for forwarding DNS requests")
@@ -101,20 +103,20 @@ func init() {
 
 	viper.SetDefault("upstreams", []string{DefaultUpstream})
 	_ = viper.BindPFlag("upstreams", serveCmd.PersistentFlags().Lookup("upstream"))
-	viper.SetDefault("stubs.config.stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
-	_ = viper.BindPFlag("stubs.config.stubs", serveCmd.PersistentFlags().Lookup("stub"))
-	viper.SetDefault("static.config.file", serveCmd.PersistentFlags().Lookup("hosts").DefValue)
-	_ = viper.BindPFlag("static_response_file", serveCmd.PersistentFlags().Lookup("hosts"))
-	viper.SetDefault("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole").DefValue)
-	_ = viper.BindPFlag("blackhole_file", serveCmd.PersistentFlags().Lookup("blackhole"))
-	viper.SetDefault("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile").DefValue)
-	viper.SetDefault("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
-	_ = viper.BindPFlag("zenmode.config.time", serveCmd.PersistentFlags().Lookup("zentime"))
-	_ = viper.BindPFlag("zenmode.config.file", serveCmd.PersistentFlags().Lookup("zenfile"))
+	viper.SetDefault("stub_resolver.stubs", serveCmd.PersistentFlags().Lookup("stub").DefValue)
+	_ = viper.BindPFlag("stub_resolver.stubs", serveCmd.PersistentFlags().Lookup("stub"))
+	viper.SetDefault("static_response.file", serveCmd.PersistentFlags().Lookup("hosts").DefValue)
+	_ = viper.BindPFlag("static_response.file", serveCmd.PersistentFlags().Lookup("hosts"))
+	viper.SetDefault("blacklist.file", serveCmd.PersistentFlags().Lookup("blacklist").DefValue)
+	_ = viper.BindPFlag("blacklist.file", serveCmd.PersistentFlags().Lookup("blacklist"))
+	viper.SetDefault("zen_mode.file", serveCmd.PersistentFlags().Lookup("zenfile").DefValue)
+	viper.SetDefault("zen_mode.time", serveCmd.PersistentFlags().Lookup("zentime").DefValue)
+	_ = viper.BindPFlag("zen_mode.time", serveCmd.PersistentFlags().Lookup("zentime"))
+	_ = viper.BindPFlag("zen_mode.file", serveCmd.PersistentFlags().Lookup("zenfile"))
 	viper.SetDefault("timeout", serveCmd.PersistentFlags().Lookup("timeout").DefValue)
-	viper.SetDefault("upstreamtimeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout").DefValue)
+	viper.SetDefault("upstream_timeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout").DefValue)
 	_ = viper.BindPFlag("timeout", serveCmd.PersistentFlags().Lookup("timeout"))
-	_ = viper.BindPFlag("upstreamtimeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout"))
+	_ = viper.BindPFlag("upstream_timeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout"))
 	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
@@ -157,14 +159,18 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	var pprofServer *http.Server
+	if c.Server.PProfAddr != "" {
+		pprofServer = startPProfServer(c.Server.PProfAddr)
+	}
 	newServer := server.NewServer(
 		server.WithStaticResponse(),
 		server.WithUpstreams(c.Upstreams, c.Timeout, c.UpstreamTimeout),
 		server.WithStubs(c.StubResolver.Stubs, c.Timeout, c.UpstreamTimeout),
-		server.WithBHoleList(),
+		server.WithBlacklist(),
 		server.WithCacheGet(),
 		server.WithCacheSet(),
-		server.WithZenPlugin(),
+		server.WithZenMode(),
 		server.WithStatus(),
 		server.WithDNSLog(),
 		server.WithTagger(),
@@ -235,18 +241,43 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	if p, ok := newServer.Plugins["tagger"]; ok {
+	if pprofServer != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := pprofServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error(err)
+		}
+		cancel()
+	}
+	if p, ok := newServer.Middlewares["tagger"]; ok {
 		if closer, ok := p.(interface{ Close() error }); ok {
 			if err := closer.Close(); err != nil {
 				logger.Fatal(err)
 			}
 		}
 	}
-	if p, ok := newServer.Plugins["dnslog"]; ok {
+	if p, ok := newServer.Middlewares["dns-log"]; ok {
 		if stopper, ok := p.(interface{ Stop() }); ok {
 			stopper.Stop()
 		}
 	}
 	os.Exit(0)
 
+}
+
+func startPProfServer(addr string) *http.Server {
+	logger := log.GetLogger("serve", "pprof")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", netpprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", netpprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", netpprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
+	server := &http.Server{Addr: addr, Handler: mux}
+	go func() {
+		logger.Infof("Starting pprof server at %s", addr)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error(err)
+		}
+	}()
+	return server
 }

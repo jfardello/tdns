@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"context"
@@ -71,7 +71,7 @@ func (cs *CacheGet) Run(mess *Message) (*Message, error) {
 
 }
 
-func (cs *CacheGet) Info() (string, Ptype) {
+func (cs *CacheGet) Info() (string, Stage) {
 	return "cacheget", PreRouting
 }
 func (cs *CacheGet) Config(_ config.Config) error {
@@ -104,7 +104,7 @@ func (cs *CacheSet) Run(mess *Message) (*Message, error) {
 	return mess, nil
 }
 
-func (cs *CacheSet) Info() (string, Ptype) {
+func (cs *CacheSet) Info() (string, Stage) {
 	return "cacheset", PostRouting
 }
 func (cs *CacheSet) Config(config.Config) error {

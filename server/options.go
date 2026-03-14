@@ -2,12 +2,12 @@ package server
 
 import (
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/middleware"
 	"time"
 
 	"github.com/armon/go-radix"
 	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/log"
-	"github.com/jfardello/tdns/plugin"
 )
 
 var DEFAULT_TIMEOUT_MILLIS int = 1000
@@ -15,11 +15,11 @@ var DEFAULT_TIMEOUT_MILLIS int = 1000
 func WithStaticResponse() func(*Server) {
 
 	c := config.GetRunningConfig()
-	hostFile := c.Static.File
+	hostFile := c.StaticResponse.File
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 		if hostFile != "" {
-			st := &plugin.StaticResponsePlugin{}
+			st := &middleware.StaticResponse{}
 			err := st.Config(s.Config)
 			if err != nil {
 				logger.Fatal(err)
@@ -29,7 +29,7 @@ func WithStaticResponse() func(*Server) {
 				logger.Fatal(err)
 			}
 			n, _ := st.Info()
-			s.Plugins[n] = st
+			s.Middlewares[n] = st
 
 			logger.Infof("Loaded %d hosts", len(st.Hosts))
 		}
@@ -38,7 +38,7 @@ func WithStaticResponse() func(*Server) {
 
 func WithStatus() func(*Server) {
 	return func(s *Server) {
-		sp := &plugin.StatusPlugin{}
+		sp := &middleware.Status{}
 		err := sp.Config(s.Config)
 		logger := log.GetLogger("serve", "config")
 		if err != nil {
@@ -49,17 +49,17 @@ func WithStatus() func(*Server) {
 			logger.Fatal(err)
 		}
 		n, _ := sp.Info()
-		s.Plugins[n] = sp
+		s.Middlewares[n] = sp
 
-		logger.Infof("Loaded Status plugin")
+		logger.Infof("Loaded status middleware")
 	}
 }
 
-func WithZenPlugin() func(*Server) {
+func WithZenMode() func(*Server) {
 
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
-		z := &plugin.ZenmodePlugin{}
+		z := &middleware.ZenMode{}
 		err := z.Config(s.Config)
 		if err != nil {
 			logger.Fatal(err)
@@ -69,7 +69,7 @@ func WithZenPlugin() func(*Server) {
 			logger.Fatal(err)
 		}
 		n, _ := z.Info()
-		s.Plugins[n] = z
+		s.Middlewares[n] = z
 
 		logger.Infof("Loaded %d hosts for zen mode", len(z.Hosts))
 	}
@@ -89,7 +89,7 @@ func WithDNSLog() func(*Server) {
 	return func(s *Server) {
 		if s.Config.DNSLog.Enabled {
 			logger := log.GetLogger("serve", "config")
-			dl := &plugin.DNSLog{}
+			dl := &middleware.DNSLog{}
 			err := dl.Config(s.Config)
 			if err != nil {
 				logger.Error(err)
@@ -101,7 +101,7 @@ func WithDNSLog() func(*Server) {
 				return
 			}
 			n, _ := dl.Info()
-			s.Plugins[n] = dl
+			s.Middlewares[n] = dl
 		}
 	}
 }
@@ -110,7 +110,7 @@ func WithTagger() func(*Server) {
 	return func(s *Server) {
 		if s.Config.Tagger.Enabled {
 			logger := log.GetLogger("serve", "config")
-			dl := &plugin.Tagger{}
+			dl := &middleware.Tagger{}
 			err := dl.Config(s.Config)
 			if err != nil {
 				logger.Error(err)
@@ -122,7 +122,7 @@ func WithTagger() func(*Server) {
 				return
 			}
 			n, _ := dl.Info()
-			s.Plugins[n] = dl
+			s.Middlewares[n] = dl
 		}
 	}
 }
@@ -131,12 +131,12 @@ func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server)
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 
-		stubs, err := plugin.ParseStubList(u, globalTimeOut, upstreamTimeout)
+		stubs, err := middleware.ParseStubList(u, globalTimeOut, upstreamTimeout)
 		if err != nil {
 			logger.Errorf("Malformed stub strings: %#v", u)
 			return
 		}
-		p := &plugin.StubresolverPlugin{
+		p := &middleware.StubResolver{
 			EnableStubs: true,
 			Stubs:       stubs,
 		}
@@ -150,17 +150,17 @@ func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server)
 			logger.Fatal(err)
 		}
 		n, _ := p.Info()
-		s.Plugins[n] = p
+		s.Middlewares[n] = p
 		logger.Infof("Loaded %d stubs", len(p.Stubs))
 	}
 }
 
-func WithBHoleList() func(*Server) {
+func WithBlacklist() func(*Server) {
 	c := config.GetRunningConfig()
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
-		if c.BlackHole.File != "" {
-			b := &plugin.BlackListPlugin{
+		if c.Blacklist.File != "" {
+			b := &middleware.BlackList{
 				Hole: radix.New(),
 			}
 			err := b.Config(s.Config)
@@ -172,7 +172,7 @@ func WithBHoleList() func(*Server) {
 				logger.Fatal(err)
 			}
 			n, _ := b.Info()
-			s.Plugins[n] = b
+			s.Middlewares[n] = b
 			logger.Infof("Loaded %d hosts from the black hole list.", b.Hole.Len())
 		}
 	}
@@ -180,23 +180,23 @@ func WithBHoleList() func(*Server) {
 
 func WithCacheGet() func(*Server) {
 	return func(s *Server) {
-		c := &plugin.CacheGet{}
+		c := &middleware.CacheGet{}
 		err := c.Init()
 		if err != nil {
 			panic(err)
 		}
 		n, _ := c.Info()
-		s.Plugins[n] = c
+		s.Middlewares[n] = c
 	}
 }
 func WithCacheSet() func(*Server) {
 	return func(s *Server) {
-		c := &plugin.CacheSet{}
+		c := &middleware.CacheSet{}
 		err := c.Init()
 		if err != nil {
 			panic(err)
 		}
 		n, _ := c.Info()
-		s.Plugins[n] = c
+		s.Middlewares[n] = c
 	}
 }

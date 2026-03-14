@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"fmt"
@@ -13,20 +13,20 @@ import (
 	"github.com/miekg/dns"
 )
 
-// StubresolverPlugin sends DNS requests to stub zone dns, eg. VPN or DMZ internal dns.
-type StubresolverPlugin struct {
+// StubResolver sends DNS requests to domain-specific upstreams.
+type StubResolver struct {
 	mu          sync.Mutex
 	EnableStubs bool
 	Stubs       map[string]*client.Mux
 	config      config.Config
 }
 
-func (sr *StubresolverPlugin) Info() (string, Ptype) {
-	return "stubresolver", Resolving
+func (sr *StubResolver) Info() (string, Stage) {
+	return "stub-resolver", Resolving
 }
 
-func (sr *StubresolverPlugin) Run(mess *Message) (*Message, error) {
-	logger := log.GetLogger("plugin", "StubResolver")
+func (sr *StubResolver) Run(mess *Message) (*Message, error) {
+	logger := log.GetLogger("middleware.StubResolver", "Run")
 	m, err := mess.GetMsg()
 	if err != nil {
 		return mess, err
@@ -63,12 +63,12 @@ func (sr *StubresolverPlugin) Run(mess *Message) (*Message, error) {
 	return mess, nil
 }
 
-func (sr *StubresolverPlugin) Config(c config.Config) error {
+func (sr *StubResolver) Config(c config.Config) error {
 	sr.config = c
 	return nil
 }
 
-func (sr *StubresolverPlugin) Replace(m map[string]*client.Mux) {
+func (sr *StubResolver) Replace(m map[string]*client.Mux) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
 	for each := range m {
@@ -76,7 +76,7 @@ func (sr *StubresolverPlugin) Replace(m map[string]*client.Mux) {
 	}
 }
 
-func (sr *StubresolverPlugin) Init() error {
+func (sr *StubResolver) Init() error {
 	stubs, err := ParseStubList(sr.config.StubResolver.Stubs, sr.config.Timeout, sr.config.UpstreamTimeout)
 	if err != nil {
 		return err

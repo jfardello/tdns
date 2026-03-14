@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"errors"
@@ -12,14 +12,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const ZENMODE_IP string = "127.0.0.1"
-
 var (
 	DefaultZenTimeMinutes int = 20
 	DefaultZenDomains         = []string{"wwww.instagram.com", "x.com", "www.facebook.com"}
 )
 
-type ZenmodePlugin struct {
+type ZenMode struct {
 	ZenFile  string
 	enabled  bool
 	initDone bool
@@ -28,12 +26,11 @@ type ZenmodePlugin struct {
 	Hosts    map[string]string
 }
 
-// Info ... Ptype indicates where to hook the plugin.
-func (z *ZenmodePlugin) Info() (string, Ptype) {
-	return "zenmode", PreRouting
+func (z *ZenMode) Info() (string, Stage) {
+	return "zen-mode", PreRouting
 }
 
-func (z *ZenmodePlugin) GetDomains() []string {
+func (z *ZenMode) GetDomains() []string {
 	d := make([]string, 0, len(z.Hosts))
 	for k := range z.Hosts {
 		d = append(d, k)
@@ -42,8 +39,7 @@ func (z *ZenmodePlugin) GetDomains() []string {
 
 }
 
-// Run performs the plugin logic, returns a resource record, a cache flag, and an error indicating failiure.
-func (z *ZenmodePlugin) Run(mess *Message) (*Message, error) {
+func (z *ZenMode) Run(mess *Message) (*Message, error) {
 	if z.enabled {
 		m, err := mess.GetMsg()
 		if err != nil {
@@ -61,7 +57,7 @@ func (z *ZenmodePlugin) Run(mess *Message) (*Message, error) {
 				m.Answer = append(m.Answer, rr)
 				mess.SetMsg(m)
 				mess.Resolved(true)
-				err = mess.AddValue("tdsn/zenmode", "true")
+				err = mess.AddValue("tdns/zen-mode", "true")
 				if err != nil {
 					return mess, err
 				}
@@ -72,14 +68,14 @@ func (z *ZenmodePlugin) Run(mess *Message) (*Message, error) {
 	return mess, nil
 }
 
-func (z *ZenmodePlugin) Config(c config.Config) error {
+func (z *ZenMode) Config(c config.Config) error {
 	z.c = c
 	return nil
 }
 
-func (z *ZenmodePlugin) Init() error {
+func (z *ZenMode) Init() error {
 	z.mu = make(chan struct{}, 1) //this is the lock
-	logger := log.GetLogger("ZenmodePlugin", "init")
+	logger := log.GetLogger("middleware.ZenMode", "init")
 	z.enabled = false
 	z.initDone = true
 	z.Hosts = map[string]string{}
@@ -97,7 +93,7 @@ func (z *ZenmodePlugin) Init() error {
 	return nil
 }
 
-func (z *ZenmodePlugin) ReplaceDomains(hosts map[string]string) error {
+func (z *ZenMode) ReplaceDomains(hosts map[string]string) error {
 	if len(hosts) == 0 {
 		return errors.New("can't replace with an empty map")
 	}
@@ -105,11 +101,11 @@ func (z *ZenmodePlugin) ReplaceDomains(hosts map[string]string) error {
 	return nil
 }
 
-func (z *ZenmodePlugin) Start() {
-	logger := log.GetLogger("ZenmodePlugin", "Timer")
+func (z *ZenMode) Start() {
+	logger := log.GetLogger("middleware.ZenMode", "Timer")
 	if z.enabled {
-		logger := log.GetLogger("ZenmodePlugin", "Start")
-		logger.Info("Zenmode timer in progress")
+		logger := log.GetLogger("middleware.ZenMode", "Start")
+		logger.Info("Zen mode timer in progress")
 		return
 	}
 	select {
@@ -129,6 +125,6 @@ func (z *ZenmodePlugin) Start() {
 	}
 }
 
-func (z *ZenmodePlugin) Status() bool {
+func (z *ZenMode) Status() bool {
 	return z.enabled
 }

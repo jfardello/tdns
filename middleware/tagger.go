@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"errors"
@@ -39,7 +39,7 @@ func (t *Tagger) Close() error {
 }
 
 func (t *Tagger) Run(message *Message) (*Message, error) {
-	logger := log.GetLogger("plugin.Tagger", "Run")
+	logger := log.GetLogger("middleware.Tagger", "Run")
 	if err := t.ensureReady(); err != nil {
 		return message, nil
 	}
@@ -64,7 +64,7 @@ func (t *Tagger) Run(message *Message) (*Message, error) {
 	return message, nil
 }
 
-func (t *Tagger) Info() (string, Ptype) {
+func (t *Tagger) Info() (string, Stage) {
 	return "tagger", PreRouting
 }
 

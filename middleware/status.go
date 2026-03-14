@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"fmt"
@@ -11,32 +11,32 @@ import (
 
 const StatusDefaultDomain string = "_status.tdns.local."
 
-type StatusPlugin struct {
+type Status struct {
 	Enabled      bool
 	Since        time.Time
 	ExposeStats  bool
 	ExposeUptime bool
 }
 
-func (sc *StatusPlugin) Config(c config.Config) error {
+func (sc *Status) Config(c config.Config) error {
 	sc.Enabled = c.Status.Enabled
 	sc.ExposeStats = c.Status.ExposeStats
 	sc.ExposeUptime = c.Status.ExposeUptime
 	if c.Status.Enabled {
 		sc.Since = time.Now()
-		logger := log.GetLogger("Statuslugin", "config")
-		logger.Info("Status plugin starting.")
+		logger := log.GetLogger("middleware.Status", "config")
+		logger.Info("Status middleware starting.")
 		return nil
 	}
 	return nil
 }
 
-func (sc *StatusPlugin) Init() error {
+func (sc *Status) Init() error {
 
 	return nil
 }
 
-func (sc *StatusPlugin) Run(mess *Message) (*Message, error) {
+func (sc *Status) Run(mess *Message) (*Message, error) {
 	if !sc.Enabled {
 		return mess, nil
 	}
@@ -45,7 +45,7 @@ func (sc *StatusPlugin) Run(mess *Message) (*Message, error) {
 		return mess, err
 	}
 	domain := m.Question[0].Name
-	logger := log.GetLogger("StatusPlugin", "resolve")
+	logger := log.GetLogger("middleware.Status", "resolve")
 	if domain == StatusDefaultDomain && m.Question[0].Qtype == dns.TypeTXT {
 		logger.Debugf("Domain: %s query domain: %s", domain, StatusDefaultDomain)
 		rr, err := dns.NewRR(fmt.Sprintf(`%s 3600 IN TXT "%s"`, domain, getStatus(sc.Since, sc)))
@@ -61,11 +61,11 @@ func (sc *StatusPlugin) Run(mess *Message) (*Message, error) {
 	return mess, nil
 }
 
-func (sc *StatusPlugin) Info() (string, Ptype) {
+func (sc *Status) Info() (string, Stage) {
 	return "status", PreRouting
 }
 
-func getStatus(t time.Time, sp *StatusPlugin) string {
+func getStatus(t time.Time, sp *Status) string {
 	s := "Status: online"
 	if sp.ExposeUptime {
 		s = fmt.Sprintf("%s since %s", s, t)

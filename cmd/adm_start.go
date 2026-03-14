@@ -24,10 +24,10 @@ var startCmd = &cobra.Command{
 }
 
 var startZenCmd = &cobra.Command{
-	Use:   "zen",
+	Use:   "zen-mode",
 	Short: "Starts zen mode period interceptor",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/zen/start", nil)
+		resp, err := api.Post(cmd.Context(), "/api/zen-mode/start", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -36,11 +36,11 @@ var startZenCmd = &cobra.Command{
 	},
 }
 
-var startBholeCmd = &cobra.Command{
-	Use:   "bhole",
-	Short: "Start Black hole interceptor",
+var startBlacklistCmd = &cobra.Command{
+	Use:   "blacklist",
+	Short: "Start blacklist middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/bhole/start", nil)
+		resp, err := api.Post(cmd.Context(), "/api/blacklist/start", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -50,11 +50,11 @@ var startBholeCmd = &cobra.Command{
 }
 
 var startStubsCmd = &cobra.Command{
-	Use:   "stubs",
-	Short: "Start stub server interceptor",
+	Use:   "stub-resolver",
+	Short: "Start stub resolver middleware",
 	Run: func(cmd *cobra.Command, args []string) {
 		setPersistentOps()
-		resp, err := api.Post(cmd.Context(), "/api/stubs/start", nil)
+		resp, err := api.Post(cmd.Context(), "/api/stub-resolver/start", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -65,10 +65,10 @@ var startStubsCmd = &cobra.Command{
 
 // startStaticCmd represents the static command.
 var startStaticCmd = &cobra.Command{
-	Use:   "static",
-	Short: "Start static file respose interceptor",
+	Use:   "static-response",
+	Short: "Start static response middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/static/start", nil)
+		resp, err := api.Post(cmd.Context(), "/api/static-response/start", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -80,7 +80,7 @@ var startStaticCmd = &cobra.Command{
 func init() {
 	manageCmd.AddCommand(startCmd)
 	startCmd.AddCommand(startZenCmd)
-	startCmd.AddCommand(startBholeCmd)
+	startCmd.AddCommand(startBlacklistCmd)
 	startCmd.AddCommand(startStubsCmd)
 	startCmd.AddCommand(startStaticCmd)
 

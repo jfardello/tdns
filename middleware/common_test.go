@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"context"
@@ -15,7 +15,7 @@ func TestMessage_GetCtxValue(t *testing.T) {
 	c := context.WithValue(context.Background(), config.CtxKey, config.CtxValue{
 		RemoteAddr: addr,
 		Values: map[string]string{
-			"plugin/foo": "bar",
+			"middleware/foo": "bar",
 		},
 	})
 	type fields struct {
@@ -38,7 +38,7 @@ func TestMessage_GetCtxValue(t *testing.T) {
 				t.Errorf("GetCtxValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotValue.Values["plugin/foo"] != tt.wantValue {
+			if gotValue.Values["middleware/foo"] != tt.wantValue {
 				t.Errorf("GetCtxValue() want = %s, not in : %+v", tt.wantValue, gotValue.Values)
 			}
 
@@ -51,7 +51,7 @@ func TestMessage_AddCtxValue(t *testing.T) {
 	c := context.WithValue(context.Background(), config.CtxKey, config.CtxValue{
 		RemoteAddr: addr,
 		Values: map[string]string{
-			"plugin/foo": "bar",
+			"middleware/foo": "bar",
 		},
 	})
 	type fields struct {
@@ -89,7 +89,7 @@ func TestMessage_Answer(t *testing.T) {
 	c := context.WithValue(context.Background(), config.CtxKey, config.CtxValue{
 		RemoteAddr: addr,
 		Values: map[string]string{
-			"plugin/foo": "bar",
+			"middleware/foo": "bar",
 		},
 	})
 

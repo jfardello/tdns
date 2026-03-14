@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/sqliteutil"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/syncsqlite"
@@ -18,7 +19,6 @@ import (
 	str2duration "github.com/xhit/go-str2duration/v2"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // RIPPER_FUZZINESS defines the maximum wait time for dnslog's ripper tasks,
@@ -252,7 +252,7 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 	dest := make([]LogDetails, 0)
 
 	db := cs.se.GetConn()
-	dbx := sqlx.NewDb(db, "sqlite3")
+	dbx := sqlx.NewDb(db, sqliteutil.DriverName())
 	dbl := &log.SQLLogger{
 		Queryer: dbx, Logger: logger, DebugSql: true,
 	}
@@ -354,8 +354,8 @@ func (cs *DNSLog) runAsync() {
 	}
 }
 
-func (cs *DNSLog) Info() (string, Ptype) {
-	return "dnslog", PostRouting
+func (cs *DNSLog) Info() (string, Stage) {
+	return "dns-log", PostRouting
 }
 func (cs *DNSLog) Config(cf config.Config) error {
 	logger := log.GetLogger("DNSLog", "Config")

@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"bufio"
@@ -6,13 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/jfardello/tdns/sched"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/jfardello/tdns/sched"
 
 	"strings"
 
@@ -30,8 +31,8 @@ import (
 )
 
 const (
-	BLAddr         string = "0.0.0.0"
-	BLMaxFuzziness        = 300
+	BLAddr         = "0.0.0.0"
+	BLMaxFuzziness = 300
 )
 
 type None struct{}
@@ -56,7 +57,7 @@ func (wc *WriteCounter) PrintProgress() {
 	wc.logger.Infof("Downloaded %s", humanize.Bytes(wc.Total))
 }
 
-type BlackListPlugin struct {
+type BlackList struct {
 	Enabled      bool
 	Hole         *radix.Tree
 	HoleFile     string
@@ -69,15 +70,14 @@ type BlackListPlugin struct {
 	cancel       context.CancelFunc
 }
 
-// Info Ptype indicates where to hook the plugin.
-func (bp *BlackListPlugin) Info() (string, Ptype) {
+func (bp *BlackList) Info() (string, Stage) {
 	return "blacklist", PreRouting
 }
 
-func (bp *BlackListPlugin) Run(mess *Message) (message *Message, err error) {
-	logger := log.GetLogger("plugin", "BHole")
+func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
+	logger := log.GetLogger("middleware.BlackList", "Run")
 	if !bp.Enabled {
-		logger.Debug("Blackhole disabled.")
+		logger.Debug("Blacklist disabled.")
 		return mess, nil
 	}
 	m, err := mess.GetMsg()
@@ -104,22 +104,22 @@ func (bp *BlackListPlugin) Run(mess *Message) (message *Message, err error) {
 
 }
 
-func (bp *BlackListPlugin) Config(c config.Config) error {
-	bp.Enabled = c.BlackHole.Enabled
-	bf := c.BlackHole.File
-	ef := c.BlackHole.ExternalFile
-	er := c.BlackHole.ExternalRepo
+func (bp *BlackList) Config(c config.Config) error {
+	bp.Enabled = c.Blacklist.Enabled
+	bf := c.Blacklist.File
+	ef := c.Blacklist.ExternalFile
+	er := c.Blacklist.ExternalRepo
 	bp.ctx, bp.cancel = context.WithCancel(context.Background())
 	if bf != "" {
 		bp.HoleFile = bf
-		bp.WhiteList = c.BlackHole.Excludes
+		bp.WhiteList = c.Blacklist.Excludes
 		bp.externalFile = ef
 		bp.externalRepo = er
 		bp.DefaultAddr = BLAddr
 		bp.branch = "master"
 		return nil
 	}
-	return errors.New("BlackholeFile is mandatory")
+	return errors.New("blacklist file is mandatory")
 }
 
 type GitLister interface {
@@ -187,7 +187,7 @@ func (gd *GitDownloader) GithubRaw(file *os.File, owner, repo, path, ref string)
 		return 0, fmt.Errorf("GitHub API %d: %s", resp.StatusCode, bytes.TrimSpace(slurp))
 	}
 	counter := &WriteCounter{
-		logger:   log.GetLogger("BlacklistPlugin", "Download"),
+		logger:   log.GetLogger("middleware.BlackList", "Download"),
 		ReportMB: 1,
 	}
 	if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {
@@ -199,8 +199,8 @@ func (gd *GitDownloader) GithubRaw(file *os.File, owner, repo, path, ref string)
 
 //--
 
-func (bp *BlackListPlugin) Download() error {
-	logger := log.GetLogger("plugin.BlackListPlugin", "Download")
+func (bp *BlackList) Download() error {
+	logger := log.GetLogger("middleware.BlackList", "Download")
 	if bp.externalFile != "" && bp.externalRepo != "" {
 		head, err := remoteHEAD(bp.externalRepo, bp.branch)
 		if err != nil {
@@ -234,7 +234,7 @@ func (bp *BlackListPlugin) Download() error {
 	return nil
 }
 
-func (bp *BlackListPlugin) Init() error {
+func (bp *BlackList) Init() error {
 
 	err := bp.Download()
 	if err != nil {
@@ -272,7 +272,7 @@ OUTER:
 
 	cf := config.GetRunningConfig()
 	mf := int64(BLMaxFuzziness * time.Second)
-	if cf.BlackHole.ExternalPullPeriod != "" {
+	if cf.Blacklist.ExternalPullPeriod != "" {
 		name := "BlackListDownloader"
 		t := sched.Task{
 			Name: name,
@@ -282,7 +282,7 @@ OUTER:
 					panic(err)
 				}
 			}),
-			Expr: cf.BlackHole.ExternalPullPeriod,
+			Expr: cf.Blacklist.ExternalPullPeriod,
 		}
 		sched.Add(t)
 	}
@@ -347,7 +347,7 @@ func githubRaw(file *os.File, owner, repo, path, ref string) (uint64, error) {
 		return 0, fmt.Errorf("GitHub API %d: %s", resp.StatusCode, bytes.TrimSpace(slurp))
 	}
 	counter := &WriteCounter{
-		logger:   log.GetLogger("BlacklistPlugin", "Download"),
+		logger:   log.GetLogger("middleware.BlackList", "Download"),
 		ReportMB: 1,
 	}
 	if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {

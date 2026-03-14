@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jfardello/tdns/plugin"
+	"github.com/jfardello/tdns/middleware"
 )
 
 type AddTagRequest struct {
@@ -26,12 +26,12 @@ type ReplaceMemberLabelsRequest struct {
 	Tags []string `json:"tags"`
 }
 
-func (api *v1) taggerPlugin() (*plugin.Tagger, error) {
-	p, ok := api.server.Plugins["tagger"]
+func (api *v1) taggerMiddleware() (*middleware.Tagger, error) {
+	p, ok := api.server.Middlewares["tagger"]
 	if !ok {
 		return nil, errors.New("tagger middleware is disabled")
 	}
-	t, ok := p.(*plugin.Tagger)
+	t, ok := p.(*middleware.Tagger)
 	if !ok {
 		return nil, errors.New("tagger middleware has an unexpected type")
 	}
@@ -42,7 +42,7 @@ func writeTaggerResponse(w http.ResponseWriter, status int, message string, item
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	writeJSON(Response{
-		Kind:          TAGGEER_RESPONSE_KIND,
+		Kind:          TaggerResponseKind,
 		Message:       message,
 		CurrentStatus: "Enabled",
 		Items:         items,
@@ -50,7 +50,7 @@ func writeTaggerResponse(w http.ResponseWriter, status int, message string, item
 }
 
 func (api *v1) TaggerAddTag(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -69,7 +69,7 @@ func (api *v1) TaggerAddTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerGetTags(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -84,7 +84,7 @@ func (api *v1) TaggerGetTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -109,7 +109,7 @@ func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -125,7 +125,7 @@ func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -141,7 +141,7 @@ func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerAddressCreate(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -165,7 +165,7 @@ func (api *v1) TaggerAddressCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerAddressReplace(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return
@@ -193,7 +193,7 @@ func (api *v1) TaggerAddressReplace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) TaggerDeleteTag(w http.ResponseWriter, r *http.Request) {
-	p, err := api.taggerPlugin()
+	p, err := api.taggerMiddleware()
 	if err != nil {
 		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
 		return

@@ -48,7 +48,7 @@ The `config` sub-command will generate a sample configuration directory and syst
 
 ```bash 
 $ sudo tdns config -o /etc/tdns
-$ curl http://sbc.io/hosts/hosts | sudo tee /etc/tdns/bhole.hosts 1>/dev/null 
+$ curl http://sbc.io/hosts/hosts | sudo tee /etc/tdns/blacklist.hosts 1>/dev/null 
 $ sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
 $ sudo systemctl config-reload
 $ sudo systemctl start tdns
@@ -98,17 +98,17 @@ variables or configuration files. The override order is CLI, env, then config fi
 |timeout | TDNS_TIMEOUT    	|     	|             	|
 |verify_tls | TDNS_VERIFY_TLS  	|     	|             	|
 |upstreams| TDNS_UPSTREAM    	|    -u, --upstream 	|             	|
-|enable_blackhole   | TDNS_ENABLE_BLACKHOLE     ||
-|blackhole_file |  TDNS_BLACKHOLE_FILE    | -b, --blackhole |
-|blackhole_exempt |TDNS_BLACKHOLE_EXEMPT      ||
-|enable_static_response| TDNS_ENABLE_STATIC_RESPONSE       ||
-|static_response_file|  TDNS_STATIC_RESPONSE_FILE     | -f, --hosts|
-|enable_zenmode| TDNS_ENABLE_ZENMODE ||
-|zenmode_file|  TDNS_ZENMODE_FILE    | -z, --zenfile|
-|zenmode_domains| TDNS_ZENMODE_DOMAINS     ||
-|zenmode_time| TDNS_ZENMODE_TIME     |-t, -zentime| |
-|enable_stubs| TDNS_ENABLE_STUBS     ||
-|stubs|      TDNS_STUBS| -s, --stub | |
+|blacklist.enabled   | TDNS_BLACKLIST_ENABLED     ||
+|blacklist.file |  TDNS_BLACKLIST_FILE    | -b, --blacklist |
+|blacklist.excludes |TDNS_BLACKLIST_EXCLUDES      ||
+|static_response.enabled| TDNS_STATIC_RESPONSE_ENABLED       ||
+|static_response.file|  TDNS_STATIC_RESPONSE_FILE     | -f, --hosts|
+|zen_mode.enabled| TDNS_ZEN_MODE_ENABLED ||
+|zen_mode.file|  TDNS_ZEN_MODE_FILE    | -z, --zenfile|
+|zen_mode.domains| TDNS_ZEN_MODE_DOMAINS     ||
+|zen_mode.time| TDNS_ZEN_MODE_TIME     |-t, -zentime| |
+|stub_resolver.enabled| TDNS_STUB_RESOLVER_ENABLED     ||
+|stub_resolver.stubs|      TDNS_STUB_RESOLVER_STUBS| -s, --stub | |
 
 
 

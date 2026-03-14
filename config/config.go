@@ -45,22 +45,22 @@ func Unlock() {
 }
 
 type Config struct {
-	Timeout         int              `mapstructure:"timeout" yaml:"timeout,omitempty"`
-	UpstreamTimeout int              `mapstructure:"upstreamtimeout" yaml:"timeout,omitempty"`
-	LogLevel        string           `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
-	VerifyTLS       bool             `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
-	EnableAPI       bool             `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
-	Upstreams       []string         `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
-	Cache           CacheConf        `mapstructure:"cache" yaml:"enable_cache,omitempty"`
-	BlackHole       BlackHoleConf    `mapstructure:"blackhole" yaml:"blackhole,omitempty"`
-	Static          StaticConf       `mapstructure:"static" yaml:"static,omitempty"`
-	ZenMode         ZenConfig        `mapstructure:"zenmode" yaml:"zenmode,omitempty"`
-	DNSLog          DNSLogConf       `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
-	Tagger          TaggerConf       `mapstructure:"tagger" yaml:"tagger,omitempty"`
-	Status          StatusConf       `mapstructure:"status" yaml:"status,omitempty"`
-	StubResolver    StubResolverConf `mapstructure:"stubs"  yaml:"stubs,omitempty"`
-	Client          Client           `mapstructure:"client" yaml:"client,omitempty"`
-	Server          Server           `mapstructure:"server" yaml:"server,omitempty"`
+	Timeout         int                `mapstructure:"timeout" yaml:"timeout,omitempty"`
+	UpstreamTimeout int                `mapstructure:"upstream_timeout" yaml:"upstream_timeout,omitempty"`
+	LogLevel        string             `mapstructure:"loglevel" yaml:"loglevel,omitempty"`
+	VerifyTLS       bool               `mapstructure:"verify_tls" yaml:"verify_tls,omitempty"`
+	EnableAPI       bool               `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
+	Upstreams       []string           `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
+	Cache           CacheConf          `mapstructure:"cache" yaml:"cache,omitempty"`
+	Blacklist       BlacklistConfig    `mapstructure:"blacklist" yaml:"blacklist,omitempty"`
+	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
+	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
+	DNSLog          DNSLogConf         `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
+	Tagger          TaggerConf         `mapstructure:"tagger" yaml:"tagger,omitempty"`
+	Status          StatusConf         `mapstructure:"status" yaml:"status,omitempty"`
+	StubResolver    StubResolverConf   `mapstructure:"stub_resolver" yaml:"stub_resolver,omitempty"`
+	Client          Client             `mapstructure:"client" yaml:"client,omitempty"`
+	Server          Server             `mapstructure:"server" yaml:"server,omitempty"`
 }
 
 type TaggerConf struct {
@@ -78,7 +78,7 @@ type CacheConf struct {
 	Enabled bool `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
 	Ttl     int  `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
 }
-type BlackHoleConf struct {
+type BlacklistConfig struct {
 	Enabled            bool     `mapstructure:"enabled" yaml:"enabled"`
 	File               string   `mapstructure:"file" yaml:"file"`
 	ExternalFile       string   `mapstructure:"external_file" yaml:"external_file,omitempty"`
@@ -88,7 +88,7 @@ type BlackHoleConf struct {
 	Excludes           []string `mapstructure:"exclude" yaml:"excludes"`
 }
 
-type StaticConf struct {
+type StaticResponseConf struct {
 	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
 	File    string `mapstructure:"file" yaml:"file"`
 }
@@ -99,7 +99,7 @@ type StatusConf struct {
 	ExposeStats  bool `mapstructure:"expose_stats" yaml:"expose_stats,omitempty"`
 }
 
-type ZenConfig struct {
+type ZenModeConfig struct {
 	Enabled bool     `mapstructure:"enabled" yaml:"enabled,omitempty"`
 	File    string   `mapstructure:"file" yaml:"file,omitempty"`
 	Domains []string `mapstructure:"domains" yaml:"domains,omitempty"`
@@ -122,6 +122,7 @@ type Server struct {
 	APIAddr     string `mapstructure:"api_addr" yaml:"api_addr,omitempty"`
 	APICertFile string `mapstructure:"api_cert_file" yaml:"api_cert_file,omitempty"`
 	APIKeyFile  string `mapstructure:"api_key_file" yaml:"api_key_file,omitempty"`
+	PProfAddr   string `mapstructure:"pprof_addr" yaml:"pprof_addr,omitempty"`
 	SigningKey  string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 	signingKey  []byte
 }

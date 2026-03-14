@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
-	"github.com/jfardello/tdns/plugin"
+	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/server"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -77,18 +77,18 @@ func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 	if api.server.StubsToggle(state) {
 		curr = "enabled"
 	}
-	res := Response{Message: MESSAGE_OK, CurrentStatus: curr, Kind: STUB_RESPONSE_KIND}
+	res := Response{Message: MESSAGE_OK, CurrentStatus: curr, Kind: StubResolverResponseKind}
 	writeJSON(res, w)
 
 }
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
 	w.Header().Set("Content-Type", "application/json")
 	jr := new(DNSLogAliasRequest)
 	err := json.NewDecoder(r.Body).Decode(jr)
 	if err != nil {
 		writeJSON(Response{
-			Kind:          DNSLOG_RESPONSE_KIND,
+			Kind:          DNSLogResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: "Enabled",
 		}, w)
@@ -97,7 +97,7 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 	err = p.AddAlias(jr.Name, jr.Addr)
 	if err != nil {
 		writeJSON(Response{
-			Kind:          DNSLOG_RESPONSE_KIND,
+			Kind:          DNSLogResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: "Enabled",
 		}, w)
@@ -105,14 +105,14 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := Response{
-		Kind:          DNSLOG_RESPONSE_KIND,
+		Kind:          DNSLogResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: "Enabled",
 	}
 	writeJSON(res, w)
 }
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
 	w.Header().Set("Content-Type", "application/json")
 
 	since := r.URL.Query().Get("since")
@@ -120,14 +120,14 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 	err := p.Rotate(since)
 	if err != nil {
 		writeJSON(Response{
-			Kind:          DNSLOG_RESPONSE_KIND,
+			Kind:          DNSLogResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: "Enabled",
 		}, w)
 		return
 	}
 	res := Response{
-		Kind:          DNSLOG_RESPONSE_KIND,
+		Kind:          DNSLogResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: "Rotate OK",
 	}
@@ -135,14 +135,14 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Plugins["dnslog"].(*plugin.DNSLog)
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
 	w.Header().Set("Content-Type", "application/json")
 	top, err := strconv.Atoi(r.PathValue("top"))
 	since := r.URL.Query().Get("since")
 
 	if err != nil {
 		writeJSON(Response{
-			Kind:          DNSLOG_RESPONSE_KIND,
+			Kind:          DNSLogResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: "Enabled",
 		}, w)
@@ -151,21 +151,21 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 	items, err := p.GetTop(top, since)
 	if err != nil {
 		writeJSON(Response{
-			Kind:          DNSLOG_RESPONSE_KIND,
+			Kind:          DNSLogResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: "Enabled",
 		}, w)
 		return
 	}
 	res := Response{
-		Kind:          DNSLOG_RESPONSE_KIND,
+		Kind:          DNSLogResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: "Enabled",
 		LogItems:      items}
 	writeJSON(res, w)
 }
 
-func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
+func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 	action := r.PathValue("action")
 	var state bool
 
@@ -177,10 +177,10 @@ func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	st := api.server.BholeToggle(state)
+	st := api.server.BlacklistToggle(state)
 
 	resp := Response{
-		Kind:          BHOLE_RESPONSE_KIND,
+		Kind:          BlacklistResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: formatBool(st),
 	}
@@ -190,20 +190,20 @@ func (api *v1) BholeToggle(w http.ResponseWriter, r *http.Request) {
 
 func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 	logger := log.GetLogger("api", "StaticResponseToggle")
-	p := api.server.Plugins["staticresponse"].(*plugin.StaticResponsePlugin)
+	p := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
 	action := r.PathValue("action")
 	state, err := actionToBool(action)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(Response{
-			Kind:          BHOLE_RESPONSE_KIND,
+			Kind:          StaticResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: formatBool(p.Enabled),
 		}, w)
 		return
 	}
 	c := config.GetRunningConfig()
-	c.Static.Enabled = state
+	c.StaticResponse.Enabled = state
 	config.SetRunningConfig(c)
 	err = p.Config(*c)
 	if err != nil {
@@ -211,7 +211,7 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := Response{
-		Kind:          BHOLE_RESPONSE_KIND,
+		Kind:          StaticResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: formatBool(p.Enabled),
 	}
@@ -239,26 +239,26 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	p := api.server.Plugins["zenmode"]
-	st := p.(*plugin.ZenmodePlugin)
+	p := api.server.Middlewares["zen-mode"]
+	st := p.(*middleware.ZenMode)
 	logger.Debug("About to replace domain for zen mode.")
 	h := map[string]string{}
 	for _, each := range zreq.ZenDomains {
-		h[each] = plugin.ZENMODE_IP
+		h[each] = middleware.ZenModeIP
 		logger.WithFields(logrus.Fields{"domain": each}).Debug("Adding domain to zen mode.")
 	}
 	err = st.ReplaceDomains(h)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(Response{
-			Kind:          STUB_RESPONSE_KIND,
+			Kind:          ZenModeResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: formatBool(st.Status()),
 		}, w)
 		return
 	}
 	writeJSON(Response{
-		Kind:          ZEN_RESPONSE_KIND,
+		Kind:          ZenModeResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: formatBool(st.Status()),
 		Items:         st.GetDomains(),
@@ -270,28 +270,28 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")
 	logger := l.WithFields(logrus.Fields{"Method": "StubReplace"})
 	stubRequest := &StubReplaceRequest{}
-	p := api.server.Plugins["stubresolver"]
+	p := api.server.Middlewares["stub-resolver"]
 	err := json.NewDecoder(r.Body).Decode(&stubRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	c := config.GetRunningConfig()
-	ups, err := plugin.ParseStubList(stubRequest.Stubs, c.Timeout, c.UpstreamTimeout)
+	ups, err := middleware.ParseStubList(stubRequest.Stubs, c.Timeout, c.UpstreamTimeout)
 	if err != nil {
-		st := p.(*plugin.StubresolverPlugin)
+		st := p.(*middleware.StubResolver)
 		logger.Error("Error parsing stubs: ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(Response{
-			Kind:          STUB_RESPONSE_KIND,
+			Kind:          StubResolverResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: formatBool(st.EnableStubs),
 		}, w)
 		return
 	}
 	logger.Info("Replacing stubs")
-	st := p.(*plugin.StubresolverPlugin)
-	c.BlackHole.Excludes = stubRequest.Stubs
+	st := p.(*middleware.StubResolver)
+	c.StubResolver.Stubs = stubRequest.Stubs
 	config.SetRunningConfig(c)
 	err = st.Config(*c)
 	if err != nil {
@@ -302,7 +302,7 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 		logger.Error("Error initiating stubs: ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(Response{
-			Kind:          STUB_RESPONSE_KIND,
+			Kind:          StubResolverResponseKind,
 			Message:       err.Error(),
 			CurrentStatus: formatBool(st.EnableStubs),
 		}, w)
@@ -312,7 +312,7 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("Loaded: %d stubs", len(ups))
 	resp := Response{
 		Message:       MESSAGE_OK,
-		Kind:          STUB_RESPONSE_KIND,
+		Kind:          StubResolverResponseKind,
 		CurrentStatus: strconv.FormatBool(st.EnableStubs),
 		Items:         stubRequest.Stubs,
 	}
@@ -338,15 +338,15 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 	curr := "disabled"
-	p := api.server.Plugins["zenmode"]
-	z := p.(*plugin.ZenmodePlugin)
+	p := api.server.Middlewares["zen-mode"]
+	z := p.(*middleware.ZenMode)
 	z.Start()
 	st := z.Status()
 	if st {
 		curr = "enabled"
 	}
 	res := Response{
-		Kind:          ZEN_RESPONSE_KIND,
+		Kind:          ZenModeResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: curr,
 		Items:         z.GetDomains(),
@@ -382,15 +382,15 @@ func Serve(dns *server.Server) {
 	protected := Auth{IsRequired: true, Scope: RWSCOPE}
 	api := v1{server: dns}
 
-	http.HandleFunc("POST /api/stubs", Require(api.StubReplace, protected))
-	http.HandleFunc("POST /api/zen", Require(api.ZenDomainsReplace, protected))
-	http.HandleFunc("POST /api/stubs/{action}", Require(api.StubToggle, protected))
-	http.HandleFunc("POST /api/bhole/{action}", Require(api.BholeToggle, protected))
-	http.HandleFunc("POST /api/static/{action}", Require(api.StaticResponseToggle, protected))
-	http.HandleFunc("GET /api/dnslog/top/{top}", Require(api.DNSLogTop, protected))
-	http.HandleFunc("GET /api/dnslog/rotate", Require(api.DNSLogRotate, protected))
-	http.HandleFunc("POST /api/dnslog/alias", Require(api.DNSLogAlias, protected))
-	http.HandleFunc("POST /api/zen/start", Require(api.ZenModeStart, protected))
+	http.HandleFunc("POST /api/stub-resolver", Require(api.StubReplace, protected))
+	http.HandleFunc("POST /api/zen-mode", Require(api.ZenDomainsReplace, protected))
+	http.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
+	http.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
+	http.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
+	http.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))
+	http.HandleFunc("GET /api/dns-log/rotate", Require(api.DNSLogRotate, protected))
+	http.HandleFunc("POST /api/dns-log/alias", Require(api.DNSLogAlias, protected))
+	http.HandleFunc("POST /api/zen-mode/start", Require(api.ZenModeStart, protected))
 	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
 
 	http.HandleFunc("POST /api/tagger/tags", Require(api.TaggerAddTag, protected))

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jfardello/tdns/internal/sqliteutil"
 	"github.com/jfardello/tdns/log"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 )
 
@@ -231,16 +231,20 @@ func (se *SyncExecutor) BulkAdd(stmt *ExecStmt) {
 
 func (se *SyncExecutor) InitConnectionPool(connString string) {
 	if !se.initDone {
-		connString = addConnParams(connString, "_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL&_foreign_keys=ON")
-		//"file:db.sqlite3?cache=shared&mode=rwc&_journal_mode=WAL")
-		conn, err := sql.Open("sqlite3", addConnParams(connString, "mode=rwc"))
+		conn, err := sql.Open(sqliteutil.DriverName(), addConnParams(connString, "mode=rwc"))
 		if err != nil {
 			se.log.Fatalf("Error opening connection pool: %v", err)
 		}
+		if err := sqliteutil.ConfigureConnection(se.ctx, conn, true); err != nil {
+			se.log.Fatalf("Error configuring rw connection pool: %v", err)
+		}
 		se.rwConnDatabase = conn
 		for range se.MaxReadOnlyConnections {
-			conn, err := sql.Open("sqlite3", addConnParams(connString, "mode=ro"))
+			conn, err := sql.Open(sqliteutil.DriverName(), addConnParams(connString, "mode=ro"))
 			if err != nil {
+				panic(err)
+			}
+			if err := sqliteutil.ConfigureConnection(se.ctx, conn, false); err != nil {
 				panic(err)
 			}
 			se.roConnPool <- conn

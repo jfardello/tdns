@@ -53,7 +53,7 @@ func handleAlias(hostName, ipAddress string) error {
 		Name: hostName,
 		Addr: ipAddress,
 	}
-	resp, err := api.Post(context.Background(), "/api/dnslog/alias", payLoad)
+	resp, err := api.Post(context.Background(), "/api/dns-log/alias", payLoad)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func init() {
 
 func getTop() error {
 	logger := log.GetLogger("cmd", "getTop")
-	u := fmt.Sprintf("/api/dnslog/top/%d", topLimit)
+	u := fmt.Sprintf("/api/dns-log/top/%d", topLimit)
 	if since != "" {
 		u = fmt.Sprintf("%s?since=%s", u, since)
 	}

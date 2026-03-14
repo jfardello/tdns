@@ -6,19 +6,19 @@ import (
 	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
-	"github.com/jfardello/tdns/plugin"
+	"github.com/jfardello/tdns/middleware"
 	"github.com/miekg/dns"
 	"net"
 )
 
 type Server struct {
-	Plugins         map[string]plugin.Plugin
-	pluginIndex     *PluginIndex
+	Middlewares     map[string]middleware.Middleware
+	middlewareIndex *MiddlewareIndex
 	Config          config.Config
 	defaultUpstream client.Mux
 }
 
-type PluginIndex struct {
+type MiddlewareIndex struct {
 	preRouting  []string
 	resolving   []string
 	postRouting []string
@@ -34,24 +34,24 @@ func (s *Server) Handler(requestMsg *dns.Msg, remoteAddr net.Addr) (*dns.Msg, er
 	}
 	return responseMsg, nil
 }
-func (s *Server) getIndexes() *PluginIndex {
-	if s.pluginIndex == nil {
-		pi := &PluginIndex{}
-		//Split plugins by type
-		for _, p := range s.Plugins {
+
+func (s *Server) getIndexes() *MiddlewareIndex {
+	if s.middlewareIndex == nil {
+		pi := &MiddlewareIndex{}
+		for _, p := range s.Middlewares {
 			name, ptype := p.Info()
 			switch ptype {
-			case plugin.PreRouting:
+			case middleware.PreRouting:
 				pi.preRouting = append(pi.preRouting, name)
-			case plugin.Resolving:
+			case middleware.Resolving:
 				pi.resolving = append(pi.resolving, name)
-			case plugin.PostRouting:
+			case middleware.PostRouting:
 				pi.postRouting = append(pi.postRouting, name)
 			}
 		}
-		s.pluginIndex = pi
+		s.middlewareIndex = pi
 	}
-	return s.pluginIndex
+	return s.middlewareIndex
 
 }
 
@@ -66,14 +66,14 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 	logger := log.GetLogger("server", "process")
 	pi := s.getIndexes()
 	//Handle Pre-routing
-	req := new(plugin.Message)
+	req := new(middleware.Message)
 	req.SetCtx(ctx)
 	req.SetMsg(requestMsg)
 
 	for _, p := range pi.preRouting {
-		name, _ := s.Plugins[p].Info()
-		logger.Debug("Calling pre-routing plugin ", name)
-		req, err := s.Plugins[p].Run(req)
+		name, _ := s.Middlewares[p].Info()
+		logger.Debug("Calling pre-routing middleware ", name)
+		req, err := s.Middlewares[p].Run(req)
 		if err != nil {
 			continue
 		}
@@ -81,13 +81,13 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 			break
 		}
 	}
-	//If we didn't resolve at preRouting time, then try resolving plugins.
+	// If we didn't resolve at pre-routing time, then try resolving middlewares.
 	req, err := s.tryResolve(req, pi)
 	if err != nil {
 		return nil, err
 	}
 
-	//no response from resolving plugins, just resolve with the default upstream.
+	// No response from resolving middlewares, just resolve with the default upstream.
 	if !req.IsResolved() {
 		_m, err := s.resolve(req.Answer())
 		if err != nil {
@@ -100,31 +100,31 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 	}
 
 	for _, p := range pi.postRouting {
-		req, err = s.Plugins[p].Run(req)
+		req, err = s.Middlewares[p].Run(req)
 		if err != nil {
 			logger := log.GetLogger("Server", "post-process")
-			name, _ := s.Plugins[p].Info()
-			logger.Debugf("Plugin [%s] returning err : %s", name, err.Error())
+			name, _ := s.Middlewares[p].Info()
+			logger.Debugf("Middleware [%s] returning err : %s", name, err.Error())
 		}
 
 	}
 	if req != nil {
 		return req.Answer(), nil
 	} else {
-		return nil, errors.New("plugin error")
+		return nil, errors.New("middleware error")
 	}
 }
 
-// try resolving plugins.
-func (s *Server) tryResolve(req *plugin.Message, pi *PluginIndex) (*plugin.Message, error) {
+// try resolving middlewares.
+func (s *Server) tryResolve(req *middleware.Message, pi *MiddlewareIndex) (*middleware.Message, error) {
 	logger := log.GetLogger("Server", "tryResolve")
 	if !req.IsResolved() {
 		for _, p := range pi.resolving {
-			//Todo: change plugin.Run 2nd argument to be a full response and not a bool and use it instead of building one.
+			//Todo: change middleware.Run 2nd argument to be a full response and not a bool and use it instead of building one.
 			//	also, dont cache.
-			name, _ := s.Plugins[p].Info()
-			logger.Debug("Calling resolving plugin ", name)
-			req, err := s.Plugins[p].Run(req)
+			name, _ := s.Middlewares[p].Info()
+			logger.Debug("Calling resolving middleware ", name)
+			req, err := s.Middlewares[p].Run(req)
 			if err != nil {
 				return nil, err
 			}
@@ -142,28 +142,28 @@ func (s *Server) StubsToggle(state bool) bool {
 	config.Lock()
 	c.StubResolver.Enabled = state
 	config.Unlock()
-	err := s.Plugins["stubresolver"].Config(*c)
+	err := s.Middlewares["stub-resolver"].Config(*c)
 	if err != nil {
 		logger.Fatal(err)
 	}
 	return c.StubResolver.Enabled
 }
 
-func (s *Server) BholeToggle(state bool) bool {
-	logger := log.GetLogger("server", "BholeToggle")
+func (s *Server) BlacklistToggle(state bool) bool {
+	logger := log.GetLogger("server", "BlacklistToggle")
 	c := config.GetRunningConfig()
-	c.BlackHole.Enabled = state
+	c.Blacklist.Enabled = state
 	config.SetRunningConfig(c)
-	err := s.Plugins["blacklist"].Config(*c)
+	err := s.Middlewares["blacklist"].Config(*c)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	return c.BlackHole.Enabled
+	return c.Blacklist.Enabled
 }
 
 func (s *Server) ClearCache() error {
-	c := plugin.GetCache()
+	c := middleware.GetCache()
 	return c.Clear()
 }
 
@@ -184,8 +184,8 @@ func NewServer(options ...func(*Server)) *Server {
 
 	s := &Server{
 
-		Config:  *config.GetRunningConfig(),
-		Plugins: make(map[string]plugin.Plugin),
+		Config:      *config.GetRunningConfig(),
+		Middlewares: make(map[string]middleware.Middleware),
 	}
 	for _, o := range options {
 		o(s)

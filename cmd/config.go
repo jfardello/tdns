@@ -127,15 +127,15 @@ func newConf() *config.Config {
 		UpstreamTimeout: 300,
 		VerifyTLS:       true,
 		Upstreams:       []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
-		BlackHole: config.BlackHoleConf{
+		Blacklist: config.BlacklistConfig{
 			Enabled: true,
 			File:    "fixtures/bhole_testfile",
 		},
-		Static: config.StaticConf{
+		StaticResponse: config.StaticResponseConf{
 			Enabled: true,
 			File:    "fixtures/hosts_testfile",
 		},
-		ZenMode: config.ZenConfig{
+		ZenMode: config.ZenModeConfig{
 			Enabled: true,
 			Domains: []string{"x.com"},
 			Time:    20,

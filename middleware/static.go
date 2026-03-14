@@ -1,4 +1,4 @@
-package plugin
+package middleware
 
 import (
 	"bufio"
@@ -15,25 +15,25 @@ import (
 
 var DefaultStaticFile = "/etc/hosts"
 
-type StaticResponsePlugin struct {
+type StaticResponse struct {
 	hostsFile string
 	Hosts     map[string]string
 	Enabled   bool
 }
 
-func (sr *StaticResponsePlugin) Config(c config.Config) error {
-	sr.Enabled = c.Static.Enabled
-	if c.Static.File != "" {
-		logger := log.GetLogger("StaticResponsePlugin", "config")
-		logger.Infof("Using file %s", c.Static.File)
-		sr.hostsFile = c.Static.File
+func (sr *StaticResponse) Config(c config.Config) error {
+	sr.Enabled = c.StaticResponse.Enabled
+	if c.StaticResponse.File != "" {
+		logger := log.GetLogger("middleware.StaticResponse", "config")
+		logger.Infof("Using file %s", c.StaticResponse.File)
+		sr.hostsFile = c.StaticResponse.File
 		return nil
 	}
 	return errors.New("StaticResponseFile is mandatory")
 }
 
-func (sr *StaticResponsePlugin) Init() error {
-	logger := log.GetLogger("StaticResponsePlugin", "init")
+func (sr *StaticResponse) Init() error {
+	logger := log.GetLogger("middleware.StaticResponse", "init")
 	h, err := ReadHosts(sr.hostsFile)
 	if err != nil {
 		logger.Error(err)
@@ -43,7 +43,7 @@ func (sr *StaticResponsePlugin) Init() error {
 	return nil
 }
 
-func (sr *StaticResponsePlugin) Run(mess *Message) (*Message, error) {
+func (sr *StaticResponse) Run(mess *Message) (*Message, error) {
 	if !sr.Enabled {
 		return mess, nil
 	}
@@ -70,8 +70,8 @@ func (sr *StaticResponsePlugin) Run(mess *Message) (*Message, error) {
 	return mess, nil
 }
 
-func (sr *StaticResponsePlugin) Info() (string, Ptype) {
-	return "staticresponse", PreRouting
+func (sr *StaticResponse) Info() (string, Stage) {
+	return "static-response", PreRouting
 }
 
 func ReadHosts(filePath string) (map[string]string, error) {
