@@ -1,9 +1,9 @@
 # TDNS
- 
+
 **A DNS over TLS forwarder with caching, black hole, and runtime reconfiguration features.**
 
-TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and 
-trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments 
+TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and
+trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments
 like public Wi-Fi, VPNs, or 5G services.
 
 ## Features
@@ -13,7 +13,7 @@ like public Wi-Fi, VPNs, or 5G services.
 * Routes DNS calls to specific domains via stub servers for internal services.
 * Zen mode (disables social sites for a period of time).
 * Caching.
-* Black-hole service (responds with A records to 0.0.0.0 for blacklisted services and supports whitelisting).
+* Black-hole service (responds with A records to `0.0.0.0` for blacklisted services and supports whitelisting).
 * CLI tool.
 * REST management API.
 
@@ -22,126 +22,296 @@ flowchart TD
   A[fa:fa-user Client] -->|clear text DNS| T(TDNS)
   C(fa:fa-shield DNSOT resolver)
   T -->|DNSoT| C
-  T --> D[fa:fa-location-dot local stub srv]                         
+  T --> D[fa:fa-location-dot local stub srv]
 ```
 
+## Download
 
-
-# Download
-
-Download from here: [releases](https://github.com/jfardllo/tdns/releases) and add it to your `$PATH`, recommended one 
-is `/usr/local/sbin`. 
-
+Download from the project releases and add `tdns` to your `$PATH`.
 
 ## Quick start
 
-```
-$ curl XXXXX -o tdns && chmod +x tdns && sudo mv ./tdns /usr/local/sbin/tdns
-$ sudo tdns serve -f /etc/hosts
-```
-
-## Install 
-
-### Generate configuration bootstrap
-
-The `config` sub-command will generate a sample configuration directory and systemd entry.
-
-```bash 
-$ sudo tdns config -o /etc/tdns
-$ curl http://sbc.io/hosts/hosts | sudo tee /etc/tdns/blacklist.hosts 1>/dev/null 
-$ sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
-$ sudo systemctl config-reload
-$ sudo systemctl start tdns
+```bash
+sudo tdns config -o /etc/tdns -p /etc/tdns
+sudo tdns serve -c /etc/tdns/tdns.yaml
 ```
 
-### Test the server 
+The generated `tdns.yaml` contains the settings needed by both sides of the binary:
+
+* The `server` section used by `tdns serve`.
+* The `client` section used by `tdns adm ...` commands.
+
+That is intentional. `tdns` is both the server and the CLI client for the management API.
+
+## Installation bootstrap
+
+Generate a starting configuration directory:
 
 ```bash
-$ dig TXT status.tdns.local @127.0.0.1 
+sudo tdns config -o /etc/tdns -p /etc/tdns
 ```
 
-If the service is started, change your local DNS configuration to the address on which TDNS listens 
-(default is 127.0.0.1). Interact with the service using the tdns command (``tdns help``  and ``tdns adm help``).
+That command creates a bootstrap configuration with:
 
+* a self-signed API certificate and private key
+* a random HMAC signing key for JWT tokens
+* a `tdns.yaml` file with both server and client sections
+* a pre-issued client token embedded in `client.token`
+* a sample `tdns.service` unit file
 
-## Getting black hole lists
+If you want to use systemd, review the generated unit file before installing it:
 
-TDNS uses plain hosts files, usually pointing to 0.0.0.0. Various projects provide quality hosts files. TDNS has been 
-tested with files from stevenblack/hosts. You can test by pulling http://sbc.io/hosts/hosts. TDNS uses standard Unix 
-hosts files, ignoring the IP address and using 0.0.0.0 as the sinkhole.
+```bash
+sudo mv /etc/tdns/tdns.service /etc/systemd/system/tdns.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now tdns
+```
+
+If you prefer to start the server directly:
+
+```bash
+sudo tdns serve -c /etc/tdns/tdns.yaml
+```
+
+## Usage
+
+Show the command surface:
+
+```bash
+tdns help
+tdns serve --help
+tdns config --help
+tdns adm help
+```
+
+Common server usage:
+
+```bash
+tdns serve -c /etc/tdns/tdns.yaml
+tdns serve -c /etc/tdns/tdns.yaml -u tls://1.1.1.1:853#cloudflare-dns.com
+tdns serve -c /etc/tdns/tdns.yaml -f /etc/hosts -b /etc/tdns/blacklist.hosts
+```
+
+Common admin usage:
+
+```bash
+# Enable or disable middleware
+tdns adm start blacklist
+tdns adm stop blacklist
+tdns adm start stub-resolver
+tdns adm stop static-response
+tdns adm start zen-mode
+
+# Replace runtime data without changing the config file
+tdns adm replace --stub 'corp.example,udp://10.0.0.53'
+tdns adm replace --zen-domains facebook.com,x.com,instagram.com
+
+# Query and label dnslog data
+tdns adm top --since 24h --limit 20
+tdns adm alias --hostname laptop --address 192.168.1.20
+
+# Mint a new admin token from a config that has server.signing_key
+tdns adm token --exp 365 --sub admin@tdns
+```
+
+## Test the server
+
+```bash
+dig TXT _status.tdns.local @127.0.0.1
+```
+
+If the service is started, point your local DNS configuration to the address on which TDNS listens.
 
 ## Upstream format
 
-Configuration files use the upstream concept, which is just a URL, the format is:
+Configuration files use the upstream concept, which is just a URL with this format:
 
 `proto://address:port#DNS-name`
 
-**Proto:**
-  Either TCP, UDP, or TLS
-**Address:**
-  IP address of the DNS server
-**Port:**
-  Server port
-**DNS name (optional):**
-  Named host allowed in the certificate; if set, the certificate will be checked for this host name. 
+**Proto**
+Either `tcp`, `udp`, or `tls`.
 
+**Address**
+IP address of the DNS server.
 
-## Configuration options
+**Port**
+Server port.
 
-Some configuration options can be set via command line for the tdns serve command. Others can be set via environment 
-variables or configuration files. The override order is CLI, env, then config file.
+**DNS name**
+Optional hostname expected in the upstream TLS certificate. If set, TDNS verifies the certificate against this name.
 
-### server options:
+## Configuration reference
 
-| cfg 	| env 	| cli 	| description 	|
-|-----	|-----	|-----	|-------------	|
-|timeout | TDNS_TIMEOUT    	|     	|             	|
-|verify_tls | TDNS_VERIFY_TLS  	|     	|             	|
-|upstreams| TDNS_UPSTREAM    	|    -u, --upstream 	|             	|
-|blacklist.enabled   | TDNS_BLACKLIST_ENABLED     ||
-|blacklist.file |  TDNS_BLACKLIST_FILE    | -b, --blacklist |
-|blacklist.excludes |TDNS_BLACKLIST_EXCLUDES      ||
-|static_response.enabled| TDNS_STATIC_RESPONSE_ENABLED       ||
-|static_response.file|  TDNS_STATIC_RESPONSE_FILE     | -f, --hosts|
-|zen_mode.enabled| TDNS_ZEN_MODE_ENABLED ||
-|zen_mode.file|  TDNS_ZEN_MODE_FILE    | -z, --zenfile|
-|zen_mode.domains| TDNS_ZEN_MODE_DOMAINS     ||
-|zen_mode.time| TDNS_ZEN_MODE_TIME     |-t, -zentime| |
-|stub_resolver.enabled| TDNS_STUB_RESOLVER_ENABLED     ||
-|stub_resolver.stubs|      TDNS_STUB_RESOLVER_STUBS| -s, --stub | |
+Configuration can come from the YAML file and, for a subset of options, from CLI flags on `tdns serve`.
+The main runtime options currently used by the server are:
 
+### Top-level options
 
+| key | description |
+| --- | --- |
+| `timeout` | Global DNS request timeout in milliseconds. |
+| `upstream_timeout` | Timeout for upstream DNS calls in milliseconds. |
+| `verify_tls` | Whether to verify upstream TLS certificates. |
+| `loglevel` | Log level such as `INFO`, `DEBUG`, or `ERROR`. |
+| `upstreams` | Default upstream resolvers. |
 
-### server opts
+### `blacklist`
 
-listen_addr 
-api_addr 
-api_cert_file
-api_key_file
-signing_key
+| key | description |
+| --- | --- |
+| `blacklist.enabled` | Enables blacklist middleware. |
+| `blacklist.file` | Local hosts-style blacklist file. |
+| `blacklist.external_file` | Path inside the external repo to pull from. |
+| `blacklist.external_repo` | Remote repo used for scheduled updates. |
+| `blacklist.external_pull_period` | Cron expression for external blacklist refresh. |
+| `blacklist.excludes` | Domains to keep out of the blacklist. |
 
+### `static_response`
 
+| key | description |
+| --- | --- |
+| `static_response.enabled` | Enables static-response middleware. |
+| `static_response.file` | Hosts-style file used for static answers. |
 
-### client opts
+### `zen_mode`
 
-token:
-server: 
-ca_cert: 
+| key | description |
+| --- | --- |
+| `zen_mode.enabled` | Enables zen mode middleware. |
+| `zen_mode.file` | Optional hosts-style file loaded into zen mode. |
+| `zen_mode.domains` | Domains blocked when zen mode is active. |
+| `zen_mode.time` | Zen mode duration in minutes. |
 
+### `stub_resolver`
 
-## ReST API and tdns client
+| key | description |
+| --- | --- |
+| `stub_resolver.enabled` | Enables stub resolution middleware. |
+| `stub_resolver.stubs` | Domain-to-upstream mappings like `example.com,udp://10.0.0.53`. |
 
-REST calls require a TLS connection and a JWT token. Tokens can be generated with the tdns adm token command. 
-The server certificate is needed if it is self-signed. The default configuration creates a self-signed certificate and 
-key, similar to those created by:
+### `dns_log`
 
+| key | description |
+| --- | --- |
+| `dns_log.enabled` | Enables DNS query logging. |
+| `dns_log.file` | SQLite database path for query logs. |
+| `dns_log.purge` | Retention window used by the scheduled purge task. |
+
+### `tagger`
+
+| key | description |
+| --- | --- |
+| `tagger.enabled` | Enables the tagger middleware. |
+| `tagger.file` | SQLite file used by the tagger storage. |
+
+### `status`
+
+| key | description |
+| --- | --- |
+| `status.enabled` | Enables `_status.tdns.local` replies. |
+| `status.expose_stats` | Includes cache statistics in the TXT response. |
+| `status.expose_uptime` | Includes uptime data in the TXT response. |
+
+### `server`
+
+| key | description |
+| --- | --- |
+| `server.listen_addr` | DNS listener address, for example `:53` or `127.0.0.1:8053`. |
+| `server.api_addr` | HTTPS API listener address, for example `:8443`. |
+| `server.api_cert_file` | TLS certificate used by the REST API. |
+| `server.api_key_file` | TLS private key used by the REST API. |
+| `server.pprof_addr` | Optional pprof HTTP listener, for example `:6060`. |
+| `server.signing_key` | Base64-encoded HMAC key used to sign admin JWT tokens. |
+
+### `client`
+
+| key | description |
+| --- | --- |
+| `client.server` | Base HTTPS URL of the remote TDNS API, for example `https://tdns.example.com:8443`. |
+| `client.ca_cert` | CA or self-signed certificate trusted by the CLI client. |
+| `client.token` | Bearer token used by `tdns adm ...` commands. |
+
+### CLI flags on `tdns serve`
+
+| flag | config key | description |
+| --- | --- | --- |
+| `-u`, `--upstream` | `upstreams` | Override default upstreams. |
+| `-s`, `--stub` | `stub_resolver.stubs` | Override stub definitions. |
+| `-f`, `--hosts` | `static_response.file` | Override static hosts file. |
+| `-b`, `--blacklist` | `blacklist.file` | Override blacklist file. |
+| `-z`, `--zenfile` | `zen_mode.file` | Override zen mode file. |
+| `-T`, `--zentime` | `zen_mode.time` | Override zen mode duration in minutes. |
+| `-t`, `--timeout` | `timeout` | Override global timeout in milliseconds. |
+| `-U`, `--upstreamtimeout` | `upstream_timeout` | Override upstream timeout in milliseconds. |
+| `-c`, `--configfile` | n/a | Path to the YAML config file. |
+| `-v`, `--verbose` | n/a | Enable verbose logging. |
+
+## Certificates and hostnames
+
+The REST API is always HTTPS. The certificate used by the API server comes from `server.api_cert_file` and `server.api_key_file`.
+The `tdns config` command generates a self-signed certificate, and the `-H/--hosts` values become certificate SANs.
+
+If you want the server certificate to be valid for a specific hostname, generate the bootstrap with that hostname:
+
+```bash
+tdns config \
+  -o /etc/tdns \
+  -p /etc/tdns \
+  -l 0.0.0.0:53 \
+  -a 0.0.0.0:8443 \
+  -H tdns.example.com \
+  -H 203.0.113.10
 ```
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -days 3650 \
-  -nodes -keyout fixtures/tdns.key -out fixtures/tdns.crt -subj "/CN=tdns.kubewire.net" \
-  -addext "subjectAltName=DNS:localhost,DNS:*.example.com,IP:127.0.0.1"
+
+That makes the generated certificate valid for both `tdns.example.com` and `203.0.113.10`.
+
+Then make sure the generated config points the embedded client at the same hostname used in the certificate:
+
+```yaml
+client:
+  server: https://tdns.example.com:8443
 ```
 
-The connection between the TDNS client and the server is always TLS-based and authorized by a long-lasting JWT token 
-validated with an HMAC signature. You can create such tokens with the ``tdns adm token`` command to control TDNS runtime features remotely, either by issuing REST commands or with the built-in client.
+If you connect by IP address instead of hostname, include that IP in `-H` when generating the certificate.
 
-### TBD: curl example, swagger.
+## Remote client configuration
+
+Because `tdns config` writes one YAML file for both roles, the easiest way to bootstrap a remote client is:
+
+1. Run `tdns config` on the server host.
+2. Keep the generated `server.*` section on the server.
+3. Copy the certificate named in `client.ca_cert` to the remote machine.
+4. Copy the `client` section, or create a minimal client-only config there.
+
+A minimal remote client config looks like this:
+
+```yaml
+client:
+  server: https://tdns.example.com:8443
+  ca_cert: /etc/tdns/tdns_cert.pem
+  token: <jwt token>
+```
+
+You can reuse the token generated by `tdns config`, or issue a new one on the server with:
+
+```bash
+tdns adm token --exp 365 --sub remote-admin@tdns
+```
+
+That token must be created from a config that contains the server `signing_key`.
+
+## REST API
+
+REST calls require:
+
+* HTTPS to the address configured in `server.api_addr`
+* a bearer token signed with `server.signing_key`
+* the CA or self-signed certificate trusted by the client
+
+The current OpenAPI description is available at [api/openapi.yaml](api/openapi.yaml).
+
+## Getting black hole lists
+
+TDNS uses plain hosts files, usually pointing to `0.0.0.0`. Various projects provide quality hosts files.
+TDNS has been tested with data from `stevenblack/hosts`. TDNS ignores the IP in the hosts file and uses `0.0.0.0`
+as the sinkhole answer.
