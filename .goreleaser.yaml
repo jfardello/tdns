@@ -17,19 +17,15 @@ before:
 
 builds:
   - env:
-      - CGO_ENABLED=1
-      - >-
-        {{- if eq .Os "linux" }}
-          {{- if eq .Arch "amd64" }}CC=zig c++ -target x86_64-linux-musl{{- end }}
-          {{- if eq .Arch "arm64"}}CC=zig c++ -target aarch64-linux-musl{{- end }}
-        {{- end }}  
-      - CXX="zig cc"
+      - CGO_ENABLED=0
+    tags:
+      - sqlite_ncruces
     goos:
       - linux
     binary: tdns
     flags:
-      - -a  
-      - -trimpath 
+      - -a
+      - -trimpath
     goarch:
       - amd64
       - arm64

@@ -1,0 +1,644 @@
+openapi: 3.0.3
+info:
+  title: TDNS REST API
+  version: "1.0.0"
+  description: |
+    OpenAPI description generated from the currently registered handlers in `api/v1.go`
+    and `api/taggerv1.go`.
+servers:
+  - url: https://localhost:8443
+    description: Default local API endpoint
+security:
+  - bearerAuth: []
+tags:
+  - name: Stub Resolver
+  - name: Zen Mode
+  - name: Blacklist
+  - name: Static Response
+  - name: DNS Log
+  - name: Cache
+  - name: Tagger
+  - name: Metrics
+paths:
+  /api/stub-resolver:
+    post:
+      tags: [Stub Resolver]
+      summary: Replace the configured stub resolvers
+      operationId: stubReplace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StubReplaceRequest'
+      responses:
+        '200':
+          description: Stub resolvers replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request body or malformed stubs
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/stub-resolver/{action}:
+    post:
+      tags: [Stub Resolver]
+      summary: Enable or disable the stub resolver middleware
+      operationId: stubToggle
+      parameters:
+        - $ref: '#/components/parameters/Action'
+      responses:
+        '200':
+          description: Stub resolver state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/blacklist/{action}:
+    post:
+      tags: [Blacklist]
+      summary: Enable or disable blacklist filtering
+      operationId: blacklistToggle
+      parameters:
+        - $ref: '#/components/parameters/Action'
+      responses:
+        '200':
+          description: Blacklist state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/static-response/{action}:
+    post:
+      tags: [Static Response]
+      summary: Enable or disable static host responses
+      operationId: staticResponseToggle
+      parameters:
+        - $ref: '#/components/parameters/Action'
+      responses:
+        '200':
+          description: Static response state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid action value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/dns-log/top/{top}:
+    get:
+      tags: [DNS Log]
+      summary: Return the most frequent DNS log entries
+      operationId: dnsLogTop
+      parameters:
+        - name: top
+          in: path
+          required: true
+          description: Maximum number of rows to return
+          schema:
+            type: integer
+            minimum: 1
+        - name: since
+          in: query
+          required: false
+          description: Duration filter such as `24h` or `7d`
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DNS log response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/dns-log/rotate:
+    get:
+      tags: [DNS Log]
+      summary: Delete DNS log rows older than the provided duration
+      operationId: dnsLogRotate
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: Duration threshold such as `24h` or `180d`
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DNS log rotation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/dns-log/alias:
+    post:
+      tags: [DNS Log]
+      summary: Add or update a host alias for a client IP
+      operationId: dnsLogAlias
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DNSLogAliasRequest'
+      responses:
+        '200':
+          description: Alias update result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/zen-mode:
+    post:
+      tags: [Zen Mode]
+      summary: Replace the set of zen-mode domains
+      operationId: zenDomainsReplace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZenReplaceRequest'
+      responses:
+        '200':
+          description: Zen-mode domains replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request body or replacement data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Response'
+                  - type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/zen-mode/start:
+    post:
+      tags: [Zen Mode]
+      summary: Start a zen-mode session
+      operationId: zenModeStart
+      responses:
+        '200':
+          description: Zen-mode state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/cache:
+    delete:
+      tags: [Cache]
+      summary: Clear the in-memory DNS cache
+      operationId: deleteCache
+      responses:
+        '200':
+          description: Cache clear result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+        '500':
+          description: Cache clear failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/tagger/tags:
+    get:
+      tags: [Tagger]
+      summary: List all tag names
+      operationId: taggerGetTags
+      responses:
+        '200':
+          description: Tag list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+    post:
+      tags: [Tagger]
+      summary: Create a new tag
+      operationId: taggerAddTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTagRequest'
+      responses:
+        '200':
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request or tag creation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /api/tagger/tags/{tagName}:
+    get:
+      tags: [Tagger]
+      summary: List members that belong to a tag
+      operationId: taggerTagGetMembers
+      parameters:
+        - $ref: '#/components/parameters/TagName'
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+    post:
+      tags: [Tagger]
+      summary: Add members to an existing tag
+      operationId: taggerAddMember
+      parameters:
+        - $ref: '#/components/parameters/TagName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+      responses:
+        '200':
+          description: Updated member list for the tag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request or membership update error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+    delete:
+      tags: [Tagger]
+      summary: Delete a tag
+      operationId: taggerDeleteTag
+      parameters:
+        - $ref: '#/components/parameters/TagName'
+      responses:
+        '200':
+          description: Tag deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Tag deletion error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /api/tagger/tags/{tagName}/{address}:
+    delete:
+      tags: [Tagger]
+      summary: Remove an address from a tag
+      operationId: taggerDeleteTagMember
+      parameters:
+        - $ref: '#/components/parameters/TagName'
+        - $ref: '#/components/parameters/Address'
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Member removal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /api/tagger/address:
+    post:
+      tags: [Tagger]
+      summary: Create or replace labels for an address
+      operationId: taggerAddressCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberLabelsRequest'
+      responses:
+        '200':
+          description: Labels assigned to the address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request or label update error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /api/tagger/address/{address}:
+    put:
+      tags: [Tagger]
+      summary: Replace labels for a specific address
+      operationId: taggerAddressReplace
+      parameters:
+        - $ref: '#/components/parameters/Address'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceMemberLabelsRequest'
+      responses:
+        '200':
+          description: Updated labels for the address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request or label update error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /api/tagger/addr/{tagName}:
+    put:
+      tags: [Tagger]
+      summary: Replace labels for an address, using the legacy path parameter name
+      description: |
+        This endpoint is implemented by the same handler as `/api/tagger/address/{address}`.
+        The path variable is called `tagName` in the route, but it is interpreted as the address.
+      operationId: taggerAddressReplaceLegacy
+      parameters:
+        - $ref: '#/components/parameters/LegacyAddress'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceMemberLabelsRequest'
+      responses:
+        '200':
+          description: Updated labels for the address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request or label update error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Tagger middleware is disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+  /metrics:
+    get:
+      tags: [Metrics]
+      security: []
+      summary: Prometheus metrics endpoint
+      operationId: metrics
+      responses:
+        '200':
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Action:
+      name: action
+      in: path
+      required: true
+      description: Middleware action
+      schema:
+        type: string
+        enum: [start, stop]
+    TagName:
+      name: tagName
+      in: path
+      required: true
+      schema:
+        type: string
+    Address:
+      name: address
+      in: path
+      required: true
+      schema:
+        type: string
+    LegacyAddress:
+      name: tagName
+      in: path
+      required: true
+      description: Legacy route parameter name used as the address value
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        text/plain:
+          schema:
+            type: string
+  schemas:
+    Response:
+      type: object
+      required: [kind, message, current_status]
+      properties:
+        kind:
+          type: string
+        message:
+          type: string
+        current_status:
+          type: string
+          description: Usually `enabled`, `disabled`, `Rotate OK`, or `Enabled`
+        items:
+          type: array
+          items:
+            type: string
+        log_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogDetails'
+    MessageOnlyResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    LogDetails:
+      type: object
+      properties:
+        domain:
+          type: string
+        counter:
+          type: integer
+        host:
+          type: string
+    StubReplaceRequest:
+      type: object
+      required: [stubs]
+      properties:
+        stubs:
+          type: array
+          items:
+            type: string
+          description: Entries like `example.com,udp://8.8.8.8,udp://8.8.4.4`
+    ZenReplaceRequest:
+      type: object
+      required: [zen_domains]
+      properties:
+        zen_domains:
+          type: array
+          items:
+            type: string
+    DNSLogAliasRequest:
+      type: object
+      required: [name, addr]
+      properties:
+        name:
+          type: string
+        addr:
+          type: string
+    AddTagRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    AddMemberRequest:
+      type: object
+      required: [members]
+      properties:
+        members:
+          type: array
+          items:
+            type: string
+    MemberLabelsRequest:
+      type: object
+      required: [address, tags]
+      properties:
+        address:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+    ReplaceMemberLabelsRequest:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
