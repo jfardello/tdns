@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/jfardello/tdns/log"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 
@@ -49,11 +48,8 @@ func init() {
 }
 
 func setPersistentOps() {
-
 	if configFile != "" {
 		viper.SetConfigFile(configFile)
 	}
-	if verbose {
-		log.SetLevel(logrus.DebugLevel)
-	}
+	log.Configure("", verbose)
 }

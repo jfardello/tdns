@@ -13,6 +13,7 @@ import (
 	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/server"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -377,39 +378,50 @@ func formatBool(status bool) string {
 }
 
 func Serve(dns *server.Server) {
+	c := cors.New(cors.Options{
+		AllowOriginFunc: func(origin string) bool {
+			return true
+		},
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"authorization", "content-type"},
+		Debug:            log.IsDebugEnabled(),
+	})
 	logger := log.GetLogger("serve", "api-server")
 	conf := config.GetRunningConfig()
 	protected := Auth{IsRequired: true, Scope: RWSCOPE}
 	api := v1{server: dns}
+	mux := http.NewServeMux()
 
-	http.HandleFunc("POST /api/stub-resolver", Require(api.StubReplace, protected))
-	http.HandleFunc("POST /api/zen-mode", Require(api.ZenDomainsReplace, protected))
-	http.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
-	http.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
-	http.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
-	http.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))
-	http.HandleFunc("GET /api/dns-log/rotate", Require(api.DNSLogRotate, protected))
-	http.HandleFunc("POST /api/dns-log/alias", Require(api.DNSLogAlias, protected))
-	http.HandleFunc("POST /api/zen-mode/start", Require(api.ZenModeStart, protected))
-	http.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
+	mux.HandleFunc("POST /api/stub-resolver", Require(api.StubReplace, protected))
+	mux.HandleFunc("POST /api/zen-mode", Require(api.ZenDomainsReplace, protected))
+	mux.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
+	mux.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
+	mux.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
+	mux.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))
+	mux.HandleFunc("GET /api/dns-log/rotate", Require(api.DNSLogRotate, protected))
+	mux.HandleFunc("POST /api/dns-log/alias", Require(api.DNSLogAlias, protected))
+	mux.HandleFunc("POST /api/zen-mode/start", Require(api.ZenModeStart, protected))
+	mux.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
 
-	http.HandleFunc("POST /api/tagger/tags", Require(api.TaggerAddTag, protected))
-	http.HandleFunc("GET /api/tagger/tags", Require(api.TaggerGetTags, protected))
-	http.HandleFunc("DELETE /api/tagger/tags/{tagName}", Require(api.TaggerDeleteTag, protected))
+	mux.HandleFunc("POST /api/tagger/tags", Require(api.TaggerAddTag, protected))
+	mux.HandleFunc("GET /api/tagger/tags", Require(api.TaggerGetTags, protected))
+	mux.HandleFunc("DELETE /api/tagger/tags/{tagName}", Require(api.TaggerDeleteTag, protected))
 
-	http.HandleFunc("GET /api/tagger/tags/{tagName}", Require(api.TaggerTagGetMembers, protected))
-	http.HandleFunc("POST /api/tagger/tags/{tagName}", Require(api.TaggerAddMember, protected))
-	http.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
-	http.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
-	http.HandleFunc("PUT /api/tagger/address/{address}", Require(api.TaggerAddressReplace, protected))
-	http.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
+	mux.HandleFunc("GET /api/tagger/tags/{tagName}", Require(api.TaggerTagGetMembers, protected))
+	mux.HandleFunc("POST /api/tagger/tags/{tagName}", Require(api.TaggerAddMember, protected))
+	mux.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
+	mux.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
+	mux.HandleFunc("PUT /api/tagger/address/{address}", Require(api.TaggerAddressReplace, protected))
+	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
 
-	http.Handle("GET /metrics", promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /metrics", promhttp.Handler())
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
+	handler := c.Handler(mux)
 
 	logger.Infof("Starting api server at %s, (crt:%s, keyfile:%s)", conf.Server.APIAddr, conf.Server.APICertFile, conf.Server.APIKeyFile)
-	logger.Fatal(http.ListenAndServeTLS(conf.Server.APIAddr, conf.Server.APICertFile, conf.Server.APIKeyFile, nil))
+	logger.Fatal(http.ListenAndServeTLS(conf.Server.APIAddr, conf.Server.APICertFile, conf.Server.APIKeyFile, handler))
 
 }

@@ -4,21 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-co-op/gocron"
-	"github.com/jfardello/tdns/sched"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	netpprof "net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/server"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
@@ -134,16 +132,7 @@ func run() {
 		logger.Fatal(err)
 	}
 	config.SetRunningConfig(c)
-
-	if !verbose {
-		if strings.ToUpper(c.LogLevel) == "INFO" {
-			log.SetLevel(logrus.InfoLevel)
-		} else if strings.ToUpper(c.LogLevel) == "DEBUG" {
-			log.SetLevel(logrus.DebugLevel)
-		} else if strings.ToUpper(c.LogLevel) == "ERROR" {
-			log.SetLevel(logrus.ErrorLevel)
-		}
-	}
+	log.Configure(c.LogLevel, verbose)
 	fmt.Print(blue + `
    __      __          
   / /_____/ /___  _____

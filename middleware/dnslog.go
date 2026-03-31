@@ -201,9 +201,9 @@ func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
 }
 
 type LogDetails struct {
-	Domain  string `db:"domain"`
-	Counter int    `db:"counter"`
-	Host    string `db:"host"`
+	Domain  string `db:"domain" json:"domain"`
+	Counter int    `db:"counter" json:"counter"`
+	Host    string `db:"host" json:"host"`
 }
 
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
@@ -254,7 +254,7 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 	db := cs.se.GetConn()
 	dbx := sqlx.NewDb(db, sqliteutil.DriverName())
 	dbl := &log.SQLLogger{
-		Queryer: dbx, Logger: logger, DebugSql: true,
+		Queryer: dbx, Logger: logger, DebugSql: log.IsDebugEnabled(),
 	}
 
 	defer func() {
