@@ -70,7 +70,10 @@ func (t *Tagger) Info() (string, Stage) {
 
 func (t *Tagger) Config(cf config.Config) error {
 	if cf.Tagger.Enabled {
-		t.dbFile = cf.Tagger.File
+		if cf.Database.File == "" {
+			return errors.New("database file is empty")
+		}
+		t.dbFile = cf.Database.File
 		t.enabled = true
 	}
 	return nil

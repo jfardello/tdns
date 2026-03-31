@@ -1,15 +1,20 @@
 package syncsqlite
 
 import (
+	"context"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/storage"
 )
 
 func TestSQLiteStorage_LabelAndMemberLifecycle(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "tagger.sqlite")
+	if err := db.RunMigrations(context.Background(), dbPath, db.TargetTagger); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	store, err := NewSQLiteStorage(storage.WithDbPath(dbPath))
 	if err != nil {
 		t.Fatalf("NewSQLiteStorage error: %v", err)

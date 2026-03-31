@@ -189,12 +189,17 @@ The main runtime options currently used by the server are:
 | `stub_resolver.enabled` | Enables stub resolution middleware. |
 | `stub_resolver.stubs` | Domain-to-upstream mappings like `example.com,udp://10.0.0.53`. |
 
+### `database`
+
+| key | description |
+| --- | --- |
+| `database.file` | Shared SQLite database path used by DNS log, aliases, and tagger data. |
+
 ### `dns_log`
 
 | key | description |
 | --- | --- |
 | `dns_log.enabled` | Enables DNS query logging. |
-| `dns_log.file` | SQLite database path for query logs. |
 | `dns_log.purge` | Retention window used by the scheduled purge task. |
 
 ### `tagger`
@@ -202,7 +207,6 @@ The main runtime options currently used by the server are:
 | key | description |
 | --- | --- |
 | `tagger.enabled` | Enables the tagger middleware. |
-| `tagger.file` | SQLite file used by the tagger storage. |
 
 ### `status`
 

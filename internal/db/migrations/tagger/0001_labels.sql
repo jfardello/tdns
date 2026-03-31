@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS labels (
+	name TEXT PRIMARY KEY
+);

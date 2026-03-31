@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/log"
 )
 
@@ -34,8 +35,11 @@ func closeExecutor(t *testing.T, se *SyncExecutor) {
 	}
 }
 
-func TestNewSyncExecutor_CreatesSchemaAndSequence(t *testing.T) {
+func TestMigrationsCreateDNSLogSchemaAndSequence(t *testing.T) {
 	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	se := NewSyncExecutor(connString, 1)
 	defer closeExecutor(t, se)
 
@@ -67,6 +71,9 @@ func TestNewSyncExecutor_CreatesSchemaAndSequence(t *testing.T) {
 
 func TestSyncExec_InsertsHost(t *testing.T) {
 	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	se := NewSyncExecutor(connString, 1)
 	defer closeExecutor(t, se)
 
@@ -93,6 +100,9 @@ func TestSyncExec_InsertsHost(t *testing.T) {
 
 func TestSyncExec_DrainsBulkQueue(t *testing.T) {
 	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	se := NewSyncExecutor(connString, 1)
 	defer closeExecutor(t, se)
 
@@ -123,6 +133,9 @@ func TestSyncExec_DrainsBulkQueue(t *testing.T) {
 
 func TestSyncExec_RollsBackOnError(t *testing.T) {
 	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	se := NewSyncExecutor(connString, 1)
 	defer closeExecutor(t, se)
 
@@ -195,6 +208,9 @@ func TestInitConnectionPool_FillsReadOnlyPool(t *testing.T) {
 
 func TestExecNoTx_AllowsVacuumAndReportsJournalMode(t *testing.T) {
 	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
 	se := NewSyncExecutor(connString, 1)
 	defer closeExecutor(t, se)
 

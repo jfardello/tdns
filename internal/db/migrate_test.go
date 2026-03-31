@@ -1,0 +1,138 @@
+package db
+
+import (
+	"context"
+	"database/sql"
+	"path/filepath"
+	"testing"
+
+	"github.com/jfardello/tdns/internal/sqliteutil"
+)
+
+func newTempDBPath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), "test.sqlite")
+}
+
+func openDB(t *testing.T, dbPath string) *sql.DB {
+	t.Helper()
+	conn, err := sql.Open(sqliteutil.DriverName(), connString(dbPath))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := sqliteutil.ConfigureConnection(context.Background(), conn, true); err != nil {
+		t.Fatalf("configure db: %v", err)
+	}
+	return conn
+}
+
+func TestRunMigrationsDNSLog(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	if err := RunMigrations(context.Background(), dbPath, TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations dnslog: %v", err)
+	}
+
+	db := openDB(t, dbPath)
+	defer db.Close()
+
+	for _, table := range []string{"schema_migrations", "tdnslog", "hosts"} {
+		var name string
+		if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
+			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+}
+
+func TestRunMigrationsTagger(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	if err := RunMigrations(context.Background(), dbPath, TargetTagger); err != nil {
+		t.Fatalf("RunMigrations tagger: %v", err)
+	}
+
+	db := openDB(t, dbPath)
+	defer db.Close()
+
+	for _, table := range []string{"schema_migrations", "labels", "members", "member_labels"} {
+		var name string
+		if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
+			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+}
+
+func TestRunMigrationsIsIdempotent(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	for i := 0; i < 2; i++ {
+		if err := RunMigrations(context.Background(), dbPath, TargetDNSLog); err != nil {
+			t.Fatalf("RunMigrations pass %d: %v", i+1, err)
+		}
+	}
+
+	db := openDB(t, dbPath)
+	defer db.Close()
+
+	var count int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM schema_migrations WHERE target = ?",
+		string(TargetDNSLog),
+	).Scan(&count); err != nil {
+		t.Fatalf("count schema_migrations: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("expected 3 dnslog migrations, got %d", count)
+	}
+}
+
+func TestConnStringPreservesFileURLs(t *testing.T) {
+	got := connString("file:/tmp/example.sqlite?cache=shared")
+	want := "file:/tmp/example.sqlite?cache=shared"
+	if got != want {
+		t.Fatalf("connString got %q want %q", got, want)
+	}
+}
+
+func TestAddConnParamsAppendsCorrectly(t *testing.T) {
+	tests := []struct {
+		name string
+		base string
+		want string
+	}{
+		{name: "with query", base: "file:test.sqlite?cache=shared", want: "file:test.sqlite?cache=shared&mode=rwc"},
+		{name: "without query", base: "file:test.sqlite", want: "file:test.sqlite?mode=rwc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := addConnParams(tt.base, "mode=rwc")
+			if got != tt.want {
+				t.Fatalf("addConnParams got %q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunMigrationsTracksVersionNames(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	if err := RunMigrations(context.Background(), dbPath, TargetTagger); err != nil {
+		t.Fatalf("RunMigrations tagger: %v", err)
+	}
+
+	db := openDB(t, dbPath)
+	defer db.Close()
+
+	var version string
+	if err := db.QueryRow(
+		"SELECT version FROM schema_migrations WHERE target = ? ORDER BY version LIMIT 1",
+		string(TargetTagger),
+	).Scan(&version); err != nil {
+		t.Fatalf("read migration version: %v", err)
+	}
+
+	if version != "0001_labels.sql" {
+		t.Fatalf("unexpected first tagger migration %q", version)
+	}
+}

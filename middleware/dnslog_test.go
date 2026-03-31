@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/syncsqlite"
 	"github.com/miekg/dns"
 )
@@ -36,7 +38,11 @@ func TestDNSLog_doInsert(t *testing.T) {
 		},
 	}
 
-	se := syncsqlite.NewSyncExecutor(newTempConnString(t), 1)
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
+	se := syncsqlite.NewSyncExecutor(connString, 1)
 	cs := &DNSLog{se: se}
 
 	t.Run("test insert", func(t *testing.T) {

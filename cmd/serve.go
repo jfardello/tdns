@@ -15,6 +15,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/server"
@@ -116,9 +117,10 @@ func init() {
 	_ = viper.BindPFlag("timeout", serveCmd.PersistentFlags().Lookup("timeout"))
 	_ = viper.BindPFlag("upstream_timeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout"))
 	viper.SetDefault("status.enabled", true)
+	viper.SetDefault("database.file", db.DefaultFile)
 	viper.SetDefault("dns_log.enabled", true)
-	viper.SetDefault("dns_log.file", "/var/lib/tdns/tdns.sqlite")
 	viper.SetDefault("dns_log.purge", "180d")
+	viper.SetDefault("tagger.enabled", true)
 
 	viper.SetDefault("loglevel", "INFO")
 
@@ -133,6 +135,14 @@ func run() {
 	}
 	config.SetRunningConfig(c)
 	log.Configure(c.LogLevel, verbose)
+	if c.DNSLog.Enabled || c.Tagger.Enabled {
+		dbPath, err := db.Bootstrap(context.Background(), c.Database.File)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		c.Database.File = dbPath
+		config.SetRunningConfig(c)
+	}
 	fmt.Print(blue + `
    __      __          
   / /_____/ /___  _____
@@ -250,7 +260,6 @@ func run() {
 		}
 	}
 	os.Exit(0)
-
 }
 
 func startPProfServer(addr string) *http.Server {

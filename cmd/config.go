@@ -143,6 +143,16 @@ func newConf() *config.Config {
 		StubResolver: config.StubResolverConf{Enabled: true,
 			Stubs: []string{"google.com,udp://8.8.8.8"},
 		},
+		Database: config.DatabaseConf{
+			File: "/var/lib/tdns/tdns.sqlite",
+		},
+		DNSLog: config.DNSLogConf{
+			Enabled: true,
+			Purge:   "180d",
+		},
+		Tagger: config.TaggerConf{
+			Enabled: true,
+		},
 		Server: config.Server{
 			ListenAddr:  dnsListen,
 			APIAddr:     apiListen,

@@ -363,10 +363,10 @@ func (cs *DNSLog) Config(cf config.Config) error {
 		logger.Debug("DNSLog disabled")
 		return nil
 	}
-	if cf.DNSLog.File == "" {
-		return errors.New("dnslog file is empty")
+	if cf.Database.File == "" {
+		return errors.New("database file is empty")
 	}
-	cs.se = syncsqlite.NewSyncExecutor(syncsqlite.ConnString(cf.DNSLog.File), syncsqlite.MaxReadonlyConnections)
+	cs.se = syncsqlite.NewSyncExecutor(syncsqlite.ConnString(cf.Database.File), syncsqlite.MaxReadonlyConnections)
 
 	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second

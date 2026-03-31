@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS members (
+	address TEXT PRIMARY KEY
+);

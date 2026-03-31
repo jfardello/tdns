@@ -8,6 +8,8 @@ upstreams:
   - tls://1.0.0.1:853#cloudflare-dns.com
 dns_log:
   enabled: true
+  purge: 180d
+database:
   file: /tmp/tdns.sqlite
 blacklist:
   enabled: true
@@ -47,4 +49,3 @@ status:
   expose_uptime: true
 tagger:
   enabled: true
-  file: /tmp/tdns_tagger

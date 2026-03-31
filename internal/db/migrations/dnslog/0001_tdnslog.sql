@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS tdnslog (
+	dt INTEGER PRIMARY KEY AUTOINCREMENT,
+	domain TEXT,
+	client TEXT,
+	blocked INT DEFAULT 0
+);

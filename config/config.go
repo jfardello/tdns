@@ -55,6 +55,7 @@ type Config struct {
 	Blacklist       BlacklistConfig    `mapstructure:"blacklist" yaml:"blacklist,omitempty"`
 	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
 	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
+	Database        DatabaseConf       `mapstructure:"database" yaml:"database,omitempty"`
 	DNSLog          DNSLogConf         `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
 	Tagger          TaggerConf         `mapstructure:"tagger" yaml:"tagger,omitempty"`
 	Status          StatusConf         `mapstructure:"status" yaml:"status,omitempty"`
@@ -63,14 +64,16 @@ type Config struct {
 	Server          Server             `mapstructure:"server" yaml:"server,omitempty"`
 }
 
+type DatabaseConf struct {
+	File string `mapstructure:"file" yaml:"file,omitempty"`
+}
+
 type TaggerConf struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
-	File    string `mapstructure:"file" yaml:"file,omitempty"`
+	Enabled bool `mapstructure:"enabled" yaml:"enabled,omitempty"`
 }
 
 type DNSLogConf struct {
 	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
-	File    string `mapstructure:"file" yaml:"file"`
 	Purge   string `mapstructure:"purge" yaml:"purge,omitempty"`
 }
 

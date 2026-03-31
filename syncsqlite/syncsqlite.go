@@ -15,22 +15,6 @@ import (
 const MaxReadonlyConnections = 10
 const DefaultBulkQueueSize = 1024
 
-var schema = `create table if not exists tdnslog 
-	( dt INTEGER primary key autoincrement, 
-      domain  TEXT, 
-      client  TEXT, 
-      blocked INT default 0
-);`
-var sqlSequence = `INSERT INTO sqlite_sequence (seq, name) SELECT 0, 'tdnslog' 
-	WHERE NOT EXISTS ( 
-	SELECT 1 FROM sqlite_sequence 
-		WHERE name = 'tdnslog'
-);`
-var schemaHosts = `create table if not exists hosts (
-	ipAddr TEXT not null constraint hosts_pk primary key, 
-	host   text 
-);`
-
 type SyncExecutor struct {
 	roConnPool             chan *sql.DB //RO channel that holds all the RO connections
 	rwConnDatabase         *sql.DB      //RW connection to the DB
@@ -286,11 +270,5 @@ func NewSyncExecutor(connString string, maxReadOnlyConnections int) *SyncExecuto
 	}
 	executor.InitConnectionPool(connString)
 	go executor.Run()
-	for _, stmt := range []string{schema, sqlSequence, schemaHosts} {
-		_, err := executor.SyncExec(stmt, nil)
-		if err != nil {
-			logger.Fatalf("Error executing query: %s, %v", schema, err)
-		}
-	}
 	return &executor
 }

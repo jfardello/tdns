@@ -4,29 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/storage"
 )
-
-var taggerSchema = []string{
-	`CREATE TABLE IF NOT EXISTS labels (
-		name TEXT PRIMARY KEY
-	);`,
-	`CREATE TABLE IF NOT EXISTS members (
-		address TEXT PRIMARY KEY
-	);`,
-	`CREATE TABLE IF NOT EXISTS member_labels (
-		member_address TEXT NOT NULL REFERENCES members(address) ON DELETE CASCADE,
-		label_name TEXT NOT NULL REFERENCES labels(name) ON DELETE CASCADE,
-		PRIMARY KEY (member_address, label_name)
-	);`,
-	`CREATE INDEX IF NOT EXISTS idx_member_labels_label ON member_labels(label_name);`,
-	`CREATE INDEX IF NOT EXISTS idx_member_labels_member ON member_labels(member_address);`,
-}
 
 type SQLiteStorage struct {
 	executor *SyncExecutor
@@ -34,27 +17,7 @@ type SQLiteStorage struct {
 }
 
 func resolveDBPath(path string) (string, error) {
-	if path == "" {
-		return "", errors.New("sqlite path is empty")
-	}
-
-	info, err := os.Stat(path)
-	switch {
-	case err == nil && info.IsDir():
-		return filepath.Join(path, "tagger.sqlite"), nil
-	case err == nil:
-		return path, nil
-	case !errors.Is(err, os.ErrNotExist):
-		return "", err
-	}
-
-	parent := filepath.Dir(path)
-	if parent != "." && parent != "" {
-		if err := os.MkdirAll(parent, 0o755); err != nil {
-			return "", err
-		}
-	}
-	return path, nil
+	return db.ResolvePath(path)
 }
 
 func (s *SQLiteStorage) Open(path string) error {
@@ -65,11 +28,6 @@ func (s *SQLiteStorage) Open(path string) error {
 
 	s.path = dbPath
 	s.executor = NewSyncExecutor(ConnString(dbPath), MaxReadonlyConnections)
-	for _, stmt := range taggerSchema {
-		if _, err := s.executor.SyncExec(stmt, nil); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

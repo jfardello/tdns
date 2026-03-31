@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS hosts (
+	ipAddr TEXT NOT NULL CONSTRAINT hosts_pk PRIMARY KEY,
+	host TEXT
+);
