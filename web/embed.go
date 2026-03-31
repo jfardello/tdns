@@ -5,6 +5,8 @@ import (
 	"io/fs"
 )
 
+//go:generate sh ../tools/generate_web.sh
+
 // embeddedAssets contains the statically generated Nuxt SPA output.
 //
 // The all: prefix is required so go:embed includes dot-prefixed directories

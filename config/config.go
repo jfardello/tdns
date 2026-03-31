@@ -52,6 +52,7 @@ type Config struct {
 	EnableAPI       bool               `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
 	Upstreams       []string           `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
 	Cache           CacheConf          `mapstructure:"cache" yaml:"cache,omitempty"`
+	CORS            CORSConf           `mapstructure:"cors" yaml:"cors,omitempty"`
 	Blacklist       BlacklistConfig    `mapstructure:"blacklist" yaml:"blacklist,omitempty"`
 	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
 	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
@@ -66,6 +67,11 @@ type Config struct {
 
 type DatabaseConf struct {
 	File string `mapstructure:"file" yaml:"file,omitempty"`
+}
+
+type CORSConf struct {
+	Enabled        bool     `mapstructure:"enabled" yaml:"enabled"`
+	AllowedOrigins []string `mapstructure:"allowed_origins" yaml:"allowed_origins,omitempty"`
 }
 
 type TaggerConf struct {

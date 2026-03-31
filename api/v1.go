@@ -377,17 +377,7 @@ func formatBool(status bool) string {
 	}
 }
 
-func Serve(dns *server.Server) {
-	c := cors.New(cors.Options{
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
-		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
-		AllowedHeaders:   []string{"authorization", "content-type"},
-		Debug:            log.IsDebugEnabled(),
-	})
-	logger := log.GetLogger("serve", "api-server")
+func NewHandler(dns *server.Server) http.Handler {
 	conf := config.GetRunningConfig()
 	protected := Auth{IsRequired: true, Scope: RWSCOPE}
 	api := v1{server: dns}
@@ -416,12 +406,24 @@ func Serve(dns *server.Server) {
 	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
 
 	mux.Handle("GET /metrics", promhttp.Handler())
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	})
-	handler := c.Handler(mux)
+	return withCORS(mux, conf.CORS)
+}
 
-	logger.Infof("Starting api server at %s, (crt:%s, keyfile:%s)", conf.Server.APIAddr, conf.Server.APICertFile, conf.Server.APIKeyFile)
-	logger.Fatal(http.ListenAndServeTLS(conf.Server.APIAddr, conf.Server.APICertFile, conf.Server.APIKeyFile, handler))
+func withCORS(handler http.Handler, conf config.CORSConf) http.Handler {
+	if !conf.Enabled {
+		return handler
+	}
 
+	options := cors.Options{
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders: []string{"authorization", "content-type"},
+		Debug:          log.IsDebugEnabled(),
+	}
+	if len(conf.AllowedOrigins) > 0 {
+		options.AllowedOrigins = conf.AllowedOrigins
+	} else {
+		options.AllowOriginFunc = func(string) bool { return true }
+	}
+
+	return cors.New(options).Handler(handler)
 }

@@ -6,6 +6,11 @@ loglevel: INFO
 upstreams:
   - tls://1.1.1.1:853#cloudflare-dns.com
   - tls://1.0.0.1:853#cloudflare-dns.com
+cors:
+  enabled: false
+  allowed_origins:
+    - http://localhost:3000
+    - https://localhost:3000
 dns_log:
   enabled: true
   purge: 180d

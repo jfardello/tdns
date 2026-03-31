@@ -143,6 +143,10 @@ func newConf() *config.Config {
 		StubResolver: config.StubResolverConf{Enabled: true,
 			Stubs: []string{"google.com,udp://8.8.8.8"},
 		},
+		CORS: config.CORSConf{
+			Enabled:        false,
+			AllowedOrigins: []string{"http://localhost:3000", "https://localhost:3000"},
+		},
 		Database: config.DatabaseConf{
 			File: "/var/lib/tdns/tdns.sqlite",
 		},

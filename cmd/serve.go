@@ -19,6 +19,7 @@ import (
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/server"
+	webui "github.com/jfardello/tdns/web"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -118,6 +119,7 @@ func init() {
 	_ = viper.BindPFlag("upstream_timeout", serveCmd.PersistentFlags().Lookup("upstreamtimeout"))
 	viper.SetDefault("status.enabled", true)
 	viper.SetDefault("database.file", db.DefaultFile)
+	viper.SetDefault("cors.enabled", false)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.purge", "180d")
 	viper.SetDefault("tagger.enabled", true)
@@ -174,6 +176,10 @@ func run() {
 		server.WithDNSLog(),
 		server.WithTagger(),
 	)
+	httpServer, err := startHTTPServer(c, newServer)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		switch r.Opcode {
@@ -206,10 +212,6 @@ func run() {
 			}
 		}
 	})
-
-	go func() {
-		api.Serve(newServer)
-	}()
 
 	if len(sched.TaskRegistry) > 0 {
 		scheduler := gocron.NewScheduler(time.UTC)
@@ -247,6 +249,13 @@ func run() {
 		}
 		cancel()
 	}
+	if httpServer != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error(err)
+		}
+		cancel()
+	}
 	if p, ok := newServer.Middlewares["tagger"]; ok {
 		if closer, ok := p.(interface{ Close() error }); ok {
 			if err := closer.Close(); err != nil {
@@ -260,6 +269,31 @@ func run() {
 		}
 	}
 	os.Exit(0)
+}
+
+func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, error) {
+	logger := log.GetLogger("serve", "http-server")
+	apiHandler := api.NewHandler(dnsServer)
+	uiHandlers, err := webui.NewHandlers("")
+	if err != nil {
+		return nil, fmt.Errorf("prepare embedded web ui: %w", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/", apiHandler)
+	mux.Handle("/metrics", apiHandler)
+	mux.Handle("/_nuxt/", uiHandlers.Static)
+	mux.Handle("/", uiHandlers.SPA)
+
+	server := &http.Server{Addr: c.Server.APIAddr, Handler: mux}
+	go func() {
+		logger.Infof("Starting https server at %s, (crt:%s, keyfile:%s)", c.Server.APIAddr, c.Server.APICertFile, c.Server.APIKeyFile)
+		if err := server.ListenAndServeTLS(c.Server.APICertFile, c.Server.APIKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error(err)
+		}
+	}()
+
+	return server, nil
 }
 
 func startPProfServer(addr string) *http.Server {

@@ -12,7 +12,7 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
-    # you may remove this if you don't need go generate
+    # Refresh embedded SPA assets before release builds.
     - go generate ./...
 
 builds:

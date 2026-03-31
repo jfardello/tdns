@@ -73,6 +73,15 @@ If you prefer to start the server directly:
 sudo tdns serve -c /etc/tdns/tdns.yaml
 ```
 
+To refresh the embedded frontend before building binaries:
+
+```bash
+go generate ./...
+go build ./...
+```
+
+`go generate ./...` runs the static Nuxt generation step used by the embedded SPA. The release workflow uses the same command before compiling binaries.
+
 ## Usage
 
 Show the command surface:
@@ -91,6 +100,15 @@ tdns serve -c /etc/tdns/tdns.yaml
 tdns serve -c /etc/tdns/tdns.yaml -u tls://1.1.1.1:853#cloudflare-dns.com
 tdns serve -c /etc/tdns/tdns.yaml -f /etc/hosts -b /etc/tdns/blacklist.hosts
 ```
+
+For frontend development against a separately running TDNS server:
+
+```bash
+cd web
+TDNS_API_URL=https://localhost:8443 npm run dev
+```
+
+If you do that, enable `cors.enabled` in `tdns.yaml` and set `cors.allowed_origins` to your Nuxt dev origin such as `http://localhost:3000`.
 
 Common admin usage:
 
@@ -194,6 +212,13 @@ The main runtime options currently used by the server are:
 | key | description |
 | --- | --- |
 | `database.file` | Shared SQLite database path used by DNS log, aliases, and tagger data. |
+
+### `cors`
+
+| key | description |
+| --- | --- |
+| `cors.enabled` | Enables cross-origin API access for development or external SPA hosting. |
+| `cors.allowed_origins` | Explicit origins allowed when CORS is enabled. If empty, TDNS allows any origin. |
 
 ### `dns_log`
 
