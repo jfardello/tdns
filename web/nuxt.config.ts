@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', 'nuxt-charts'],
   css: ['~/assets/css/main.css'],
   ssr: false,
   runtimeConfig: {

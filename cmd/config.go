@@ -21,6 +21,8 @@ import (
 	"github.com/jfardello/tdns/log"
 )
 
+var DEFAULT_DATA_PATH string = "/var/lib/tdns"
+
 var (
 	certHosts   []string
 	basepath    string
@@ -70,6 +72,9 @@ var configCmd = &cobra.Command{
 		WriteSampleConfig("tdns.yaml", certname, keyname)
 		abs, _ := os.Executable()
 		createUnit(abs, path.Join(basepath, "etc"), path.Join(destination, "tdns.service"))
+		fmt.Printf("Sample config written to %s.\n", path.Join(destination, "tdns.yaml"))
+		fmt.Printf("Note: this sample config uses %s for runtime data such as the blacklist and database files.\n", DEFAULT_DATA_PATH)
+		fmt.Printf("Create %s before starting tdns as root, for example: mkdir -p %s\n", DEFAULT_DATA_PATH, DEFAULT_DATA_PATH)
 	},
 }
 
@@ -91,6 +96,7 @@ func init() {
 }
 
 func WriteSampleConfig(fname, cert, key string) {
+
 	logger := log.GetLogger("config", "WriteSampleConfig")
 	c := newConf()
 	k := config.GenKey()
@@ -118,6 +124,11 @@ func WriteSampleConfig(fname, cert, key string) {
 	if err != nil {
 		logger.Fatalf("Error writing yaml config: %v", err)
 	}
+	err = os.WriteFile(path.Join(destination, "hostsfile_list"), []byte("#127.0.0.1 foo.a.net"), 0644)
+	if err != nil {
+		logger.Fatalf("Error writing sample hostfile: %v", err)
+
+	}
 
 }
 
@@ -129,11 +140,11 @@ func newConf() *config.Config {
 		Upstreams:       []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
 		Blacklist: config.BlacklistConfig{
 			Enabled: true,
-			File:    "fixtures/bhole_testfile",
+			File:    path.Join(DEFAULT_DATA_PATH, "bhole_list"),
 		},
 		StaticResponse: config.StaticResponseConf{
 			Enabled: true,
-			File:    "fixtures/hosts_testfile",
+			File:    path.Join(basepath, "hostsfile_list"),
 		},
 		ZenMode: config.ZenModeConfig{
 			Enabled: true,
@@ -148,7 +159,7 @@ func newConf() *config.Config {
 			AllowedOrigins: []string{"http://localhost:3000", "https://localhost:3000"},
 		},
 		Database: config.DatabaseConf{
-			File: "/var/lib/tdns/tdns.sqlite",
+			File: path.Join(DEFAULT_DATA_PATH, "tdns.sqlite"),
 		},
 		DNSLog: config.DNSLogConf{
 			Enabled: true,

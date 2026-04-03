@@ -206,6 +206,28 @@ type LogDetails struct {
 	Host    string `db:"host" json:"host"`
 }
 
+type DashboardSummary struct {
+	TotalQueries   int   `db:"total_queries" json:"total_queries"`
+	BlockedQueries int   `db:"blocked_queries" json:"blocked_queries"`
+	AllowedQueries int   `db:"allowed_queries" json:"allowed_queries"`
+	CacheHits      int64 `json:"cache_hits"`
+	CacheMisses    int64 `json:"cache_misses"`
+}
+
+type DashboardHourlyPoint struct {
+	HourBucket     int64  `db:"hour_bucket" json:"hour_bucket"`
+	HourStart      string `db:"hour_start" json:"hour_start"`
+	TotalQueries   int    `db:"total_queries" json:"total_queries"`
+	BlockedQueries int    `db:"blocked_queries" json:"blocked_queries"`
+	AllowedQueries int    `db:"allowed_queries" json:"allowed_queries"`
+}
+
+type DashboardStats struct {
+	WindowHours int                    `json:"window_hours"`
+	Summary     DashboardSummary       `json:"summary"`
+	Hourly      []DashboardHourlyPoint `json:"hourly"`
+}
+
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
 	ip := net.ParseIP(addr)
 
@@ -265,6 +287,66 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 		return dest, err
 	}
 	return dest, nil
+}
+
+func (cs *DNSLog) GetDashboardStats(hours int) (*DashboardStats, error) {
+	logger := log.GetLogger("DNSLog", "GetDashboardStats")
+	if hours <= 0 {
+		hours = 24
+	}
+	if hours > 24*14 {
+		hours = 24 * 14
+	}
+
+	db := cs.se.GetConn()
+	dbx := sqlx.NewDb(db, sqliteutil.DriverName())
+	dbl := &log.SQLLogger{
+		Queryer: dbx, Logger: logger, DebugSql: log.IsDebugEnabled(),
+	}
+	defer func() {
+		cs.se.FreeConn(db)
+	}()
+
+	summary := DashboardSummary{}
+	summarySQL := `
+SELECT
+	COUNT(*) AS total_queries,
+	COALESCE(SUM(CASE WHEN blocked = 1 THEN 1 ELSE 0 END), 0) AS blocked_queries,
+	COUNT(*) - COALESCE(SUM(CASE WHEN blocked = 1 THEN 1 ELSE 0 END), 0) AS allowed_queries
+FROM tdnslog
+WHERE dt >= ((unixepoch('now') / 3600 - (? - 1)) * 3600) * 1000000000`
+	if err := sqlx.Get(dbl, &summary, summarySQL, hours); err != nil {
+		return nil, err
+	}
+
+	hourly := make([]DashboardHourlyPoint, 0, hours)
+	hourlySQL := `
+WITH RECURSIVE hours(h) AS (
+	SELECT unixepoch('now') / 3600 - (? - 1)
+	UNION ALL
+	SELECT h + 1 FROM hours
+	WHERE h < unixepoch('now') / 3600
+)
+SELECT
+	h AS hour_bucket,
+	datetime(h * 3600, 'unixepoch', 'localtime') AS hour_start,
+	COUNT(t.dt) AS total_queries,
+	COALESCE(SUM(CASE WHEN t.blocked = 1 THEN 1 ELSE 0 END), 0) AS blocked_queries,
+	COUNT(t.dt) - COALESCE(SUM(CASE WHEN t.blocked = 1 THEN 1 ELSE 0 END), 0) AS allowed_queries
+FROM hours
+LEFT JOIN tdnslog t
+	ON (t.dt / 1000000000 / 3600) = h
+GROUP BY h
+ORDER BY h`
+	if err := sqlx.Select(dbl, &hourly, hourlySQL, hours); err != nil {
+		return nil, err
+	}
+
+	return &DashboardStats{
+		WindowHours: hours,
+		Summary:     summary,
+		Hourly:      hourly,
+	}, nil
 }
 
 func (cs *DNSLog) doInsert() {

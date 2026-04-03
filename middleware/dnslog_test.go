@@ -130,3 +130,71 @@ func TestSQLStmt_Build(t *testing.T) {
 		})
 	}
 }
+
+func TestDNSLog_GetDashboardStats(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
+
+	se := syncsqlite.NewSyncExecutor(connString, 1)
+	cs := &DNSLog{se: se}
+
+	now := time.Now().UTC().Truncate(time.Hour)
+	stmts := []*syncsqlite.ExecStmt{
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(10 * time.Minute).UnixNano(), "1.1.1.1", "allowed-now.example.", 0},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(20 * time.Minute).UnixNano(), "1.1.1.1", "blocked-now.example.", 1},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(-50 * time.Minute).UnixNano(), "1.1.1.1", "allowed-prev.example.", 0},
+		},
+	}
+	if err := se.SyncExecBulk(stmts); err != nil {
+		t.Fatalf("SyncExecBulk error: %v", err)
+	}
+
+	stats, err := cs.GetDashboardStats(2)
+	if err != nil {
+		t.Fatalf("GetDashboardStats error: %v", err)
+	}
+
+	if stats.WindowHours != 2 {
+		t.Fatalf("expected window 2, got %d", stats.WindowHours)
+	}
+	if stats.Summary.TotalQueries != 3 {
+		t.Fatalf("expected total 3, got %d", stats.Summary.TotalQueries)
+	}
+	if stats.Summary.BlockedQueries != 1 {
+		t.Fatalf("expected blocked 1, got %d", stats.Summary.BlockedQueries)
+	}
+	if stats.Summary.AllowedQueries != 2 {
+		t.Fatalf("expected allowed 2, got %d", stats.Summary.AllowedQueries)
+	}
+	if len(stats.Hourly) != 2 {
+		t.Fatalf("expected 2 hourly buckets, got %d", len(stats.Hourly))
+	}
+	if stats.Hourly[0].TotalQueries != 1 {
+		t.Fatalf("expected first bucket total 1, got %d", stats.Hourly[0].TotalQueries)
+	}
+	if stats.Hourly[0].BlockedQueries != 0 {
+		t.Fatalf("expected first bucket blocked 0, got %d", stats.Hourly[0].BlockedQueries)
+	}
+	if stats.Hourly[0].AllowedQueries != 1 {
+		t.Fatalf("expected first bucket allowed 1, got %d", stats.Hourly[0].AllowedQueries)
+	}
+	if stats.Hourly[1].TotalQueries != 2 {
+		t.Fatalf("expected second bucket total 2, got %d", stats.Hourly[1].TotalQueries)
+	}
+	if stats.Hourly[1].BlockedQueries != 1 {
+		t.Fatalf("expected second bucket blocked 1, got %d", stats.Hourly[1].BlockedQueries)
+	}
+	if stats.Hourly[1].AllowedQueries != 1 {
+		t.Fatalf("expected second bucket allowed 1, got %d", stats.Hourly[1].AllowedQueries)
+	}
+}

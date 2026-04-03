@@ -33,11 +33,14 @@ const (
 )
 
 type Response struct {
-	Kind          string                  `json:"kind"`
-	Message       string                  `json:"message"`
-	CurrentStatus string                  `json:"current_status"`
-	Items         []string                `json:"items,omitempty"`
-	LogItems      []middleware.LogDetails `json:"log_items,omitempty"`
+	Kind          string                            `json:"kind"`
+	Message       string                            `json:"message"`
+	CurrentStatus string                            `json:"current_status"`
+	WindowHours   int                               `json:"window_hours,omitempty"`
+	Items         []string                          `json:"items,omitempty"`
+	LogItems      []middleware.LogDetails           `json:"log_items,omitempty"`
+	Summary       *middleware.DashboardSummary      `json:"summary,omitempty"`
+	Hourly        []middleware.DashboardHourlyPoint `json:"hourly,omitempty"`
 }
 
 type StubReplaceRequest struct {

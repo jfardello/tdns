@@ -92,7 +92,7 @@ type BlacklistConfig struct {
 	File               string   `mapstructure:"file" yaml:"file"`
 	ExternalFile       string   `mapstructure:"external_file" yaml:"external_file,omitempty"`
 	ExternalRepo       string   `mapstructure:"external_repo" yaml:"external_repo,omitempty"`
-	ExternalRepoBranch string   `mapstructure:"external_repo" yaml:"external_repo,omitempty"`
+	ExternalRepoBranch string   `mapstructure:"external_repo_branch" yaml:"external_repo_branch,omitempty"`
 	ExternalPullPeriod string   `mapstructure:"external_pull_period" yaml:"external_pull_period,omitempty"`
 	Excludes           []string `mapstructure:"exclude" yaml:"excludes"`
 }

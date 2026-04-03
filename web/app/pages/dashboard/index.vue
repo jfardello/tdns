@@ -1,23 +1,107 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-import type { DnsLogItem } from '~/composables/useApi'
+import type { DashboardHourlyPoint, DashboardSummary, DnsLogItem } from '~/composables/useApi'
 
-const { clearCache, getDnsLogTop } = useApi()
+const { clearCache, getDnsDashboard, getDnsLogTop } = useApi()
 const toast = useToast()
 
-const loading = ref(false)
+const EMPTY_SUMMARY: DashboardSummary = {
+  total_queries: 0,
+  blocked_queries: 0,
+  allowed_queries: 0,
+  cache_hits: 0,
+  cache_misses: 0
+}
+
+const summary = ref<DashboardSummary>({ ...EMPTY_SUMMARY })
+const hourly = ref<DashboardHourlyPoint[]>([])
 const topDomains = ref<DnsLogItem[]>([])
+const windowHours = ref(24)
+const dashboardLoading = ref(false)
+const topDomainsLoading = ref(false)
+
+const chartCategories = {
+  allowed_queries: { name: 'Allowed', color: '#00dc82' },
+  blocked_queries: { name: 'Blocked', color: '#E06945' }
+}
+
+const chartData = computed(() =>
+  hourly.value.map(point => ({
+    ...point,
+    hour_label: formatHourLabel(point.hour_start)
+  }))
+)
+
+function formatHourLabel(value: string) {
+  const parts = value.split(' ')
+  if (parts.length < 2) {
+    return value
+  }
+  return parts[1].slice(0, 5)
+}
+
+function getChartPoint(index: number) {
+  return chartData.value[index]
+}
+
+function formatXAxisTick(_: number | Date, index: number) {
+  return getChartPoint(index)?.hour_label || ''
+}
+
+function getTooltipDatum(values: Record<string, unknown> | undefined) {
+  const datum = values?.datum
+  if (!datum || typeof datum !== 'object') {
+    return undefined
+  }
+
+  return datum as DashboardHourlyPoint & { hour_label?: string }
+}
+
+function formatTooltipTitle(values: Record<string, unknown> | undefined) {
+  const row = getTooltipDatum(values)
+  if (!row) {
+    return 'Unknown hour'
+  }
+
+  return `${row.hour_start} · Total ${row.total_queries.toLocaleString()}`
+}
+
+function formatTooltipValue(value: unknown) {
+  return Number(value ?? 0).toLocaleString()
+}
+
+function getTooltipMetric(values: Record<string, unknown> | undefined, key: string) {
+  return formatTooltipValue(getTooltipDatum(values)?.[key as keyof DashboardHourlyPoint])
+}
+
+async function loadDashboard() {
+  dashboardLoading.value = true
+  const response = await getDnsDashboard(windowHours.value)
+  if (response?.summary) {
+    summary.value = response.summary
+    hourly.value = response.hourly || []
+    windowHours.value = response.window_hours || windowHours.value
+  } else {
+    summary.value = { ...EMPTY_SUMMARY }
+    hourly.value = []
+  }
+  dashboardLoading.value = false
+}
 
 async function loadTopDomains() {
-  loading.value = true
+  topDomainsLoading.value = true
   const response = await getDnsLogTop(5, '24h')
   if (response?.log_items) {
     topDomains.value = response.log_items
   } else {
     topDomains.value = []
   }
-  loading.value = false
+  topDomainsLoading.value = false
+}
+
+async function loadDashboardData() {
+  await Promise.all([loadDashboard(), loadTopDomains()])
 }
 
 async function handleClearCache() {
@@ -29,11 +113,12 @@ async function handleClearCache() {
       color: 'success',
       icon: 'i-lucide-check-circle'
     })
+    await loadDashboard()
   }
 }
 
 onMounted(() => {
-  loadTopDomains()
+  loadDashboardData()
 })
 </script>
 
@@ -42,59 +127,154 @@ onMounted(() => {
     <template #header>
       <UDashboardNavbar title="Dashboard">
         <template #right>
-          <UButton
-            icon="i-lucide-trash-2"
-            label="Clear Cache"
-            color="neutral"
-            variant="outline"
-            @click="handleClearCache"
-          />
+          <div class="flex items-center gap-2">
+            <UButton
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="ghost"
+              :loading="dashboardLoading || topDomainsLoading"
+              @click="loadDashboardData"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              label="Clear Cache"
+              color="neutral"
+              variant="outline"
+              @click="handleClearCache"
+            />
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <div class="p-6 space-y-6">
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="space-y-6 p-6">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <UCard>
-            <div class="flex items-center gap-4">
-              <div class="p-3 rounded-full bg-primary/10">
-                <UIcon name="i-lucide-server" class="size-6 text-primary" />
-              </div>
+            <div class="flex items-start justify-between gap-4">
               <div>
-                <p class="text-sm text-muted">DNS Server</p>
-                <p class="text-xl font-semibold">Active</p>
+                <p class="text-sm text-muted">Queries</p>
+                <p class="mt-2 text-2xl font-semibold">{{ summary.total_queries.toLocaleString() }}</p>
               </div>
+              <UBadge :label="`${windowHours}h`" color="primary" variant="subtle" />
             </div>
           </UCard>
 
           <UCard>
-            <div class="flex items-center gap-4">
-              <div class="p-3 rounded-full bg-success/10">
-                <UIcon name="i-lucide-shield-check" class="size-6 text-success" />
-              </div>
+            <div class="flex items-start justify-between gap-4">
               <div>
-                <p class="text-sm text-muted">Protection</p>
-                <p class="text-xl font-semibold">Enabled</p>
+                <p class="text-sm text-muted">Blocked</p>
+                <p class="mt-2 text-2xl font-semibold">{{ summary.blocked_queries.toLocaleString() }}</p>
               </div>
+              <UBadge label="24h filter" color="error" variant="subtle" />
             </div>
           </UCard>
 
           <UCard>
-            <div class="flex items-center gap-4">
-              <div class="p-3 rounded-full bg-warning/10">
-                <UIcon name="i-lucide-activity" class="size-6 text-warning" />
-              </div>
+            <div class="flex items-start justify-between gap-4">
               <div>
-                <p class="text-sm text-muted">Queries (24h)</p>
-                <p class="text-xl font-semibold">{{ topDomains.reduce((sum, d) => sum + d.counter, 0) }}</p>
+                <p class="text-sm text-muted">Cache hits</p>
+                <p class="mt-2 text-2xl font-semibold">{{ summary.cache_hits.toLocaleString() }}</p>
               </div>
+              <UBadge label="Since start" color="success" variant="subtle" />
+            </div>
+          </UCard>
+
+          <UCard>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-sm text-muted">Cache misses</p>
+                <p class="mt-2 text-2xl font-semibold">{{ summary.cache_misses.toLocaleString() }}</p>
+              </div>
+              <UBadge label="Since start" color="warning" variant="subtle" />
             </div>
           </UCard>
         </div>
 
-        <!-- Top Domains Quick View -->
+        <UCard>
+          <template #header>
+            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 class="font-semibold">Traffic by Hour</h3>
+                <p class="text-sm text-muted">Allowed and blocked DNS queries across the last {{ windowHours }} hours.</p>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-muted">
+                <span>Total {{ summary.total_queries.toLocaleString() }}</span>
+                <span>Blocked {{ summary.blocked_queries.toLocaleString() }}</span>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="dashboardLoading" class="space-y-3">
+            <USkeleton class="h-[320px] w-full" />
+          </div>
+
+          <div v-else-if="chartData.length === 0" class="py-8">
+            <UEmpty
+              icon="i-lucide-bar-chart-3"
+              title="No dashboard data yet"
+              description="Hourly DNS traffic will appear here after queries are recorded."
+            />
+          </div>
+
+          <ClientOnly v-else>
+            <div class="dashboard-hourly-chart">
+              <BarChart
+                :data="chartData"
+                :height="320"
+                :categories="chartCategories"
+                :x-formatter="formatXAxisTick"
+                :y-axis="['allowed_queries', 'blocked_queries']"
+                :stacked="true"
+                :y-grid-line="true"
+                :x-grid-line="false"
+                :x-num-ticks="Math.min(windowHours, 8)"
+                :y-num-ticks="5"
+                :tooltip-title-formatter="formatTooltipTitle"
+              >
+                <template #tooltip="slotProps">
+                  <div class="min-w-[220px]">
+                    <div class="border-b border-white/10 px-4 pb-2 pt-3">
+                      <p class="text-sm font-semibold text-highlighted">
+                        {{ formatTooltipTitle(slotProps.values) }}
+                      </p>
+                    </div>
+
+                    <div class="space-y-2 px-4 py-3 text-sm">
+                      <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                          <span class="size-2 rounded-full" style="background-color: #00dc82;" />
+                          <span class="text-toned">Allowed</span>
+                        </div>
+                        <span class="font-medium text-highlighted">
+                          {{ getTooltipMetric(slotProps.values, 'allowed_queries') }}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                          <span class="size-2 rounded-full" style="background-color: #E06945;" />
+                          <span class="text-toned">Blocked</span>
+                        </div>
+                        <span class="font-medium text-highlighted">
+                          {{ getTooltipMetric(slotProps.values, 'blocked_queries') }}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center justify-between gap-4 border-t border-white/10 pt-2">
+                        <span class="text-toned">Total</span>
+                        <span class="font-semibold text-highlighted">
+                          {{ getTooltipDatum(slotProps.values)?.total_queries?.toLocaleString() || '0' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </BarChart>
+            </div>
+          </ClientOnly>
+        </UCard>
+
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
@@ -103,21 +283,21 @@ onMounted(() => {
                 icon="i-lucide-refresh-cw"
                 variant="ghost"
                 size="sm"
-                :loading="loading"
+                :loading="topDomainsLoading"
                 @click="loadTopDomains"
               />
             </div>
           </template>
 
-          <div v-if="loading" class="space-y-2">
-            <USkeleton class="h-10 w-full" v-for="i in 5" :key="i" />
+          <div v-if="topDomainsLoading" class="space-y-2">
+            <USkeleton v-for="i in 5" :key="i" class="h-10 w-full" />
           </div>
 
-          <div v-else-if="topDomains.length === 0" class="text-center py-8">
+          <div v-else-if="topDomains.length === 0" class="py-8 text-center">
             <UEmpty
               icon="i-lucide-globe"
               title="No data yet"
-              description="DNS query logs will appear here"
+              description="DNS query logs will appear here."
             />
           </div>
 
@@ -125,7 +305,7 @@ onMounted(() => {
             <div
               v-for="(domain, index) in topDomains"
               :key="domain.domain"
-              class="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+              class="flex items-center justify-between rounded-lg bg-muted/50 p-3"
             >
               <div class="flex items-center gap-3">
                 <UBadge :label="String(index + 1)" color="neutral" variant="subtle" />
@@ -145,13 +325,12 @@ onMounted(() => {
           </template>
         </UCard>
 
-        <!-- Quick Actions -->
         <UCard>
           <template #header>
             <h3 class="font-semibold">Quick Actions</h3>
           </template>
 
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <NuxtLink to="/dashboard/tags">
               <UButton
                 icon="i-lucide-tags"
@@ -194,3 +373,14 @@ onMounted(() => {
     </template>
   </UDashboardPanel>
 </template>
+
+<style scoped>
+.dashboard-hourly-chart {
+  --vis-tooltip-background-color: rgba(17, 19, 24, 0.96);
+  --vis-tooltip-border-color: rgba(255, 255, 255, 0.08);
+  --vis-tooltip-text-color: rgb(241, 245, 249);
+  --vis-tooltip-box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  --vis-tooltip-padding: 0;
+  --vis-tooltip-border-radius: 0.75rem;
+}
+</style>

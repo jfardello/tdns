@@ -166,6 +166,48 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(res, w)
 }
 
+func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	w.Header().Set("Content-Type", "application/json")
+
+	hours := 24
+	if raw := r.URL.Query().Get("hours"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeJSON(Response{
+				Kind:          DNSLogResponseKind,
+				Message:       err.Error(),
+				CurrentStatus: "Enabled",
+			}, w)
+			return
+		}
+		hours = parsed
+	}
+
+	stats, err := p.GetDashboardStats(hours)
+	if err != nil {
+		writeJSON(Response{
+			Kind:          DNSLogResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: "Enabled",
+		}, w)
+		return
+	}
+
+	cacheStats := middleware.GetCache().Status()
+	stats.Summary.CacheHits = cacheStats.Hits
+	stats.Summary.CacheMisses = cacheStats.Misses
+
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: "Enabled",
+		WindowHours:   stats.WindowHours,
+		Summary:       &stats.Summary,
+		Hourly:        stats.Hourly,
+	}, w)
+}
+
 func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 	action := r.PathValue("action")
 	var state bool
@@ -388,6 +430,7 @@ func NewHandler(dns *server.Server) http.Handler {
 	mux.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
 	mux.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
 	mux.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
+	mux.HandleFunc("GET /api/dns-log/dashboard", Require(api.DNSLogDashboard, protected))
 	mux.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))
 	mux.HandleFunc("GET /api/dns-log/rotate", Require(api.DNSLogRotate, protected))
 	mux.HandleFunc("POST /api/dns-log/alias", Require(api.DNSLogAlias, protected))

@@ -134,6 +134,19 @@ type GitDownloader struct {
 	remote       GitLister
 }
 
+func newGitDownloader(externalFile, externalRepo, branch, holeFile string) *GitDownloader {
+	return &GitDownloader{
+		externalFile: externalFile,
+		externalRepo: externalRepo,
+		branch:       branch,
+		holeFile:     holeFile,
+		remote: git.NewRemote(memory.NewStorage(), &gitconf.RemoteConfig{
+			Name: "origin",
+			URLs: []string{externalRepo},
+		}),
+	}
+}
+
 func (gd *GitDownloader) RemoteHEAD() (string, error) {
 	logger := log.GetLogger("blacklist", "RemoteHEAD")
 	logger.Debugf("Checking remote HEAD... %s", gd.externalRepo)
@@ -151,22 +164,29 @@ func (gd *GitDownloader) RemoteHEAD() (string, error) {
 	return "", errors.New("could not find remote HEAD")
 }
 
-// --
-func (gd *GitDownloader) ReadLastHash(stateFile string) string {
-	b, err := os.ReadFile(stateFile)
+func (gd *GitDownloader) stateFile() string {
+	return gd.holeFile + ".state"
+}
+
+func (gd *GitDownloader) ReadLastHash() string {
+	b, err := os.ReadFile(gd.stateFile())
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(b))
 }
 
-func (gd *GitDownloader) WriteLastHash(h string, stateFile string) {
-	_ = os.WriteFile(stateFile, []byte(h+"\n"), 0644)
+func (gd *GitDownloader) WriteLastHash(h string) error {
+	return os.WriteFile(gd.stateFile(), []byte(h+"\n"), 0644)
 }
 
-func (gd *GitDownloader) GithubRaw(file *os.File, owner, repo, path, ref string) (uint64, error) {
+func (gd *GitDownloader) GithubRaw(file *os.File, ref string) (uint64, error) {
+	owner, repo, err := parseGitHub(gd.externalRepo)
+	if err != nil {
+		return 0, err
+	}
 	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
-		owner, repo, url.PathEscape(path), ref)
+		owner, repo, url.PathEscape(gd.externalFile), ref)
 	req, _ := http.NewRequest("GET", endpoint, nil)
 	req.Header.Set("Accept", "application/vnd.github.v3.raw")
 
@@ -197,39 +217,36 @@ func (gd *GitDownloader) GithubRaw(file *os.File, owner, repo, path, ref string)
 
 }
 
-//--
-
 func (bp *BlackList) Download() error {
 	logger := log.GetLogger("middleware.BlackList", "Download")
 	if bp.externalFile != "" && bp.externalRepo != "" {
-		head, err := remoteHEAD(bp.externalRepo, bp.branch)
+		downloader := newGitDownloader(bp.externalFile, bp.externalRepo, bp.branch, bp.HoleFile)
+		head, err := downloader.RemoteHEAD()
 		if err != nil {
-			logger.Fatalf("Could not query remote: %v", err)
+			return fmt.Errorf("could not query remote: %w", err)
 		}
-		last := readLastHash(bp.HoleFile + ".state")
+		last := downloader.ReadLastHash()
 		if head == last {
 			logger.Info("No changes to remote!")
 			return nil
 		}
-		owner, repo, err := parseGitHub(bp.externalRepo)
-		if err != nil {
-			return err
-		}
 		logger.Info("Downloading remote hosts file.")
 		f, err := os.OpenFile(bp.HoleFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-		defer func() {
-			_ = f.Close()
-		}()
 		if err != nil {
 			logger.Error(err)
 			return err
 		}
-		total, err := githubRaw(f, owner, repo, bp.externalFile, head)
+		defer func() {
+			_ = f.Close()
+		}()
+		total, err := downloader.GithubRaw(f, head)
 		if err != nil {
 			return err
 		}
 		logger.Infof("Downloaded %s from remote hosts file.", humanize.Bytes(total))
-		writeLastHash(head, bp.HoleFile+".state")
+		if err := downloader.WriteLastHash(head); err != nil {
+			return fmt.Errorf("could not persist blacklist state: %w", err)
+		}
 	}
 	return nil
 }
@@ -240,7 +257,7 @@ func (bp *BlackList) Init() error {
 	if err != nil {
 		return err
 	}
-	readFile, err := os.Open(bp.HoleFile)
+	readFile, err := os.OpenFile(bp.HoleFile, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
@@ -290,73 +307,6 @@ OUTER:
 	return nil
 
 }
-
-func remoteHEAD(repoURL string, branch string) (string, error) {
-	logger := log.GetLogger("blacklist", "RemoteHEAD")
-	logger.Debugf("Checking remote HEAD... %s", repoURL)
-	remote := git.NewRemote(memory.NewStorage(), &gitconf.RemoteConfig{
-		Name: "origin",
-		URLs: []string{repoURL},
-	})
-	refs, err := remote.List(&git.ListOptions{
-		PeelingOption: git.AppendPeeled,
-	})
-	if err != nil {
-		return "", err
-	}
-	for _, r := range refs {
-		if r.Name().String() == fmt.Sprintf("refs/heads/%s", branch) {
-			return r.Hash().String(), nil
-		}
-	}
-	return "", errors.New("could not find remote HEAD")
-}
-
-func readLastHash(stateFile string) string {
-	b, err := os.ReadFile(stateFile)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
-}
-
-func writeLastHash(h string, stateFile string) {
-	_ = os.WriteFile(stateFile, []byte(h+"\n"), 0644)
-}
-
-func githubRaw(file *os.File, owner, repo, path, ref string) (uint64, error) {
-	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
-		owner, repo, url.PathEscape(path), ref)
-	req, _ := http.NewRequest("GET", endpoint, nil)
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
-
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		req.Header.Set("Authorization", "token "+tok)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		slurp, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return 0, fmt.Errorf("GitHub API %d: %s", resp.StatusCode, bytes.TrimSpace(slurp))
-	}
-	counter := &WriteCounter{
-		logger:   log.GetLogger("middleware.BlackList", "Download"),
-		ReportMB: 1,
-	}
-	if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {
-		return counter.Total, err
-	}
-	return counter.Total, nil
-
-}
-
 func parseGitHub(uri string) (owner, repo string, err error) {
 	// Accept https://github.com/owner/repo(.git) or git@github.com:owner/repo.git
 	if strings.HasPrefix(uri, "http") {

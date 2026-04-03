@@ -4,12 +4,31 @@ export interface DnsLogItem {
   host: string
 }
 
+export interface DashboardSummary {
+  total_queries: number
+  blocked_queries: number
+  allowed_queries: number
+  cache_hits: number
+  cache_misses: number
+}
+
+export interface DashboardHourlyPoint {
+  hour_bucket: number
+  hour_start: string
+  total_queries: number
+  blocked_queries: number
+  allowed_queries: number
+}
+
 interface ApiResponse {
   kind?: string
   message: string
   current_status?: string
+  window_hours?: number
   items?: string[]
   log_items?: DnsLogItem[]
+  summary?: DashboardSummary
+  hourly?: DashboardHourlyPoint[]
 }
 
 interface DnsLogApiItem {
@@ -21,11 +40,47 @@ interface DnsLogApiItem {
   host?: unknown
 }
 
+interface DashboardSummaryApi {
+  total_queries?: unknown
+  blocked_queries?: unknown
+  allowed_queries?: unknown
+  cache_hits?: unknown
+  cache_misses?: unknown
+}
+
+interface DashboardHourlyApiItem {
+  hour_bucket?: unknown
+  hour_start?: unknown
+  total_queries?: unknown
+  blocked_queries?: unknown
+  allowed_queries?: unknown
+}
+
 function normalizeDnsLogItem(item: DnsLogApiItem): DnsLogItem {
   return {
     domain: String(item.domain ?? item.Domain ?? ''),
     counter: Number(item.counter ?? item.Counter ?? 0),
     host: String(item.host ?? item.Host ?? '')
+  }
+}
+
+function normalizeDashboardSummary(summary: DashboardSummaryApi | undefined): DashboardSummary {
+  return {
+    total_queries: Number(summary?.total_queries ?? 0),
+    blocked_queries: Number(summary?.blocked_queries ?? 0),
+    allowed_queries: Number(summary?.allowed_queries ?? 0),
+    cache_hits: Number(summary?.cache_hits ?? 0),
+    cache_misses: Number(summary?.cache_misses ?? 0)
+  }
+}
+
+function normalizeDashboardHourlyPoint(point: DashboardHourlyApiItem): DashboardHourlyPoint {
+  return {
+    hour_bucket: Number(point.hour_bucket ?? 0),
+    hour_start: String(point.hour_start ?? ''),
+    total_queries: Number(point.total_queries ?? 0),
+    blocked_queries: Number(point.blocked_queries ?? 0),
+    allowed_queries: Number(point.allowed_queries ?? 0)
   }
 }
 
@@ -110,6 +165,25 @@ export function useApi() {
     }
   }
 
+  async function getDnsDashboard(hours = 24): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & {
+      summary?: DashboardSummaryApi
+      hourly?: DashboardHourlyApiItem[]
+    }>(`/api/dns-log/dashboard?hours=${hours}`)
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      window_hours: Number(response.window_hours ?? hours),
+      summary: normalizeDashboardSummary(response.summary),
+      hourly: Array.isArray(response.hourly)
+        ? response.hourly.map(normalizeDashboardHourlyPoint)
+        : []
+    }
+  }
+
   async function rotateDnsLog(since: string) {
     return apiCall(`/api/dns-log/rotate?since=${since}`)
   }
@@ -171,6 +245,7 @@ export function useApi() {
     replaceStubResolvers,
     toggleBlacklist,
     toggleStaticResponse,
+    getDnsDashboard,
     getDnsLogTop,
     rotateDnsLog,
     setDnsLogAlias,
