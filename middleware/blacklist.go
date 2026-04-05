@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -64,10 +65,25 @@ type BlackList struct {
 	externalFile string
 	externalRepo string
 	branch       string
+	pullPeriod   string
 	WhiteList    []string
 	DefaultAddr  string
 	ctx          context.Context
 	cancel       context.CancelFunc
+	runtimeList  []string
+	mu           sync.RWMutex
+}
+
+type BlacklistStatus struct {
+	Enabled               bool     `json:"enabled"`
+	File                  string   `json:"file"`
+	ExternalFile          string   `json:"external_file,omitempty"`
+	ExternalRepo          string   `json:"external_repo,omitempty"`
+	ExternalRepoBranch    string   `json:"external_repo_branch,omitempty"`
+	ExternalPullPeriod    string   `json:"external_pull_period,omitempty"`
+	Excludes              []string `json:"excludes,omitempty"`
+	RuntimeWhitelist      []string `json:"runtime_whitelist,omitempty"`
+	BlockfileTotalEntries int      `json:"blockfile_total_entries"`
 }
 
 func (bp *BlackList) Info() (string, Stage) {
@@ -76,7 +92,13 @@ func (bp *BlackList) Info() (string, Stage) {
 
 func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
 	logger := log.GetLogger("middleware.BlackList", "Run")
-	if !bp.Enabled {
+	bp.mu.RLock()
+	enabled := bp.Enabled
+	hole := bp.Hole
+	runtimeList := append([]string(nil), bp.runtimeList...)
+	bp.mu.RUnlock()
+
+	if !enabled {
 		logger.Debug("Blacklist disabled.")
 		return mess, nil
 	}
@@ -84,9 +106,18 @@ func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
 	if err != nil {
 		return mess, err
 	}
-	domain := strings.TrimSuffix(m.Question[0].Name, ".")
+	domain := normalizeDomainPattern(m.Question[0].Name)
 
-	_, ok := bp.Hole.Get(domain)
+	if matchesSuffix(domain, runtimeList) {
+		logger.Debugf("%s bypassed by runtime whitelist", domain)
+		return mess, nil
+	}
+	if hole == nil {
+		logger.Debug("Blacklist hole tree not initialized yet.")
+		return mess, nil
+	}
+
+	_, ok := hole.Get(domain)
 	if ok {
 		logger.Debugf("%s found in the list", domain)
 		err := mess.AddValue("blocked", "1")
@@ -105,18 +136,27 @@ func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
 }
 
 func (bp *BlackList) Config(c config.Config) error {
-	bp.Enabled = c.Blacklist.Enabled
 	bf := c.Blacklist.File
 	ef := c.Blacklist.ExternalFile
 	er := c.Blacklist.ExternalRepo
+	branch := c.Blacklist.ExternalRepoBranch
+	if branch == "" {
+		branch = "master"
+	}
+
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	bp.Enabled = c.Blacklist.Enabled
 	bp.ctx, bp.cancel = context.WithCancel(context.Background())
 	if bf != "" {
 		bp.HoleFile = bf
-		bp.WhiteList = c.Blacklist.Excludes
+		bp.WhiteList = normalizeDomainPatterns(c.Blacklist.Excludes)
 		bp.externalFile = ef
 		bp.externalRepo = er
 		bp.DefaultAddr = BLAddr
-		bp.branch = "master"
+		bp.branch = branch
+		bp.pullPeriod = c.Blacklist.ExternalPullPeriod
 		return nil
 	}
 	return errors.New("blacklist file is mandatory")
@@ -219,8 +259,15 @@ func (gd *GitDownloader) GithubRaw(file *os.File, ref string) (uint64, error) {
 
 func (bp *BlackList) Download() error {
 	logger := log.GetLogger("middleware.BlackList", "Download")
-	if bp.externalFile != "" && bp.externalRepo != "" {
-		downloader := newGitDownloader(bp.externalFile, bp.externalRepo, bp.branch, bp.HoleFile)
+	bp.mu.RLock()
+	externalFile := bp.externalFile
+	externalRepo := bp.externalRepo
+	branch := bp.branch
+	holeFile := bp.HoleFile
+	bp.mu.RUnlock()
+
+	if externalFile != "" && externalRepo != "" {
+		downloader := newGitDownloader(externalFile, externalRepo, branch, holeFile)
 		head, err := downloader.RemoteHEAD()
 		if err != nil {
 			return fmt.Errorf("could not query remote: %w", err)
@@ -231,7 +278,7 @@ func (bp *BlackList) Download() error {
 			return nil
 		}
 		logger.Info("Downloading remote hosts file.")
-		f, err := os.OpenFile(bp.HoleFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		f, err := os.OpenFile(holeFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		if err != nil {
 			logger.Error(err)
 			return err
@@ -252,12 +299,18 @@ func (bp *BlackList) Download() error {
 }
 
 func (bp *BlackList) Init() error {
-
 	err := bp.Download()
 	if err != nil {
 		return err
 	}
-	readFile, err := os.OpenFile(bp.HoleFile, os.O_RDONLY|os.O_CREATE, 0644)
+	bp.mu.RLock()
+	holeFile := bp.HoleFile
+	configWhiteList := append([]string(nil), bp.WhiteList...)
+	pullPeriod := bp.pullPeriod
+	ctx := bp.ctx
+	bp.mu.RUnlock()
+
+	readFile, err := os.OpenFile(holeFile, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
@@ -269,6 +322,7 @@ func (bp *BlackList) Init() error {
 		}
 	}(readFile)
 	scanner := bufio.NewScanner(readFile)
+	hole := radix.New()
 OUTER:
 	for scanner.Scan() {
 		s := scanner.Text()
@@ -278,22 +332,31 @@ OUTER:
 
 		fields := strings.Fields(s)
 		if len(fields) > 1 {
-			for _, each := range bp.WhiteList {
-				if strings.HasSuffix(fields[1], each) {
-					continue OUTER
-				}
+			domain := normalizeDomainPattern(fields[1])
+			if domain == "" {
+				continue
 			}
-			bp.Hole.Insert(fields[1], None{})
+			if matchesSuffix(domain, configWhiteList) {
+				continue OUTER
+			}
+			hole.Insert(domain, None{})
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	bp.mu.Lock()
+	bp.Hole = hole
+	bp.mu.Unlock()
 
 	cf := config.GetRunningConfig()
 	mf := int64(BLMaxFuzziness * time.Second)
-	if cf.Blacklist.ExternalPullPeriod != "" {
+	if pullPeriod != "" {
 		name := "BlackListDownloader"
 		t := sched.Task{
 			Name: name,
-			Fn: sched.FuzzyTask(name, bp.ctx, mf, func(context.Context) {
+			Fn: sched.FuzzyTask(name, ctx, mf, func(context.Context) {
 				err := bp.Download()
 				if err != nil {
 					panic(err)
@@ -307,6 +370,104 @@ OUTER:
 	return nil
 
 }
+
+func (bp *BlackList) SetEnabled(state bool) {
+	bp.mu.Lock()
+	bp.Enabled = state
+	bp.mu.Unlock()
+}
+
+func (bp *BlackList) IsEnabled() bool {
+	bp.mu.RLock()
+	defer bp.mu.RUnlock()
+	return bp.Enabled
+}
+
+func (bp *BlackList) AddRuntimeWhitelist(domains []string) error {
+	normalized := normalizeDomainPatterns(domains)
+	if len(normalized) == 0 {
+		return errors.New("at least one valid domain is required")
+	}
+
+	bp.mu.Lock()
+	defer bp.mu.Unlock()
+
+	seen := make(map[string]struct{}, len(bp.runtimeList))
+	for _, each := range bp.runtimeList {
+		seen[each] = struct{}{}
+	}
+
+	added := 0
+	for _, domain := range normalized {
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		bp.runtimeList = append(bp.runtimeList, domain)
+		seen[domain] = struct{}{}
+		added++
+	}
+
+	if added == 0 {
+		return errors.New("all runtime whitelist values are already present")
+	}
+
+	return nil
+}
+
+func (bp *BlackList) CountBlockfileEntries() (int, error) {
+	bp.mu.RLock()
+	holeFile := bp.HoleFile
+	bp.mu.RUnlock()
+
+	readFile, err := os.Open(holeFile)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = readFile.Close()
+	}()
+
+	count := 0
+	scanner := bufio.NewScanner(readFile)
+	for scanner.Scan() {
+		s := scanner.Text()
+		if strings.HasPrefix(s, "#") {
+			continue
+		}
+		if len(strings.Fields(s)) > 1 {
+			count++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (bp *BlackList) Status() (BlacklistStatus, error) {
+	bp.mu.RLock()
+	status := BlacklistStatus{
+		Enabled:            bp.Enabled,
+		File:               bp.HoleFile,
+		ExternalFile:       bp.externalFile,
+		ExternalRepo:       bp.externalRepo,
+		ExternalRepoBranch: bp.branch,
+		ExternalPullPeriod: bp.pullPeriod,
+		Excludes:           append([]string(nil), bp.WhiteList...),
+		RuntimeWhitelist:   append([]string(nil), bp.runtimeList...),
+	}
+	bp.mu.RUnlock()
+
+	totalEntries, err := bp.CountBlockfileEntries()
+	if err != nil {
+		return BlacklistStatus{}, err
+	}
+	status.BlockfileTotalEntries = totalEntries
+
+	return status, nil
+}
+
 func parseGitHub(uri string) (owner, repo string, err error) {
 	// Accept https://github.com/owner/repo(.git) or git@github.com:owner/repo.git
 	if strings.HasPrefix(uri, "http") {
@@ -323,4 +484,35 @@ func parseGitHub(uri string) (owner, repo string, err error) {
 		return "", "", fmt.Errorf("unrecognised GitHub URL")
 	}
 	return owner, repo, nil
+}
+
+func normalizeDomainPattern(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.TrimSuffix(value, ".")
+}
+
+func normalizeDomainPatterns(values []string) []string {
+	normalized := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		domain := normalizeDomainPattern(value)
+		if domain == "" {
+			continue
+		}
+		if _, ok := seen[domain]; ok {
+			continue
+		}
+		seen[domain] = struct{}{}
+		normalized = append(normalized, domain)
+	}
+	return normalized
+}
+
+func matchesSuffix(domain string, values []string) bool {
+	for _, each := range values {
+		if strings.HasSuffix(domain, each) {
+			return true
+		}
+	}
+	return false
 }

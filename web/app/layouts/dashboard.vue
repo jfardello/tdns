@@ -2,16 +2,40 @@
 const route = useRoute()
 const { clearToken } = useAuth()
 const { navigationGroups } = useDashboardNavigation()
+const toast = useToast()
+const { blacklist, initialized, refreshing, toggleLoading, refresh, setEnabled } = useBlacklist()
 
 const currentSection = computed(() => {
   const items = navigationGroups.value.flat().filter(item => item.type !== 'label')
   return items.find(item => item.to === route.path)?.label || 'Dashboard'
 })
 
+const blacklistLegend = computed(() => (
+  blacklist.value.enabled ? 'Blacklist Active' : 'Blocking Paused'
+))
+
 function handleLogout() {
   clearToken()
   navigateTo('/login')
 }
+
+async function handleBlacklistToggle(nextEnabled: boolean) {
+  const response = await setEnabled(nextEnabled)
+  if (!response) {
+    return
+  }
+
+  toast.add({
+    title: `Blacklist ${nextEnabled ? 'enabled' : 'paused'}`,
+    description: response.message || `Blacklist filtering is now ${nextEnabled ? 'active' : 'inactive'}`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+onMounted(() => {
+  refresh()
+})
 </script>
 
 <template>
@@ -52,6 +76,25 @@ function handleLogout() {
             :tooltip="collapsed ? { delayDuration: 0, content: { side: 'right' } } : false"
             :ui="{ link: collapsed ? 'justify-center' : undefined }"
           />
+
+          <UCard v-if="!collapsed && initialized" variant="subtle">
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-1">
+                <p class="text-xs uppercase tracking-[0.18em] text-muted">Pause blocking</p>
+                <p class="text-sm font-medium">{{ blacklistLegend }}</p>
+                <p class="text-xs text-muted">
+                  {{ blacklist.blockfile_total_entries.toLocaleString() }} entries in the blockfile
+                </p>
+              </div>
+              <USwitch
+                :model-value="blacklist.enabled"
+                :loading="toggleLoading"
+                @update:model-value="handleBlacklistToggle"
+              />
+            </div>
+          </UCard>
+
+          <USkeleton v-else-if="!collapsed && refreshing" class="h-24 w-full" />
 
           <UCard v-if="!collapsed" variant="subtle">
             <div class="space-y-1">

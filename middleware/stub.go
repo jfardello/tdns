@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +19,14 @@ type StubResolver struct {
 	mu          sync.Mutex
 	EnableStubs bool
 	Stubs       map[string]*client.Mux
+	runtime     []string
 	config      config.Config
+}
+
+type StubResolverStatus struct {
+	Enabled         bool     `json:"enabled"`
+	ConfiguredStubs []string `json:"configured_stubs,omitempty"`
+	RuntimeStubs    []string `json:"runtime_stubs,omitempty"`
 }
 
 func (sr *StubResolver) Info() (string, Stage) {
@@ -71,6 +79,7 @@ func (sr *StubResolver) Config(c config.Config) error {
 func (sr *StubResolver) Replace(m map[string]*client.Mux) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
+	sr.Stubs = make(map[string]*client.Mux, len(m))
 	for each := range m {
 		sr.Stubs[each] = m[each]
 	}
@@ -82,7 +91,54 @@ func (sr *StubResolver) Init() error {
 		return err
 	}
 	sr.Replace(stubs)
+	sr.mu.Lock()
+	sr.runtime = append([]string(nil), sr.config.StubResolver.Stubs...)
+	sr.mu.Unlock()
 	return nil
+}
+
+func (sr *StubResolver) SetEnabled(state bool) {
+	sr.mu.Lock()
+	sr.EnableStubs = state
+	sr.mu.Unlock()
+}
+
+func (sr *StubResolver) IsEnabled() bool {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+	return sr.EnableStubs
+}
+
+func (sr *StubResolver) ReplaceRuntimeEntries(entries []string, globalTimeout int, upstreamTimeout int) error {
+	stubs, err := ParseStubList(entries, globalTimeout, upstreamTimeout)
+	if err != nil {
+		return err
+	}
+
+	sr.mu.Lock()
+	sr.Stubs = make(map[string]*client.Mux, len(stubs))
+	for each := range stubs {
+		sr.Stubs[each] = stubs[each]
+	}
+	sr.runtime = append([]string(nil), entries...)
+	sr.mu.Unlock()
+	return nil
+}
+
+func (sr *StubResolver) Status() StubResolverStatus {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+
+	configured := append([]string(nil), sr.config.StubResolver.Stubs...)
+	runtime := append([]string(nil), sr.runtime...)
+	sort.Strings(configured)
+	sort.Strings(runtime)
+
+	return StubResolverStatus{
+		Enabled:         sr.EnableStubs,
+		ConfiguredStubs: configured,
+		RuntimeStubs:    runtime,
+	}
 }
 
 func ParseStubList(s []string, globalTimeOut int, upstreamTimeOut int) (map[string]*client.Mux, error) {

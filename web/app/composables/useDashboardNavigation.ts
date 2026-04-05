@@ -20,18 +20,28 @@ export function useDashboardNavigation() {
     ],
     [
       {
-        label: 'Controls',
-        type: 'label'
-      },
-      {
         label: 'Plugins',
-        icon: 'i-lucide-plug',
-        to: '/dashboard/plugins'
+        type: 'label'
       },
       {
         label: 'Blacklist',
         icon: 'i-lucide-shield-ban',
         to: '/dashboard/blacklist'
+      },
+      {
+        label: 'Zen Mode',
+        icon: 'i-lucide-focus',
+        to: '/dashboard/zen-mode'
+      },
+      {
+        label: 'Static Response',
+        icon: 'i-lucide-file-text',
+        to: '/dashboard/static-response'
+      },
+      {
+        label: 'Stub Resolver',
+        icon: 'i-lucide-git-branch',
+        to: '/dashboard/stub-resolver'
       },
       {
         label: 'Tag Management',

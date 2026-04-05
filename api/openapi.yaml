@@ -21,9 +21,22 @@ tags:
   - name: Metrics
 paths:
   /api/stub-resolver:
+    get:
+      tags: [Stub Resolver]
+      summary: Return the active stub resolver configuration and runtime status
+      operationId: stubStatus
+      responses:
+        '200':
+          description: Stub resolver state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Stub Resolver]
-      summary: Replace the configured stub resolvers
+      summary: Replace the runtime stub resolvers
       operationId: stubReplace
       requestBody:
         required: true
@@ -78,6 +91,46 @@ paths:
                 $ref: '#/components/schemas/Response'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/blacklist:
+    get:
+      tags: [Blacklist]
+      summary: Return the active blacklist configuration and runtime status
+      operationId: blacklistStatus
+      responses:
+        '200':
+          description: Blacklist configuration and status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/blacklist/whitelist:
+    post:
+      tags: [Blacklist]
+      summary: Add runtime-only whitelist suffixes for blacklist bypass
+      operationId: blacklistAddRuntimeWhitelist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlacklistWhitelistRequest'
+      responses:
+        '200':
+          description: Updated blacklist configuration and status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request body or invalid runtime whitelist values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/static-response/{action}:
     post:
       tags: [Static Response]
@@ -94,6 +147,45 @@ paths:
                 $ref: '#/components/schemas/Response'
         '400':
           description: Invalid action value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/static-response:
+    get:
+      tags: [Static Response]
+      summary: Return the active static-response configuration and runtime status
+      operationId: staticResponseStatus
+      responses:
+        '200':
+          description: Static response status returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Static Response]
+      summary: Replace the runtime static host map
+      operationId: staticResponseReplace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaticReplaceRequest'
+      responses:
+        '200':
+          description: Static response runtime hosts replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '400':
+          description: Invalid request body or malformed host entries
           content:
             application/json:
               schema:
@@ -192,9 +284,22 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
   /api/zen-mode:
+    get:
+      tags: [Zen Mode]
+      summary: Return the active zen-mode configuration and runtime status
+      operationId: zenModeStatus
+      responses:
+        '200':
+          description: Zen-mode status returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Response'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Zen Mode]
-      summary: Replace the set of zen-mode domains
+      summary: Replace the runtime set of zen-mode domains
       operationId: zenDomainsReplace
       requestBody:
         required: true
@@ -600,6 +705,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DashboardHourlyPoint'
+        blacklist:
+          $ref: '#/components/schemas/BlacklistStatus'
+        zen_mode:
+          $ref: '#/components/schemas/ZenModeStatus'
+        static_response:
+          $ref: '#/components/schemas/StaticResponseStatus'
+        stub_resolver:
+          $ref: '#/components/schemas/StubResolverStatus'
     MessageOnlyResponse:
       type: object
       required: [message]
@@ -641,6 +754,89 @@ components:
           type: integer
         allowed_queries:
           type: integer
+    BlacklistStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        file:
+          type: string
+        external_file:
+          type: string
+        external_repo:
+          type: string
+        external_repo_branch:
+          type: string
+        external_pull_period:
+          type: string
+        excludes:
+          type: array
+          items:
+            type: string
+        runtime_whitelist:
+          type: array
+          items:
+            type: string
+        blockfile_total_entries:
+          type: integer
+    HostEntry:
+      type: object
+      properties:
+        domain:
+          type: string
+        address:
+          type: string
+    ZenModeStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        file:
+          type: string
+        duration_minutes:
+          type: integer
+        configured_domains:
+          type: array
+          items:
+            type: string
+        runtime_domains:
+          type: array
+          items:
+            type: string
+        started_at:
+          type: string
+        ends_at:
+          type: string
+        remaining_seconds:
+          type: integer
+    StaticResponseStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        file:
+          type: string
+        configured_hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostEntry'
+        runtime_hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostEntry'
+    StubResolverStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        configured_stubs:
+          type: array
+          items:
+            type: string
+        runtime_stubs:
+          type: array
+          items:
+            type: string
     StubReplaceRequest:
       type: object
       required: [stubs]
@@ -655,6 +851,22 @@ components:
       required: [zen_domains]
       properties:
         zen_domains:
+          type: array
+          items:
+            type: string
+    BlacklistWhitelistRequest:
+      type: object
+      required: [domains]
+      properties:
+        domains:
+          type: array
+          items:
+            type: string
+    StaticReplaceRequest:
+      type: object
+      required: [hosts]
+      properties:
+        hosts:
           type: array
           items:
             type: string

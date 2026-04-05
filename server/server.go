@@ -137,27 +137,15 @@ func (s *Server) tryResolve(req *middleware.Message, pi *MiddlewareIndex) (*midd
 }
 
 func (s *Server) StubsToggle(state bool) bool {
-	logger := log.GetLogger("server", "StubsToggle")
-	c := config.GetRunningConfig()
-	config.Lock()
-	c.StubResolver.Enabled = state
-	config.Unlock()
-	err := s.Middlewares["stub-resolver"].Config(*c)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	return c.StubResolver.Enabled
+	s.Middlewares["stub-resolver"].(*middleware.StubResolver).SetEnabled(state)
+	return s.Middlewares["stub-resolver"].(*middleware.StubResolver).IsEnabled()
 }
 
 func (s *Server) BlacklistToggle(state bool) bool {
-	logger := log.GetLogger("server", "BlacklistToggle")
 	c := config.GetRunningConfig()
 	c.Blacklist.Enabled = state
 	config.SetRunningConfig(c)
-	err := s.Middlewares["blacklist"].Config(*c)
-	if err != nil {
-		logger.Fatal(err)
-	}
+	s.Middlewares["blacklist"].(*middleware.BlackList).SetEnabled(state)
 
 	return c.Blacklist.Enabled
 }

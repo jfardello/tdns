@@ -20,6 +20,47 @@ export interface DashboardHourlyPoint {
   allowed_queries: number
 }
 
+export interface BlacklistState {
+  enabled: boolean
+  file: string
+  external_file: string
+  external_repo: string
+  external_repo_branch: string
+  external_pull_period: string
+  excludes: string[]
+  runtime_whitelist: string[]
+  blockfile_total_entries: number
+}
+
+export interface HostEntry {
+  domain: string
+  address: string
+}
+
+export interface ZenModeState {
+  enabled: boolean
+  file: string
+  duration_minutes: number
+  configured_domains: string[]
+  runtime_domains: string[]
+  started_at: string
+  ends_at: string
+  remaining_seconds: number
+}
+
+export interface StaticResponseState {
+  enabled: boolean
+  file: string
+  configured_hosts: HostEntry[]
+  runtime_hosts: HostEntry[]
+}
+
+export interface StubResolverState {
+  enabled: boolean
+  configured_stubs: string[]
+  runtime_stubs: string[]
+}
+
 interface ApiResponse {
   kind?: string
   message: string
@@ -29,6 +70,10 @@ interface ApiResponse {
   log_items?: DnsLogItem[]
   summary?: DashboardSummary
   hourly?: DashboardHourlyPoint[]
+  blacklist?: BlacklistState
+  zen_mode?: ZenModeState
+  static_response?: StaticResponseState
+  stub_resolver?: StubResolverState
 }
 
 interface DnsLogApiItem {
@@ -56,6 +101,47 @@ interface DashboardHourlyApiItem {
   allowed_queries?: unknown
 }
 
+interface BlacklistApiState {
+  enabled?: unknown
+  file?: unknown
+  external_file?: unknown
+  external_repo?: unknown
+  external_repo_branch?: unknown
+  external_pull_period?: unknown
+  excludes?: unknown
+  runtime_whitelist?: unknown
+  blockfile_total_entries?: unknown
+}
+
+interface HostEntryApi {
+  domain?: unknown
+  address?: unknown
+}
+
+interface ZenModeApiState {
+  enabled?: unknown
+  file?: unknown
+  duration_minutes?: unknown
+  configured_domains?: unknown
+  runtime_domains?: unknown
+  started_at?: unknown
+  ends_at?: unknown
+  remaining_seconds?: unknown
+}
+
+interface StaticResponseApiState {
+  enabled?: unknown
+  file?: unknown
+  configured_hosts?: unknown
+  runtime_hosts?: unknown
+}
+
+interface StubResolverApiState {
+  enabled?: unknown
+  configured_stubs?: unknown
+  runtime_stubs?: unknown
+}
+
 function normalizeDnsLogItem(item: DnsLogApiItem): DnsLogItem {
   return {
     domain: String(item.domain ?? item.Domain ?? ''),
@@ -81,6 +167,75 @@ function normalizeDashboardHourlyPoint(point: DashboardHourlyApiItem): Dashboard
     total_queries: Number(point.total_queries ?? 0),
     blocked_queries: Number(point.blocked_queries ?? 0),
     allowed_queries: Number(point.allowed_queries ?? 0)
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map(item => String(item ?? '')).filter(Boolean)
+}
+
+function normalizeBlacklistState(state: BlacklistApiState | undefined): BlacklistState {
+  return {
+    enabled: Boolean(state?.enabled ?? false),
+    file: String(state?.file ?? ''),
+    external_file: String(state?.external_file ?? ''),
+    external_repo: String(state?.external_repo ?? ''),
+    external_repo_branch: String(state?.external_repo_branch ?? ''),
+    external_pull_period: String(state?.external_pull_period ?? ''),
+    excludes: normalizeStringArray(state?.excludes),
+    runtime_whitelist: normalizeStringArray(state?.runtime_whitelist),
+    blockfile_total_entries: Number(state?.blockfile_total_entries ?? 0)
+  }
+}
+
+function normalizeHostEntry(entry: HostEntryApi): HostEntry {
+  return {
+    domain: String(entry.domain ?? ''),
+    address: String(entry.address ?? '')
+  }
+}
+
+function normalizeHostEntries(value: unknown): HostEntry[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => normalizeHostEntry(item as HostEntryApi))
+}
+
+function normalizeZenModeState(state: ZenModeApiState | undefined): ZenModeState {
+  return {
+    enabled: Boolean(state?.enabled ?? false),
+    file: String(state?.file ?? ''),
+    duration_minutes: Number(state?.duration_minutes ?? 0),
+    configured_domains: normalizeStringArray(state?.configured_domains),
+    runtime_domains: normalizeStringArray(state?.runtime_domains),
+    started_at: String(state?.started_at ?? ''),
+    ends_at: String(state?.ends_at ?? ''),
+    remaining_seconds: Number(state?.remaining_seconds ?? 0)
+  }
+}
+
+function normalizeStaticResponseState(state: StaticResponseApiState | undefined): StaticResponseState {
+  return {
+    enabled: Boolean(state?.enabled ?? false),
+    file: String(state?.file ?? ''),
+    configured_hosts: normalizeHostEntries(state?.configured_hosts),
+    runtime_hosts: normalizeHostEntries(state?.runtime_hosts)
+  }
+}
+
+function normalizeStubResolverState(state: StubResolverApiState | undefined): StubResolverState {
+  return {
+    enabled: Boolean(state?.enabled ?? false),
+    configured_stubs: normalizeStringArray(state?.configured_stubs),
+    runtime_stubs: normalizeStringArray(state?.runtime_stubs)
   }
 }
 
@@ -132,21 +287,119 @@ export function useApi() {
 
   // Stub Resolver
   async function toggleStubResolver(action: 'start' | 'stop') {
-    return apiCall(`/api/stub-resolver/${action}`, { method: 'POST' })
+    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>(`/api/stub-resolver/${action}`, { method: 'POST' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      stub_resolver: normalizeStubResolverState(response.stub_resolver)
+    }
   }
 
   async function replaceStubResolvers(stubs: string[]) {
-    return apiCall('/api/stub-resolver', { method: 'POST', body: { stubs } })
+    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>('/api/stub-resolver', { method: 'POST', body: { stubs } })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      stub_resolver: normalizeStubResolverState(response.stub_resolver)
+    }
+  }
+
+  async function getStubResolver() {
+    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>('/api/stub-resolver')
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      stub_resolver: normalizeStubResolverState(response.stub_resolver)
+    }
   }
 
   // Blacklist
-  async function toggleBlacklist(action: 'start' | 'stop') {
-    return apiCall(`/api/blacklist/${action}`, { method: 'POST' })
+  async function getBlacklist(): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist')
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      blacklist: normalizeBlacklistState(response.blacklist)
+    }
+  }
+
+  async function toggleBlacklist(action: 'start' | 'stop'): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>(`/api/blacklist/${action}`, { method: 'POST' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      blacklist: normalizeBlacklistState(response.blacklist)
+    }
+  }
+
+  async function addBlacklistRuntimeWhitelist(domains: string[]): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/whitelist', {
+      method: 'POST',
+      body: { domains }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      blacklist: normalizeBlacklistState(response.blacklist)
+    }
   }
 
   // Static Response
   async function toggleStaticResponse(action: 'start' | 'stop') {
-    return apiCall(`/api/static-response/${action}`, { method: 'POST' })
+    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>(`/api/static-response/${action}`, { method: 'POST' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      static_response: normalizeStaticResponseState(response.static_response)
+    }
+  }
+
+  async function getStaticResponse() {
+    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response')
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      static_response: normalizeStaticResponseState(response.static_response)
+    }
+  }
+
+  async function replaceStaticResponseHosts(hosts: string[]) {
+    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response', {
+      method: 'POST',
+      body: { hosts }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      static_response: normalizeStaticResponseState(response.static_response)
+    }
   }
 
   // DNS Log
@@ -193,12 +446,40 @@ export function useApi() {
   }
 
   // Zen Mode
-  async function toggleZenMode() {
-    return apiCall('/api/zen-mode/start', { method: 'POST' })
+  async function getZenMode() {
+    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode')
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      zen_mode: normalizeZenModeState(response.zen_mode)
+    }
+  }
+
+  async function startZenMode() {
+    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/start', { method: 'POST' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      zen_mode: normalizeZenModeState(response.zen_mode)
+    }
   }
 
   async function replaceZenDomains(zen_domains: string[]) {
-    return apiCall('/api/zen-mode', { method: 'POST', body: { zen_domains } })
+    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode', { method: 'POST', body: { zen_domains } })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      zen_mode: normalizeZenModeState(response.zen_mode)
+    }
   }
 
   // Cache
@@ -241,15 +522,21 @@ export function useApi() {
 
   return {
     apiCall,
+    getStubResolver,
+    getBlacklist,
+    getStaticResponse,
+    getZenMode,
     toggleStubResolver,
     replaceStubResolvers,
     toggleBlacklist,
+    addBlacklistRuntimeWhitelist,
     toggleStaticResponse,
+    replaceStaticResponseHosts,
     getDnsDashboard,
     getDnsLogTop,
     rotateDnsLog,
     setDnsLogAlias,
-    toggleZenMode,
+    startZenMode,
     replaceZenDomains,
     clearCache,
     getTags,

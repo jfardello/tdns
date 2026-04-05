@@ -66,21 +66,39 @@ type v1 struct {
 }
 
 func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
-	action := r.PathValue("action")
-	curr := "disabled"
-	var state bool
-	switch action {
-	case "start":
-		state = true
-	case "stop":
-		state = false
+	p := api.server.Middlewares["stub-resolver"].(*middleware.StubResolver)
+	state, err := actionToBool(r.PathValue("action"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+			Kind:          StubResolverResponseKind,
+		}, w)
+		return
 	}
-	if api.server.StubsToggle(state) {
-		curr = "enabled"
+
+	api.server.StubsToggle(state)
+	status := p.Status()
+	res := Response{
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Kind:          StubResolverResponseKind,
+		StubResolver:  &status,
 	}
-	res := Response{Message: MESSAGE_OK, CurrentStatus: curr, Kind: StubResolverResponseKind}
 	writeJSON(res, w)
 
+}
+
+func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Middlewares["stub-resolver"].(*middleware.StubResolver)
+	status := p.Status()
+	writeJSON(Response{
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Kind:          StubResolverResponseKind,
+		StubResolver:  &status,
+	}, w)
 }
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
@@ -209,31 +227,117 @@ func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
 	action := r.PathValue("action")
-	var state bool
-
-	switch action {
-	case "start":
-		state = true
-	case "stop":
-		state = false
-
+	state, err := actionToBool(action)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
 	}
 
 	st := api.server.BlacklistToggle(state)
+	status, err := p.Status()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(st),
+		}, w)
+		return
+	}
+	status.Enabled = st
 
 	resp := Response{
 		Kind:          BlacklistResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: formatBool(st),
+		Blacklist:     &status,
 	}
 	writeJSON(resp, w)
 
 }
 
+func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
+	status, err := p.Status()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	writeJSON(Response{
+		Kind:          BlacklistResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Blacklist:     &status,
+	}, w)
+}
+
+func (api *v1) BlacklistAddRuntimeWhitelist(w http.ResponseWriter, r *http.Request) {
+	req := &BlacklistWhitelistRequest{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(api.server.Middlewares["blacklist"].(*middleware.BlackList).IsEnabled()),
+		}, w)
+		return
+	}
+
+	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
+	if err := p.AddRuntimeWhitelist(req.Domains); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	status, err := p.Status()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          BlacklistResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	writeJSON(Response{
+		Kind:          BlacklistResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Blacklist:     &status,
+	}, w)
+}
+
 func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
-	logger := log.GetLogger("api", "StaticResponseToggle")
-	p := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
+	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       "static response middleware is not configured",
+			CurrentStatus: formatBool(false),
+			Static:        staticResponseStatusFromConfig(),
+		}, w)
+		return
+	}
 	action := r.PathValue("action")
 	state, err := actionToBool(action)
 	if err != nil {
@@ -241,25 +345,124 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(Response{
 			Kind:          StaticResponseKind,
 			Message:       err.Error(),
-			CurrentStatus: formatBool(p.Enabled),
+			CurrentStatus: formatBool(p.IsEnabled()),
 		}, w)
 		return
 	}
-	c := config.GetRunningConfig()
-	c.StaticResponse.Enabled = state
-	config.SetRunningConfig(c)
-	err = p.Config(*c)
+	p.SetEnabled(state)
+	status, err := p.Status()
 	if err != nil {
-		logger.Fatal(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
 	}
 
 	resp := Response{
 		Kind:          StaticResponseKind,
 		Message:       MESSAGE_OK,
-		CurrentStatus: formatBool(p.Enabled),
+		CurrentStatus: formatBool(status.Enabled),
+		Static:        &status,
 	}
 	writeJSON(resp, w)
 
+}
+
+func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
+	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
+	if !ok {
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       MESSAGE_OK,
+			CurrentStatus: formatBool(false),
+			Static:        staticResponseStatusFromConfig(),
+		}, w)
+		return
+	}
+	status, err := p.Status()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	writeJSON(Response{
+		Kind:          StaticResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Static:        &status,
+	}, w)
+}
+
+func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
+	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       "static response middleware is not configured",
+			CurrentStatus: formatBool(false),
+			Static:        staticResponseStatusFromConfig(),
+		}, w)
+		return
+	}
+	req := &StaticReplaceRequest{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	hosts, err := middleware.ReadHostsLines(req.Hosts)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	if err := p.ReplaceRuntimeHosts(hosts); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	status, err := p.Status()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          StaticResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.IsEnabled()),
+		}, w)
+		return
+	}
+
+	writeJSON(Response{
+		Kind:          StaticResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		Static:        &status,
+	}, w)
 }
 
 func actionToBool(action string) (bool, error) {
@@ -300,11 +503,22 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 		}, w)
 		return
 	}
+	status, err := st.StatusView()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          ZenModeResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(st.Status()),
+		}, w)
+		return
+	}
 	writeJSON(Response{
 		Kind:          ZenModeResponseKind,
 		Message:       MESSAGE_OK,
 		CurrentStatus: formatBool(st.Status()),
 		Items:         st.GetDomains(),
+		ZenMode:       &status,
 	}, w)
 
 }
@@ -319,45 +533,27 @@ func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	c := config.GetRunningConfig()
-	ups, err := middleware.ParseStubList(stubRequest.Stubs, c.Timeout, c.UpstreamTimeout)
-	if err != nil {
-		st := p.(*middleware.StubResolver)
-		logger.Error("Error parsing stubs: ", err)
-		w.WriteHeader(http.StatusBadRequest)
-		writeJSON(Response{
-			Kind:          StubResolverResponseKind,
-			Message:       err.Error(),
-			CurrentStatus: formatBool(st.EnableStubs),
-		}, w)
-		return
-	}
-	logger.Info("Replacing stubs")
 	st := p.(*middleware.StubResolver)
-	c.StubResolver.Stubs = stubRequest.Stubs
-	config.SetRunningConfig(c)
-	err = st.Config(*c)
+	c := config.GetRunningConfig()
+	err = st.ReplaceRuntimeEntries(stubRequest.Stubs, c.Timeout, c.UpstreamTimeout)
 	if err != nil {
-		logger.Fatal(err)
-	}
-	err = st.Init()
-	if err != nil {
-		logger.Error("Error initiating stubs: ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(Response{
 			Kind:          StubResolverResponseKind,
 			Message:       err.Error(),
-			CurrentStatus: formatBool(st.EnableStubs),
+			CurrentStatus: formatBool(st.IsEnabled()),
 		}, w)
 		return
 	}
 
-	logger.Infof("Loaded: %d stubs", len(ups))
+	status := st.Status()
+	logger.Infof("Loaded: %d stubs", len(status.RuntimeStubs))
 	resp := Response{
 		Message:       MESSAGE_OK,
 		Kind:          StubResolverResponseKind,
-		CurrentStatus: strconv.FormatBool(st.EnableStubs),
+		CurrentStatus: formatBool(status.Enabled),
 		Items:         stubRequest.Stubs,
+		StubResolver:  &status,
 	}
 	writeJSON(resp, w)
 
@@ -380,21 +576,67 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
-	curr := "disabled"
 	p := api.server.Middlewares["zen-mode"]
 	z := p.(*middleware.ZenMode)
 	z.Start()
-	st := z.Status()
-	if st {
-		curr = "enabled"
+	status, err := z.StatusView()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          ZenModeResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(z.Status()),
+		}, w)
+		return
 	}
 	res := Response{
 		Kind:          ZenModeResponseKind,
 		Message:       MESSAGE_OK,
-		CurrentStatus: curr,
+		CurrentStatus: formatBool(status.Enabled),
 		Items:         z.GetDomains(),
+		ZenMode:       &status,
 	}
 	writeJSON(res, w)
+}
+
+func (api *v1) ZenModeStatus(w http.ResponseWriter, r *http.Request) {
+	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
+	status, err := p.StatusView()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(Response{
+			Kind:          ZenModeResponseKind,
+			Message:       err.Error(),
+			CurrentStatus: formatBool(p.Status()),
+		}, w)
+		return
+	}
+
+	writeJSON(Response{
+		Kind:          ZenModeResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		ZenMode:       &status,
+	}, w)
+}
+
+func staticResponseStatusFromConfig() *middleware.StaticResponseStatus {
+	conf := config.GetRunningConfig()
+	status := &middleware.StaticResponseStatus{
+		Enabled:         conf.StaticResponse.Enabled,
+		File:            conf.StaticResponse.File,
+		ConfiguredHosts: []middleware.HostEntry{},
+		RuntimeHosts:    []middleware.HostEntry{},
+	}
+	if conf.StaticResponse.File == "" {
+		return status
+	}
+
+	hosts, err := middleware.ReadHosts(conf.StaticResponse.File)
+	if err == nil {
+		status.ConfiguredHosts = middleware.HostsToEntries(hosts)
+	}
+	return status
 }
 
 func writeJSON(res Response, w http.ResponseWriter) {
@@ -426,9 +668,15 @@ func NewHandler(dns *server.Server) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /api/stub-resolver", Require(api.StubReplace, protected))
+	mux.HandleFunc("GET /api/stub-resolver", Require(api.StubStatus, protected))
 	mux.HandleFunc("POST /api/zen-mode", Require(api.ZenDomainsReplace, protected))
+	mux.HandleFunc("GET /api/zen-mode", Require(api.ZenModeStatus, protected))
 	mux.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
+	mux.HandleFunc("GET /api/blacklist", Require(api.BlacklistStatus, protected))
 	mux.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
+	mux.HandleFunc("POST /api/blacklist/whitelist", Require(api.BlacklistAddRuntimeWhitelist, protected))
+	mux.HandleFunc("GET /api/static-response", Require(api.StaticResponseStatus, protected))
+	mux.HandleFunc("POST /api/static-response", Require(api.StaticResponseReplace, protected))
 	mux.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
 	mux.HandleFunc("GET /api/dns-log/dashboard", Require(api.DNSLogDashboard, protected))
 	mux.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))

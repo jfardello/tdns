@@ -41,6 +41,10 @@ type Response struct {
 	LogItems      []middleware.LogDetails           `json:"log_items,omitempty"`
 	Summary       *middleware.DashboardSummary      `json:"summary,omitempty"`
 	Hourly        []middleware.DashboardHourlyPoint `json:"hourly,omitempty"`
+	Blacklist     *middleware.BlacklistStatus       `json:"blacklist,omitempty"`
+	ZenMode       *middleware.ZenModeStatus         `json:"zen_mode,omitempty"`
+	Static        *middleware.StaticResponseStatus  `json:"static_response,omitempty"`
+	StubResolver  *middleware.StubResolverStatus    `json:"stub_resolver,omitempty"`
 }
 
 type StubReplaceRequest struct {
@@ -50,6 +54,15 @@ type StubReplaceRequest struct {
 type ZenReplaceRequest struct {
 	ZenDomains []string `json:"zen_domains"`
 }
+
+type BlacklistWhitelistRequest struct {
+	Domains []string `json:"domains"`
+}
+
+type StaticReplaceRequest struct {
+	Hosts []string `json:"hosts"`
+}
+
 type DNSLogAliasRequest struct {
 	Name string `json:"name"`
 	Addr string `json:"addr"`

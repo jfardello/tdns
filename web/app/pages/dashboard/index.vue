@@ -340,10 +340,10 @@ onMounted(() => {
                 block
               />
             </NuxtLink>
-            <NuxtLink to="/dashboard/plugins">
+            <NuxtLink to="/dashboard/zen-mode">
               <UButton
-                icon="i-lucide-plug"
-                label="Plugins"
+                icon="i-lucide-focus"
+                label="Zen Mode"
                 color="neutral"
                 variant="outline"
                 block
@@ -358,10 +358,10 @@ onMounted(() => {
                 block
               />
             </NuxtLink>
-            <NuxtLink to="/dashboard/blacklist">
+            <NuxtLink to="/dashboard/stub-resolver">
               <UButton
-                icon="i-lucide-shield-ban"
-                label="Blacklist"
+                icon="i-lucide-git-branch"
+                label="Stub Resolver"
                 color="neutral"
                 variant="outline"
                 block

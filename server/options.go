@@ -130,6 +130,7 @@ func WithTagger() func(*Server) {
 func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
+		c := config.GetRunningConfig()
 
 		stubs, err := middleware.ParseStubList(u, globalTimeOut, upstreamTimeout)
 		if err != nil {
@@ -137,10 +138,9 @@ func WithStubs(u []string, globalTimeOut int, upstreamTimeout int) func(*Server)
 			return
 		}
 		p := &middleware.StubResolver{
-			EnableStubs: true,
+			EnableStubs: c.StubResolver.Enabled,
 			Stubs:       stubs,
 		}
-		c := config.GetRunningConfig()
 		err = p.Config(*c)
 		if err != nil {
 			logger.Fatal(err)
