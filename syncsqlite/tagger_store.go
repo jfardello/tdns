@@ -96,6 +96,82 @@ func (s *SQLiteStorage) GetLabelMembers(label string) ([]string, error) {
 	)
 }
 
+func (s *SQLiteStorage) GetLabelMemberDetails(label string) ([]storage.TagMember, error) {
+	db := s.executor.GetConn()
+	defer s.executor.FreeConn(db)
+
+	rows, err := db.Query(
+		`SELECT ml.member_address, COALESCE(h.host, '')
+		FROM member_labels ml
+		LEFT JOIN hosts h ON h.ipAddr = ml.member_address
+		WHERE ml.label_name = ?
+		ORDER BY CASE WHEN h.host IS NULL OR h.host = '' THEN 1 ELSE 0 END, h.host, ml.member_address`,
+		label,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []storage.TagMember{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	members := make([]storage.TagMember, 0)
+	for rows.Next() {
+		var member storage.TagMember
+		if err := rows.Scan(&member.Address, &member.Host); err != nil {
+			return nil, err
+		}
+		member.HasHostAlias = strings.TrimSpace(member.Host) != ""
+		members = append(members, member)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+func (s *SQLiteStorage) GetAllMemberLabels() ([]storage.MemberLabels, error) {
+	db := s.executor.GetConn()
+	defer s.executor.FreeConn(db)
+
+	rows, err := db.Query(
+		`SELECT member_address, label_name
+		FROM member_labels
+		ORDER BY member_address, label_name`,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []storage.MemberLabels{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	members := make([]storage.MemberLabels, 0)
+	indexByAddress := map[string]int{}
+	for rows.Next() {
+		var address string
+		var label string
+		if err := rows.Scan(&address, &label); err != nil {
+			return nil, err
+		}
+		if idx, ok := indexByAddress[address]; ok {
+			members[idx].Labels = append(members[idx].Labels, label)
+			continue
+		}
+		indexByAddress[address] = len(members)
+		members = append(members, storage.MemberLabels{
+			Address: address,
+			Labels:  []string{label},
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
 func (s *SQLiteStorage) GetLabels() ([]string, error) {
 	return s.queryStrings(`SELECT name FROM labels ORDER BY name`)
 }
@@ -222,6 +298,71 @@ func (s *SQLiteStorage) RemoveMemberFromLabel(label string, address string) erro
 		},
 	}
 	return s.executor.SyncExecBulk(stmts)
+}
+
+func (s *SQLiteStorage) SearchKnownHosts(query string, limit int) ([]storage.KnownHost, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	query = strings.TrimSpace(query)
+	like := "%"
+	prefixLike := "%"
+	if query != "" {
+		escaped := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(query)
+		like = "%" + escaped + "%"
+		prefixLike = escaped + "%"
+	}
+
+	db := s.executor.GetConn()
+	defer s.executor.FreeConn(db)
+
+	rows, err := db.Query(
+		`SELECT ipAddr, host
+		FROM hosts
+		WHERE host IS NOT NULL
+		  AND TRIM(host) <> ''
+		  AND (? = '' OR host LIKE ? ESCAPE '\' OR ipAddr LIKE ? ESCAPE '\')
+		ORDER BY
+		  CASE
+		    WHEN host = ? THEN 0
+		    WHEN ipAddr = ? THEN 1
+		    WHEN host LIKE ? ESCAPE '\' THEN 2
+		    WHEN ipAddr LIKE ? ESCAPE '\' THEN 3
+		    ELSE 4
+		  END,
+		  host,
+		  ipAddr
+		LIMIT ?`,
+		query,
+		like,
+		like,
+		query,
+		query,
+		prefixLike,
+		prefixLike,
+		limit,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []storage.KnownHost{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	hosts := make([]storage.KnownHost, 0)
+	for rows.Next() {
+		var host storage.KnownHost
+		if err := rows.Scan(&host.Address, &host.Host); err != nil {
+			return nil, err
+		}
+		hosts = append(hosts, host)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return hosts, nil
 }
 
 func (s *SQLiteStorage) DeleteMember(address string) error {

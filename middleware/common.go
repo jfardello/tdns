@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/jfardello/tdns/config"
 	"github.com/miekg/dns"
+	"slices"
 	"sync"
 )
 
@@ -67,6 +68,23 @@ func (m *Message) AddValue(key string, value string) error {
 	return nil
 }
 
+func (m *Message) AddLabels(labels ...string) error {
+	cv, ok := m.Context().Value(config.CtxKey).(config.CtxValue)
+	if !ok {
+		return errors.New("no context value")
+	}
+	for _, label := range labels {
+		if label == "" || slices.Contains(cv.Labels, label) {
+			continue
+		}
+		cv.Labels = append(cv.Labels, label)
+	}
+	m.mu.Lock()
+	m.ctx = context.WithValue(m.ctx, config.CtxKey, cv)
+	m.mu.Unlock()
+	return nil
+}
+
 func (m *Message) GetCtxValue() (value *config.CtxValue, err error) {
 	cv, ok := m.Context().Value(config.CtxKey).(config.CtxValue)
 	if !ok {
@@ -82,6 +100,23 @@ func (m *Message) GetValue(key string) (value string, ok bool) {
 	}
 	val, ok := cv.Values[key]
 	return val, ok
+}
+
+func (m *Message) Labels() []string {
+	cv, err := m.GetCtxValue()
+	if err != nil {
+		return nil
+	}
+	return append([]string(nil), cv.Labels...)
+}
+
+func (m *Message) HasLabel(label string) bool {
+	for _, each := range m.Labels() {
+		if each == label {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Message) GetMsg() (*dns.Msg, error) {

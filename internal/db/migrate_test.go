@@ -62,6 +62,24 @@ func TestRunMigrationsTagger(t *testing.T) {
 	}
 }
 
+func TestRunMigrationsConfig(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	if err := RunMigrations(context.Background(), dbPath, TargetConfig); err != nil {
+		t.Fatalf("RunMigrations config: %v", err)
+	}
+
+	db := openDB(t, dbPath)
+	defer db.Close()
+
+	for _, table := range []string{"schema_migrations", "config_overrides"} {
+		var name string
+		if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
+			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+}
+
 func TestRunMigrationsIsIdempotent(t *testing.T) {
 	dbPath := newTempDBPath(t)
 

@@ -39,6 +39,11 @@ export function useDashboardNavigation() {
         to: '/dashboard/static-response'
       },
       {
+        label: 'Cache',
+        icon: 'i-lucide-database-zap',
+        to: '/dashboard/cache'
+      },
+      {
         label: 'Stub Resolver',
         icon: 'i-lucide-git-branch',
         to: '/dashboard/stub-resolver'

@@ -40,7 +40,7 @@ func TestBootstrapCreatesUnifiedSchema(t *testing.T) {
 		t.Fatalf("configure db: %v", err)
 	}
 
-	for _, table := range []string{"schema_migrations", "tdnslog", "hosts", "labels", "members", "member_labels"} {
+	for _, table := range []string{"schema_migrations", "tdnslog", "hosts", "labels", "members", "member_labels", "config_overrides"} {
 		var name string
 		if err := conn.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)

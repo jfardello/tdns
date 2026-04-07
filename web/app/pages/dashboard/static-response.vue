@@ -10,9 +10,11 @@ const {
   initialized,
   refreshing,
   toggleLoading,
+  persistedHostsLoading,
   runtimeHostsLoading,
   refresh,
   setEnabled,
+  replacePersistedHosts,
   replaceRuntimeHosts
 } = useStaticResponse()
 
@@ -21,6 +23,10 @@ const runtimeHostsSchema = z.object({
 })
 
 const runtimeHostsState = reactive({
+  hosts: ''
+})
+
+const persistedHostsState = reactive({
   hosts: ''
 })
 
@@ -56,6 +62,22 @@ async function handleReplaceHosts(event: FormSubmitEvent<z.output<typeof runtime
   toast.add({
     title: 'Runtime hosts updated',
     description: `${hosts.length} runtime host entr${hosts.length === 1 ? 'y' : 'ies'} loaded`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+async function handleReplacePersistedHosts(event: FormSubmitEvent<z.output<typeof runtimeHostsSchema>>) {
+  const hosts = splitLines(event.data.hosts)
+  const response = await replacePersistedHosts(hosts)
+  if (!response) {
+    return
+  }
+
+  persistedHostsState.hosts = ''
+  toast.add({
+    title: 'Persisted hosts updated',
+    description: `${hosts.length} persisted host entr${hosts.length === 1 ? 'y' : 'ies'} stored in tdns overrides`,
     color: 'success',
     icon: 'i-lucide-check-circle'
   })
@@ -126,7 +148,7 @@ onMounted(() => {
             </UCard>
           </div>
 
-          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <UCard>
               <template #header>
                 <div>
@@ -151,6 +173,64 @@ onMounted(() => {
                 >
                   <span class="font-mono text-sm">{{ entry.domain }}</span>
                   <UBadge :label="entry.address" color="neutral" variant="subtle" />
+                </div>
+              </div>
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
+                  <h3 class="font-semibold">Persisted Overrides</h3>
+                  <p class="text-sm text-muted">Stored in the tdns overrides database and applied on startup.</p>
+                </div>
+              </template>
+
+              <UForm
+                :schema="runtimeHostsSchema"
+                :state="persistedHostsState"
+                class="space-y-4"
+                @submit="handleReplacePersistedHosts"
+              >
+                <UFormField
+                  name="hosts"
+                  label="Persisted host entries"
+                  description="Enter one entry per line using the format: IP_ADDRESS DOMAIN"
+                >
+                  <UTextarea
+                    v-model="persistedHostsState.hosts"
+                    :rows="6"
+                    placeholder="0.0.0.0 ads.example.com&#10;10.0.0.2 internal.example.com"
+                  />
+                </UFormField>
+
+                <div class="flex justify-end">
+                  <UButton
+                    type="submit"
+                    icon="i-lucide-database"
+                    label="Replace Persisted Hosts"
+                    :loading="persistedHostsLoading"
+                  />
+                </div>
+              </UForm>
+
+              <div class="mt-6">
+                <p class="text-sm font-medium">Persisted host entries</p>
+                <div v-if="staticResponse.persisted_hosts.length === 0" class="py-6">
+                  <UEmpty
+                    icon="i-lucide-database-zap"
+                    title="No persisted overrides"
+                    description="Store host entries here to keep them across restarts without editing the source file."
+                  />
+                </div>
+                <div v-else class="mt-3 space-y-2">
+                  <div
+                    v-for="entry in staticResponse.persisted_hosts"
+                    :key="`persisted-${entry.address}-${entry.domain}`"
+                    class="flex items-center justify-between rounded-lg bg-muted/40 p-3"
+                  >
+                    <span class="font-mono text-sm">{{ entry.domain }}</span>
+                    <UBadge :label="entry.address" color="primary" variant="subtle" />
+                  </div>
                 </div>
               </div>
             </UCard>
@@ -218,7 +298,7 @@ onMounted(() => {
             icon="i-lucide-info"
             color="warning"
             title="About Static Response"
-            description="Changes made here only affect the running process. Replacing runtime host entries does not persist them to the YAML file or the configured hosts file. To make changes permanent, edit the static_response.file source on disk."
+            description="Configured hosts still come from static_response.file. Persisted overrides stored here survive restarts, but they are not written back to YAML or the source hosts file. Runtime host replacements affect only the running process."
           />
         </template>
       </div>

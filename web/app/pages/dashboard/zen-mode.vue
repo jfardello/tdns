@@ -10,9 +10,13 @@ const {
   initialized,
   refreshing,
   startLoading,
+  persistedDomainsLoading,
+  persistedExcludesLoading,
   runtimeDomainsLoading,
   refresh,
   startSession,
+  replacePersistedDomains,
+  replacePersistedExcludes,
   replaceRuntimeDomains
 } = useZenMode()
 
@@ -22,6 +26,14 @@ const runtimeDomainsSchema = z.object({
 
 const runtimeDomainsState = reactive({
   domains: ''
+})
+
+const persistedDomainsState = reactive({
+  domains: ''
+})
+
+const persistedExcludesState = reactive({
+  excludes: ''
 })
 
 const now = ref(Date.now())
@@ -72,6 +84,38 @@ async function handleReplaceDomains(event: FormSubmitEvent<z.output<typeof runti
   toast.add({
     title: 'Runtime domains updated',
     description: `${domains.length} runtime domain pattern${domains.length === 1 ? '' : 's'} loaded for Zen Mode`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+async function handleReplacePersistedDomains(event: FormSubmitEvent<z.output<typeof runtimeDomainsSchema>>) {
+  const domains = splitDomains(event.data.domains)
+  const response = await replacePersistedDomains(domains)
+  if (!response) {
+    return
+  }
+
+  persistedDomainsState.domains = ''
+  toast.add({
+    title: 'Persisted domains updated',
+    description: `${domains.length} persisted domain pattern${domains.length === 1 ? '' : 's'} stored`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+async function handleReplacePersistedExcludes() {
+  const excludes = splitDomains(persistedExcludesState.excludes)
+  const response = await replacePersistedExcludes(excludes)
+  if (!response) {
+    return
+  }
+
+  persistedExcludesState.excludes = ''
+  toast.add({
+    title: 'Persisted Zen whitelist updated',
+    description: `${excludes.length} persisted whitelist selector${excludes.length === 1 ? '' : 's'} stored`,
     color: 'success',
     icon: 'i-lucide-check-circle'
   })
@@ -195,7 +239,138 @@ onUnmounted(() => {
                 />
               </div>
             </div>
+
+            <div class="mt-6">
+              <p class="text-sm font-medium">Configured whitelist selectors</p>
+              <div v-if="zenMode.configured_excludes.length === 0" class="py-6">
+                <UEmpty
+                  icon="i-lucide-shield-off"
+                  title="No configured whitelist selectors"
+                  description="Add zen_mode.excludes in YAML to define permanent base exclusions."
+                />
+              </div>
+              <div v-else class="mt-3 flex flex-wrap gap-2">
+                <UBadge
+                  v-for="entry in zenMode.configured_excludes"
+                  :key="entry"
+                  :label="entry"
+                  color="neutral"
+                  variant="subtle"
+                />
+              </div>
+            </div>
           </UCard>
+
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <UCard>
+              <template #header>
+                <div>
+                  <h3 class="font-semibold">Persisted Domains</h3>
+                  <p class="text-sm text-muted">Stored in the tdns overrides database and loaded on startup.</p>
+                </div>
+              </template>
+
+              <UForm
+                :schema="runtimeDomainsSchema"
+                :state="persistedDomainsState"
+                class="space-y-4"
+                @submit="handleReplacePersistedDomains"
+              >
+                <UFormField
+                  name="domains"
+                  label="Persisted domain patterns"
+                  description="Enter one domain or regex-style pattern per line."
+                >
+                  <UTextarea
+                    v-model="persistedDomainsState.domains"
+                    :rows="6"
+                    placeholder="x.com&#10;www.facebook.com&#10;.*instagram.com"
+                  />
+                </UFormField>
+
+                <div class="flex justify-end">
+                  <UButton
+                    type="submit"
+                    icon="i-lucide-database"
+                    label="Replace Persisted Domains"
+                    :loading="persistedDomainsLoading"
+                  />
+                </div>
+              </UForm>
+
+              <div class="mt-6">
+                <p class="text-sm font-medium">Persisted domains</p>
+                <div v-if="zenMode.persisted_domains.length === 0" class="py-6">
+                  <UEmpty
+                    icon="i-lucide-database-zap"
+                    title="No persisted domains"
+                    description="Store domains here to keep them across restarts without editing YAML."
+                  />
+                </div>
+                <div v-else class="mt-3 flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="domain in zenMode.persisted_domains"
+                    :key="domain"
+                    :label="domain"
+                    color="primary"
+                    variant="subtle"
+                  />
+                </div>
+              </div>
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
+                  <h3 class="font-semibold">Persisted Zen Whitelist</h3>
+                  <p class="text-sm text-muted">Selectors that bypass Zen Mode and survive restarts.</p>
+                </div>
+              </template>
+
+              <div class="space-y-4">
+                <UFormField
+                  name="excludes"
+                  label="Persisted whitelist selectors"
+                  description="Use domains or label: selectors, one value per line."
+                >
+                  <UTextarea
+                    v-model="persistedExcludesState.excludes"
+                    :rows="6"
+                    placeholder="example.com&#10;label:nozen"
+                  />
+                </UFormField>
+
+                <div class="flex justify-end">
+                  <UButton
+                    icon="i-lucide-database"
+                    label="Replace Persisted Whitelist"
+                    :loading="persistedExcludesLoading"
+                    @click="handleReplacePersistedExcludes"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <p class="text-sm font-medium">Persisted whitelist selectors</p>
+                <div v-if="zenMode.persisted_excludes.length === 0" class="py-6">
+                  <UEmpty
+                    icon="i-lucide-list-x"
+                    title="No persisted whitelist selectors"
+                    description="Store domains or labels here to keep them outside Zen Mode after restart."
+                  />
+                </div>
+                <div v-else class="mt-3 flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="entry in zenMode.persisted_excludes"
+                    :key="entry"
+                    :label="entry"
+                    color="primary"
+                    variant="subtle"
+                  />
+                </div>
+              </div>
+            </UCard>
+          </div>
 
           <UCard>
             <template #header>
@@ -258,7 +433,7 @@ onUnmounted(() => {
             icon="i-lucide-info"
             color="warning"
             title="About Zen Mode"
-            description="Changes made here only affect the running process. Replacing runtime domains does not persist them to the YAML file. To make Zen Mode domain changes permanent, edit zen_mode.domains or zen_mode.file in your configuration."
+            description="Configured domains and excludes still come from zen_mode.file, zen_mode.domains, and zen_mode.excludes. Persisted overrides stored here survive restarts, but they are not written back to YAML. Runtime domain replacements still affect only the running process."
           />
         </template>
       </div>

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jfardello/tdns/middleware"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,6 +16,8 @@ import (
 
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/middleware"
+	"github.com/jfardello/tdns/storage"
 )
 
 var httpClientFactory = newClient
@@ -30,6 +31,7 @@ const (
 	StaticResponseKind       = "api.tdns/static-response/response"
 	DNSLogResponseKind       = "api.tdns/dns-log/response"
 	TaggerResponseKind       = "api.tdns/tagger/response"
+	CacheResponseKind        = "api.tdns/cache/response"
 )
 
 type Response struct {
@@ -41,10 +43,14 @@ type Response struct {
 	LogItems      []middleware.LogDetails           `json:"log_items,omitempty"`
 	Summary       *middleware.DashboardSummary      `json:"summary,omitempty"`
 	Hourly        []middleware.DashboardHourlyPoint `json:"hourly,omitempty"`
+	Clients       []middleware.ClientCandidate      `json:"clients,omitempty"`
 	Blacklist     *middleware.BlacklistStatus       `json:"blacklist,omitempty"`
 	ZenMode       *middleware.ZenModeStatus         `json:"zen_mode,omitempty"`
 	Static        *middleware.StaticResponseStatus  `json:"static_response,omitempty"`
 	StubResolver  *middleware.StubResolverStatus    `json:"stub_resolver,omitempty"`
+	Cache         *middleware.CacheStatus           `json:"cache,omitempty"`
+	TagMembers    []storage.TagMember               `json:"tag_members,omitempty"`
+	KnownHosts    []storage.KnownHost               `json:"known_hosts,omitempty"`
 }
 
 type StubReplaceRequest struct {
@@ -55,12 +61,28 @@ type ZenReplaceRequest struct {
 	ZenDomains []string `json:"zen_domains"`
 }
 
+type ZenExcludesRequest struct {
+	Excludes []string `json:"excludes"`
+}
+
 type BlacklistWhitelistRequest struct {
 	Domains []string `json:"domains"`
 }
 
+type BlacklistHostsRequest struct {
+	Hosts []string `json:"hosts"`
+}
+
+type BlacklistExcludesRequest struct {
+	Excludes []string `json:"excludes"`
+}
+
 type StaticReplaceRequest struct {
 	Hosts []string `json:"hosts"`
+}
+
+type CacheExcludeRequest struct {
+	Excludes []string `json:"excludes"`
 }
 
 type DNSLogAliasRequest struct {

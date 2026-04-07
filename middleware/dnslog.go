@@ -102,7 +102,7 @@ func (sq *SQLStmt) Build() (string, error) {
 	sb.WriteString(sq.Limit)
 
 	statement := strings.TrimSpace(sb.String())
-	logger.Info(statement)
+	logger.Debugf("SQL statement: %s", statement)
 	return statement, nil
 }
 
@@ -206,6 +206,11 @@ type LogDetails struct {
 	Host    string `db:"host" json:"host"`
 }
 
+type ClientCandidate struct {
+	Address string `db:"address" json:"address"`
+	Host    string `db:"host" json:"host"`
+}
+
 type DashboardSummary struct {
 	TotalQueries   int   `db:"total_queries" json:"total_queries"`
 	BlockedQueries int   `db:"blocked_queries" json:"blocked_queries"`
@@ -245,16 +250,59 @@ func (cs *DNSLog) AddAlias(alias string, addr string) error {
 
 //Todo Add a Query(domain, start) method  and expose it in the API
 
-func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
+func normalizeTopClientMode(client, clientMode string) string {
+	client = strings.TrimSpace(client)
+	clientMode = strings.TrimSpace(strings.ToLower(clientMode))
+	if client == "" {
+		return ""
+	}
+	switch clientMode {
+	case "host", "ip":
+		return clientMode
+	}
+	if net.ParseIP(client) != nil {
+		return "ip"
+	}
+	return "host"
+}
+
+func (cs *DNSLog) GetTop(top int, since string, status string, client string, clientMode string) ([]LogDetails, error) {
 	logger := log.GetLogger("DNSLog", "GetTop")
-	where := ""
+	conditions := []string{}
+	args := []any{}
 	if since != "" {
 		d, err := str2duration.ParseDuration(since)
 		if err != nil {
 			return nil, err
 		}
-		//ToDo: d.Nanoseconds() should be passed as an arguemnt.
-		where = fmt.Sprintf("Where (d.dt between  unixepoch()*1000000000 - %d  and unixepoch()*1000000000)", d.Nanoseconds())
+		conditions = append(conditions, "(d.dt between unixepoch()*1000000000 - ? and unixepoch()*1000000000)")
+		args = append(args, d.Nanoseconds())
+	}
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "":
+	case "blocked":
+		conditions = append(conditions, "d.blocked = 1")
+	case "allowed":
+		conditions = append(conditions, "d.blocked = 0")
+	default:
+		return nil, fmt.Errorf("invalid status filter: %s", status)
+	}
+	client = strings.TrimSpace(client)
+	switch normalizeTopClientMode(client, clientMode) {
+	case "":
+	case "ip":
+		conditions = append(conditions, "d.client = ?")
+		args = append(args, client)
+	case "host":
+		conditions = append(conditions, "h.host = ?")
+		args = append(args, client)
+	default:
+		return nil, fmt.Errorf("invalid client mode: %s", clientMode)
+	}
+
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
 	}
 	ss := SQLStmt{
 		SelectStr: `SELECT d.domain, COUNT(d.domain) AS counter,  COALESCE(h.host, d.client) AS host`,
@@ -271,6 +319,7 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 	if top > MaxDNSLogEntries {
 		top = MaxDNSLogEntries
 	}
+	args = append(args, top)
 	dest := make([]LogDetails, 0)
 
 	db := cs.se.GetConn()
@@ -282,9 +331,53 @@ func (cs *DNSLog) GetTop(top int, since string) ([]LogDetails, error) {
 	defer func() {
 		cs.se.FreeConn(db)
 	}()
-	err = sqlx.Select(dbl, &dest, sql, top)
+	err = sqlx.Select(dbl, &dest, sql, args...)
 	if err != nil {
 		return dest, err
+	}
+	return dest, nil
+}
+
+func (cs *DNSLog) SearchClients(search string, limit int) ([]ClientCandidate, error) {
+	logger := log.GetLogger("DNSLog", "SearchClients")
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search = strings.TrimSpace(strings.ToLower(search))
+	query := `
+SELECT clients.client AS address, COALESCE(h.host, '') AS host
+FROM (
+	SELECT DISTINCT client
+	FROM tdnslog
+) clients
+LEFT JOIN hosts h ON clients.client = h.ipAddr`
+	args := []any{}
+	if search != "" {
+		query += `
+WHERE lower(clients.client) LIKE ? OR lower(COALESCE(h.host, '')) LIKE ?`
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+	query += `
+ORDER BY CASE WHEN h.host IS NULL OR h.host = '' THEN 1 ELSE 0 END, lower(COALESCE(h.host, clients.client)), clients.client
+LIMIT ?`
+	args = append(args, limit)
+
+	dest := make([]ClientCandidate, 0)
+	db := cs.se.GetConn()
+	dbx := sqlx.NewDb(db, sqliteutil.DriverName())
+	dbl := &log.SQLLogger{
+		Queryer: dbx, Logger: logger, DebugSql: log.IsDebugEnabled(),
+	}
+	defer func() {
+		cs.se.FreeConn(db)
+	}()
+	if err := sqlx.Select(dbl, &dest, query, args...); err != nil {
+		return nil, err
 	}
 	return dest, nil
 }

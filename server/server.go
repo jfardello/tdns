@@ -9,6 +9,7 @@ import (
 	"github.com/jfardello/tdns/middleware"
 	"github.com/miekg/dns"
 	"net"
+	"sort"
 )
 
 type Server struct {
@@ -49,10 +50,57 @@ func (s *Server) getIndexes() *MiddlewareIndex {
 				pi.postRouting = append(pi.postRouting, name)
 			}
 		}
+		sortMiddlewareNames(middleware.PreRouting, pi.preRouting)
+		sortMiddlewareNames(middleware.Resolving, pi.resolving)
+		sortMiddlewareNames(middleware.PostRouting, pi.postRouting)
 		s.middlewareIndex = pi
 	}
 	return s.middlewareIndex
 
+}
+
+func sortMiddlewareNames(stage middleware.Stage, names []string) {
+	sort.Slice(names, func(i, j int) bool {
+		left := middlewareOrder(stage, names[i])
+		right := middlewareOrder(stage, names[j])
+		if left == right {
+			return names[i] < names[j]
+		}
+		return left < right
+	})
+}
+
+func middlewareOrder(stage middleware.Stage, name string) int {
+	switch stage {
+	case middleware.PreRouting:
+		switch name {
+		case "tagger":
+			return 0
+		case "status":
+			return 10
+		case "blacklist":
+			return 20
+		case "zen-mode":
+			return 30
+		case "static-response":
+			return 40
+		case "cacheget":
+			return 50
+		}
+	case middleware.Resolving:
+		switch name {
+		case "stub-resolver":
+			return 0
+		}
+	case middleware.PostRouting:
+		switch name {
+		case "cacheset":
+			return 0
+		case "dns-log":
+			return 10
+		}
+	}
+	return 1000
 }
 
 func AnswerMsg(r *dns.RR) *dns.Msg {
@@ -153,6 +201,22 @@ func (s *Server) BlacklistToggle(state bool) bool {
 func (s *Server) ClearCache() error {
 	c := middleware.GetCache()
 	return c.Clear()
+}
+
+func (s *Server) CacheToggle(state bool) bool {
+	c := config.GetRunningConfig()
+	c.Cache.Enabled = state
+	config.SetRunningConfig(c)
+	middleware.GetCache().SetEnabled(state)
+	return middleware.GetCache().IsEnabled()
+}
+
+func (s *Server) CacheReplaceExcludes(excludes []string) []string {
+	c := config.GetRunningConfig()
+	c.Cache.Excludes = append([]string(nil), excludes...)
+	config.SetRunningConfig(c)
+	middleware.GetCache().ReplaceExcludes(excludes)
+	return append([]string(nil), c.Cache.Excludes...)
 }
 
 func (s *Server) resolve(m *dns.Msg) (*dns.Msg, error) {

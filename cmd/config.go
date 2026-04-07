@@ -138,6 +138,10 @@ func newConf() *config.Config {
 		UpstreamTimeout: 300,
 		VerifyTLS:       true,
 		Upstreams:       []string{"tls://1.1.1.1:853#cloudflare-dns.com", "tls://1.0.0.1:853#cloudflare-dns.com"},
+		Cache: config.CacheConf{
+			Enabled: true,
+			Ttl:     5,
+		},
 		Blacklist: config.BlacklistConfig{
 			Enabled: true,
 			File:    path.Join(DEFAULT_DATA_PATH, "bhole_list"),

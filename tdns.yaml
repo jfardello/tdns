@@ -32,6 +32,11 @@ zen_mode:
     - www.facebook.com
     - www.instagram.com
     - x.com
+static_response:
+  enabled: true
+  file: fixtures/hosts_testfile
+  labels: 
+    - nostaic
 stub_resolver:
   enabled: true
   stubs:

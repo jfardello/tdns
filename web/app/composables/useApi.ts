@@ -4,6 +4,11 @@ export interface DnsLogItem {
   host: string
 }
 
+export interface DnsLogClientCandidate {
+  address: string
+  host: string
+}
+
 export interface DashboardSummary {
   total_queries: number
   blocked_queries: number
@@ -28,8 +33,18 @@ export interface BlacklistState {
   external_repo_branch: string
   external_pull_period: string
   excludes: string[]
+  persisted_excludes: string[]
+  persisted_hosts: string[]
   runtime_whitelist: string[]
   blockfile_total_entries: number
+}
+
+export interface CacheState {
+  enabled: boolean
+  ttl: number
+  excludes: string[]
+  hits: number
+  misses: number
 }
 
 export interface HostEntry {
@@ -37,11 +52,25 @@ export interface HostEntry {
   address: string
 }
 
+export interface TagMember {
+  address: string
+  host: string
+  has_host_alias: boolean
+}
+
+export interface KnownHostCandidate {
+  address: string
+  host: string
+}
+
 export interface ZenModeState {
   enabled: boolean
   file: string
   duration_minutes: number
   configured_domains: string[]
+  persisted_domains: string[]
+  configured_excludes: string[]
+  persisted_excludes: string[]
   runtime_domains: string[]
   started_at: string
   ends_at: string
@@ -52,6 +81,7 @@ export interface StaticResponseState {
   enabled: boolean
   file: string
   configured_hosts: HostEntry[]
+  persisted_hosts: HostEntry[]
   runtime_hosts: HostEntry[]
 }
 
@@ -71,9 +101,13 @@ interface ApiResponse {
   summary?: DashboardSummary
   hourly?: DashboardHourlyPoint[]
   blacklist?: BlacklistState
+  cache?: CacheState
   zen_mode?: ZenModeState
   static_response?: StaticResponseState
   stub_resolver?: StubResolverState
+  tag_members?: TagMember[]
+  known_hosts?: KnownHostCandidate[]
+  clients?: DnsLogClientCandidate[]
 }
 
 interface DnsLogApiItem {
@@ -82,6 +116,11 @@ interface DnsLogApiItem {
   Host?: unknown
   domain?: unknown
   counter?: unknown
+  host?: unknown
+}
+
+interface DnsLogClientApiItem {
+  address?: unknown
   host?: unknown
 }
 
@@ -109,8 +148,18 @@ interface BlacklistApiState {
   external_repo_branch?: unknown
   external_pull_period?: unknown
   excludes?: unknown
+  persisted_excludes?: unknown
+  persisted_hosts?: unknown
   runtime_whitelist?: unknown
   blockfile_total_entries?: unknown
+}
+
+interface CacheApiState {
+  enabled?: unknown
+  ttl?: unknown
+  excludes?: unknown
+  hits?: unknown
+  misses?: unknown
 }
 
 interface HostEntryApi {
@@ -118,11 +167,25 @@ interface HostEntryApi {
   address?: unknown
 }
 
+interface TagMemberApi {
+  address?: unknown
+  host?: unknown
+  has_host_alias?: unknown
+}
+
+interface KnownHostApi {
+  address?: unknown
+  host?: unknown
+}
+
 interface ZenModeApiState {
   enabled?: unknown
   file?: unknown
   duration_minutes?: unknown
   configured_domains?: unknown
+  persisted_domains?: unknown
+  configured_excludes?: unknown
+  persisted_excludes?: unknown
   runtime_domains?: unknown
   started_at?: unknown
   ends_at?: unknown
@@ -133,6 +196,7 @@ interface StaticResponseApiState {
   enabled?: unknown
   file?: unknown
   configured_hosts?: unknown
+  persisted_hosts?: unknown
   runtime_hosts?: unknown
 }
 
@@ -148,6 +212,23 @@ function normalizeDnsLogItem(item: DnsLogApiItem): DnsLogItem {
     counter: Number(item.counter ?? item.Counter ?? 0),
     host: String(item.host ?? item.Host ?? '')
   }
+}
+
+function normalizeDnsLogClient(item: DnsLogClientApiItem): DnsLogClientCandidate {
+  return {
+    address: String(item.address ?? ''),
+    host: String(item.host ?? '')
+  }
+}
+
+function normalizeDnsLogClients(value: unknown): DnsLogClientCandidate[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => normalizeDnsLogClient(item as DnsLogClientApiItem))
 }
 
 function normalizeDashboardSummary(summary: DashboardSummaryApi | undefined): DashboardSummary {
@@ -187,8 +268,20 @@ function normalizeBlacklistState(state: BlacklistApiState | undefined): Blacklis
     external_repo_branch: String(state?.external_repo_branch ?? ''),
     external_pull_period: String(state?.external_pull_period ?? ''),
     excludes: normalizeStringArray(state?.excludes),
+    persisted_excludes: normalizeStringArray(state?.persisted_excludes),
+    persisted_hosts: normalizeStringArray(state?.persisted_hosts),
     runtime_whitelist: normalizeStringArray(state?.runtime_whitelist),
     blockfile_total_entries: Number(state?.blockfile_total_entries ?? 0)
+  }
+}
+
+function normalizeCacheState(state: CacheApiState | undefined): CacheState {
+  return {
+    enabled: Boolean(state?.enabled ?? false),
+    ttl: Number(state?.ttl ?? 0),
+    excludes: normalizeStringArray(state?.excludes),
+    hits: Number(state?.hits ?? 0),
+    misses: Number(state?.misses ?? 0)
   }
 }
 
@@ -197,6 +290,41 @@ function normalizeHostEntry(entry: HostEntryApi): HostEntry {
     domain: String(entry.domain ?? ''),
     address: String(entry.address ?? '')
   }
+}
+
+function normalizeTagMember(entry: TagMemberApi): TagMember {
+  return {
+    address: String(entry.address ?? ''),
+    host: String(entry.host ?? ''),
+    has_host_alias: Boolean(entry.has_host_alias ?? false)
+  }
+}
+
+function normalizeTagMembers(value: unknown): TagMember[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => normalizeTagMember(item as TagMemberApi))
+}
+
+function normalizeKnownHost(entry: KnownHostApi): KnownHostCandidate {
+  return {
+    address: String(entry.address ?? ''),
+    host: String(entry.host ?? '')
+  }
+}
+
+function normalizeKnownHosts(value: unknown): KnownHostCandidate[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => normalizeKnownHost(item as KnownHostApi))
 }
 
 function normalizeHostEntries(value: unknown): HostEntry[] {
@@ -215,6 +343,9 @@ function normalizeZenModeState(state: ZenModeApiState | undefined): ZenModeState
     file: String(state?.file ?? ''),
     duration_minutes: Number(state?.duration_minutes ?? 0),
     configured_domains: normalizeStringArray(state?.configured_domains),
+    persisted_domains: normalizeStringArray(state?.persisted_domains),
+    configured_excludes: normalizeStringArray(state?.configured_excludes),
+    persisted_excludes: normalizeStringArray(state?.persisted_excludes),
     runtime_domains: normalizeStringArray(state?.runtime_domains),
     started_at: String(state?.started_at ?? ''),
     ends_at: String(state?.ends_at ?? ''),
@@ -227,6 +358,7 @@ function normalizeStaticResponseState(state: StaticResponseApiState | undefined)
     enabled: Boolean(state?.enabled ?? false),
     file: String(state?.file ?? ''),
     configured_hosts: normalizeHostEntries(state?.configured_hosts),
+    persisted_hosts: normalizeHostEntries(state?.persisted_hosts),
     runtime_hosts: normalizeHostEntries(state?.runtime_hosts)
   }
 }
@@ -362,6 +494,36 @@ export function useApi() {
     }
   }
 
+  async function replaceBlacklistPersistedHosts(hosts: string[]): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/persisted/hosts', {
+      method: 'POST',
+      body: { hosts }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      blacklist: normalizeBlacklistState(response.blacklist)
+    }
+  }
+
+  async function replaceBlacklistPersistedExcludes(excludes: string[]): Promise<ApiResponse | null> {
+    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/persisted/excludes', {
+      method: 'POST',
+      body: { excludes }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      blacklist: normalizeBlacklistState(response.blacklist)
+    }
+  }
+
   // Static Response
   async function toggleStaticResponse(action: 'start' | 'stop') {
     const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>(`/api/static-response/${action}`, { method: 'POST' })
@@ -402,10 +564,43 @@ export function useApi() {
     }
   }
 
+  async function replaceStaticResponsePersistedHosts(hosts: string[]) {
+    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response/persisted', {
+      method: 'POST',
+      body: { hosts }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      static_response: normalizeStaticResponseState(response.static_response)
+    }
+  }
+
   // DNS Log
-  async function getDnsLogTop(top: number, since?: string): Promise<ApiResponse | null> {
-    const query = since ? `?since=${since}` : ''
-    const response = await apiCall<ApiResponse & { log_items?: DnsLogApiItem[] }>(`/api/dns-log/top/${top}${query}`)
+  async function getDnsLogTop(top: number, options: {
+    since?: string
+    status?: 'blocked' | 'allowed' | ''
+    client?: string
+    client_mode?: 'host' | 'ip' | ''
+  } = {}): Promise<ApiResponse | null> {
+    const query = new URLSearchParams()
+    if (options.since) {
+      query.set('since', options.since)
+    }
+    if (options.status) {
+      query.set('status', options.status)
+    }
+    if (options.client) {
+      query.set('client', options.client)
+    }
+    if (options.client_mode) {
+      query.set('client_mode', options.client_mode)
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : ''
+    const response = await apiCall<ApiResponse & { log_items?: DnsLogApiItem[] }>(`/api/dns-log/top/${top}${suffix}`)
     if (!response) {
       return null
     }
@@ -415,6 +610,23 @@ export function useApi() {
       log_items: Array.isArray(response.log_items)
         ? response.log_items.map(normalizeDnsLogItem)
         : []
+    }
+  }
+
+  async function searchDnsLogClients(search = '', limit = 20): Promise<ApiResponse | null> {
+    const query = new URLSearchParams()
+    if (search.trim()) {
+      query.set('search', search.trim())
+    }
+    query.set('limit', String(limit))
+    const response = await apiCall<ApiResponse>(`/api/dns-log/clients?${query.toString()}`)
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      clients: normalizeDnsLogClients(response.clients)
     }
   }
 
@@ -482,9 +694,86 @@ export function useApi() {
     }
   }
 
+  async function replaceZenPersistedDomains(zen_domains: string[]) {
+    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/persisted/domains', {
+      method: 'POST',
+      body: { zen_domains }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      zen_mode: normalizeZenModeState(response.zen_mode)
+    }
+  }
+
+  async function replaceZenPersistedExcludes(excludes: string[]) {
+    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/persisted/excludes', {
+      method: 'POST',
+      body: { excludes }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      zen_mode: normalizeZenModeState(response.zen_mode)
+    }
+  }
+
   // Cache
   async function clearCache() {
-    return apiCall('/api/cache', { method: 'DELETE' })
+    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache', { method: 'DELETE' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      cache: normalizeCacheState(response.cache)
+    }
+  }
+
+  async function getCache() {
+    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache')
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      cache: normalizeCacheState(response.cache)
+    }
+  }
+
+  async function toggleCache(action: 'start' | 'stop') {
+    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>(`/api/cache/${action}`, { method: 'POST' })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      cache: normalizeCacheState(response.cache)
+    }
+  }
+
+  async function replaceCacheExcludes(excludes: string[]) {
+    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache/excludes', {
+      method: 'POST',
+      body: { excludes }
+    })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      cache: normalizeCacheState(response.cache)
+    }
   }
 
   // Tagger
@@ -501,15 +790,49 @@ export function useApi() {
   }
 
   async function getTagMembers(tagName: string) {
-    return apiCall(`/api/tagger/tags/${tagName}`)
+    const response = await apiCall<ApiResponse>(`/api/tagger/tags/${tagName}`)
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      tag_members: normalizeTagMembers(response.tag_members)
+    }
   }
 
   async function addTagMembers(tagName: string, members: string[]) {
-    return apiCall(`/api/tagger/tags/${tagName}`, { method: 'POST', body: { members } })
+    const response = await apiCall<ApiResponse>(`/api/tagger/tags/${tagName}`, { method: 'POST', body: { members } })
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      tag_members: normalizeTagMembers(response.tag_members)
+    }
   }
 
   async function removeTagMember(tagName: string, address: string) {
     return apiCall(`/api/tagger/tags/${tagName}/${address}`, { method: 'DELETE' })
+  }
+
+  async function getKnownHosts(search = '', limit = 20) {
+    const query = new URLSearchParams()
+    if (search.trim()) {
+      query.set('search', search.trim())
+    }
+    query.set('limit', String(limit))
+
+    const response = await apiCall<ApiResponse>(`/api/tagger/hosts?${query.toString()}`)
+    if (!response) {
+      return null
+    }
+
+    return {
+      ...response,
+      known_hosts: normalizeKnownHosts(response.known_hosts)
+    }
   }
 
   async function setAddressLabels(address: string, tags: string[]) {
@@ -530,14 +853,23 @@ export function useApi() {
     replaceStubResolvers,
     toggleBlacklist,
     addBlacklistRuntimeWhitelist,
+    replaceBlacklistPersistedHosts,
+    replaceBlacklistPersistedExcludes,
     toggleStaticResponse,
     replaceStaticResponseHosts,
+    replaceStaticResponsePersistedHosts,
     getDnsDashboard,
     getDnsLogTop,
+    searchDnsLogClients,
     rotateDnsLog,
     setDnsLogAlias,
     startZenMode,
     replaceZenDomains,
+    replaceZenPersistedDomains,
+    replaceZenPersistedExcludes,
+    getCache,
+    toggleCache,
+    replaceCacheExcludes,
     clearCache,
     getTags,
     createTag,
@@ -545,6 +877,7 @@ export function useApi() {
     getTagMembers,
     addTagMembers,
     removeTagMember,
+    getKnownHosts,
     setAddressLabels,
     replaceAddressLabels
   }

@@ -17,7 +17,7 @@ func Bootstrap(ctx context.Context, dbPath string) (string, error) {
 		return "", err
 	}
 
-	for _, target := range []Target{TargetDNSLog, TargetTagger} {
+	for _, target := range []Target{TargetDNSLog, TargetTagger, TargetConfig} {
 		if err := RunMigrations(ctx, resolvedPath, target); err != nil {
 			return "", fmt.Errorf("run %s migrations for %s: %w", target, resolvedPath, err)
 		}

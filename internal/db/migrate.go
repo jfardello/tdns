@@ -19,6 +19,7 @@ type Target string
 const (
 	TargetDNSLog Target = "dnslog"
 	TargetTagger Target = "tagger"
+	TargetConfig Target = "config"
 )
 
 //go:embed migrations/**/*.sql

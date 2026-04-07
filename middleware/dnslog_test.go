@@ -198,3 +198,118 @@ func TestDNSLog_GetDashboardStats(t *testing.T) {
 		t.Fatalf("expected second bucket allowed 1, got %d", stats.Hourly[1].AllowedQueries)
 	}
 }
+
+func TestDNSLog_GetTopFiltersByStatusAndClient(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
+
+	se := syncsqlite.NewSyncExecutor(connString, 1)
+	cs := &DNSLog{se: se}
+
+	now := time.Now().UTC().Add(-5 * time.Minute)
+	stmts := []*syncsqlite.ExecStmt{
+		{
+			Query: "INSERT INTO hosts (ipAddr, host) VALUES (?, ?)",
+			Args:  []any{"1.1.1.1", "office"},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.UnixNano(), "1.1.1.1", "blocked.example.", 1},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(1 * time.Minute).UnixNano(), "1.1.1.1", "blocked.example.", 1},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(2 * time.Minute).UnixNano(), "1.1.1.1", "allowed.example.", 0},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(3 * time.Minute).UnixNano(), "2.2.2.2", "allowed.example.", 0},
+		},
+	}
+	if err := se.SyncExecBulk(stmts); err != nil {
+		t.Fatalf("SyncExecBulk error: %v", err)
+	}
+
+	blocked, err := cs.GetTop(10, "24h", "blocked", "", "")
+	if err != nil {
+		t.Fatalf("GetTop blocked error: %v", err)
+	}
+	if len(blocked) != 1 {
+		t.Fatalf("expected 1 blocked result, got %d", len(blocked))
+	}
+	if blocked[0].Domain != "blocked.example." || blocked[0].Counter != 2 || blocked[0].Host != "office" {
+		t.Fatalf("unexpected blocked result: %#v", blocked[0])
+	}
+
+	allowedOffice, err := cs.GetTop(10, "24h", "allowed", "office", "host")
+	if err != nil {
+		t.Fatalf("GetTop allowed office error: %v", err)
+	}
+	if len(allowedOffice) != 1 {
+		t.Fatalf("expected 1 allowed office result, got %d", len(allowedOffice))
+	}
+	if allowedOffice[0].Domain != "allowed.example." || allowedOffice[0].Counter != 1 || allowedOffice[0].Host != "office" {
+		t.Fatalf("unexpected allowed office result: %#v", allowedOffice[0])
+	}
+
+	allowedIP, err := cs.GetTop(10, "24h", "allowed", "2.2.2.2", "ip")
+	if err != nil {
+		t.Fatalf("GetTop allowed ip error: %v", err)
+	}
+	if len(allowedIP) != 1 {
+		t.Fatalf("expected 1 allowed ip result, got %d", len(allowedIP))
+	}
+	if allowedIP[0].Host != "2.2.2.2" {
+		t.Fatalf("expected unresolved client host to be IP, got %#v", allowedIP[0])
+	}
+}
+
+func TestDNSLog_SearchClients(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
+
+	se := syncsqlite.NewSyncExecutor(connString, 1)
+	cs := &DNSLog{se: se}
+
+	now := time.Now().UTC().Add(-5 * time.Minute)
+	stmts := []*syncsqlite.ExecStmt{
+		{
+			Query: "INSERT INTO hosts (ipAddr, host) VALUES (?, ?)",
+			Args:  []any{"1.1.1.1", "office"},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.UnixNano(), "1.1.1.1", "example.com.", 0},
+		},
+		{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{now.Add(1 * time.Minute).UnixNano(), "2.2.2.2", "example.org.", 0},
+		},
+	}
+	if err := se.SyncExecBulk(stmts); err != nil {
+		t.Fatalf("SyncExecBulk error: %v", err)
+	}
+
+	clients, err := cs.SearchClients("off", 10)
+	if err != nil {
+		t.Fatalf("SearchClients alias error: %v", err)
+	}
+	if len(clients) != 1 || clients[0].Address != "1.1.1.1" || clients[0].Host != "office" {
+		t.Fatalf("unexpected alias search result: %#v", clients)
+	}
+
+	clients, err = cs.SearchClients("2.2", 10)
+	if err != nil {
+		t.Fatalf("SearchClients ip error: %v", err)
+	}
+	if len(clients) != 1 || clients[0].Address != "2.2.2.2" {
+		t.Fatalf("unexpected ip search result: %#v", clients)
+	}
+}

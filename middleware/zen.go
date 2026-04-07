@@ -20,26 +20,37 @@ var (
 )
 
 type ZenMode struct {
-	ZenFile   string
-	enabled   bool
-	initDone  bool
-	timerMu   chan struct{}
-	stateMu   sync.RWMutex
-	c         config.Config
-	Hosts     map[string]string
-	startedAt time.Time
-	endsAt    time.Time
+	ZenFile            string
+	enabled            bool
+	initDone           bool
+	timerMu            chan struct{}
+	stateMu            sync.RWMutex
+	c                  config.Config
+	Hosts              map[string]string
+	configuredHosts    map[string]string
+	persistedHosts     map[string]string
+	runtimeHosts       map[string]string
+	configuredExcludes []string
+	persistedExcludes  []string
+	excludeRules       selectorSet
+	labels             []string
+	startedAt          time.Time
+	endsAt             time.Time
 }
 
 type ZenModeStatus struct {
-	Enabled           bool     `json:"enabled"`
-	File              string   `json:"file,omitempty"`
-	DurationMinutes   int      `json:"duration_minutes"`
-	ConfiguredDomains []string `json:"configured_domains,omitempty"`
-	RuntimeDomains    []string `json:"runtime_domains,omitempty"`
-	StartedAt         string   `json:"started_at,omitempty"`
-	EndsAt            string   `json:"ends_at,omitempty"`
-	RemainingSeconds  int64    `json:"remaining_seconds"`
+	Enabled            bool     `json:"enabled"`
+	File               string   `json:"file,omitempty"`
+	DurationMinutes    int      `json:"duration_minutes"`
+	ConfiguredDomains  []string `json:"configured_domains,omitempty"`
+	PersistedDomains   []string `json:"persisted_domains,omitempty"`
+	ConfiguredExcludes []string `json:"configured_excludes,omitempty"`
+	PersistedExcludes  []string `json:"persisted_excludes,omitempty"`
+	Labels             []string `json:"labels,omitempty"`
+	RuntimeDomains     []string `json:"runtime_domains,omitempty"`
+	StartedAt          string   `json:"started_at,omitempty"`
+	EndsAt             string   `json:"ends_at,omitempty"`
+	RemainingSeconds   int64    `json:"remaining_seconds"`
 }
 
 func (z *ZenMode) Info() (string, Stage) {
@@ -63,17 +74,26 @@ func (z *ZenMode) Run(mess *Message) (*Message, error) {
 	z.stateMu.RLock()
 	enabled := z.enabled
 	hosts := make(map[string]string, len(z.Hosts))
+	labels := append([]string(nil), z.labels...)
+	excludeRules := z.excludeRules
 	for k, v := range z.Hosts {
 		hosts[k] = v
 	}
 	z.stateMu.RUnlock()
 
 	if enabled {
+		if !matchesClientScope(mess, labels) {
+			return mess, nil
+		}
 		m, err := mess.GetMsg()
 		if err != nil {
 			return mess, err
 		}
 		domain := m.Question[0].Name
+		if matchesSuffix(normalizeDomainPattern(domain), excludeRules.Domains) ||
+			matchesAnyLabel(mess.Labels(), excludeRules.Labels) {
+			return mess, nil
+		}
 		//Ideally regexes should be precompiled, but with caching enabled this is negligible.
 		for k, v := range hosts {
 			match, _ := regexp.MatchString(k+"\\.", domain)
@@ -108,6 +128,13 @@ func (z *ZenMode) Init() error {
 	z.enabled = false
 	z.initDone = true
 	z.Hosts = map[string]string{}
+	z.configuredHosts = map[string]string{}
+	z.persistedHosts = map[string]string{}
+	z.runtimeHosts = map[string]string{}
+	z.labels = normalizeLabels(z.c.ZenMode.Labels)
+	z.configuredExcludes = normalizeSelectorValues(z.c.ZenMode.Excludes)
+	z.persistedExcludes = normalizeSelectorValues(z.c.ZenMode.PersistedExcludes)
+	z.excludeRules = parseSelectors(append(append([]string(nil), z.configuredExcludes...), z.persistedExcludes...))
 	z.startedAt = time.Time{}
 	z.endsAt = time.Time{}
 	if z.c.ZenMode.File != "" {
@@ -117,11 +144,15 @@ func (z *ZenMode) Init() error {
 			logger.Error(err)
 			return err
 		}
-		z.Hosts = h
+		z.configuredHosts = cloneHostMap(h)
 	}
 	for _, each := range z.c.ZenMode.Domains {
-		z.Hosts[each] = "0.0.0.0"
+		z.configuredHosts[each] = ZenModeIP
 	}
+	for _, each := range z.c.ZenMode.PersistedDomains {
+		z.persistedHosts[each] = ZenModeIP
+	}
+	z.refreshActiveHostsLocked()
 	z.stateMu.Unlock()
 	return nil
 }
@@ -132,11 +163,32 @@ func (z *ZenMode) ReplaceDomains(hosts map[string]string) error {
 	}
 	z.stateMu.Lock()
 	defer z.stateMu.Unlock()
-	z.Hosts = make(map[string]string, len(hosts))
-	for k, v := range hosts {
-		z.Hosts[k] = v
-	}
+	z.runtimeHosts = cloneHostMap(hosts)
+	z.Hosts = cloneHostMap(hosts)
 	return nil
+}
+
+func (z *ZenMode) ReplacePersistedDomains(domains []string) {
+	z.stateMu.Lock()
+	defer z.stateMu.Unlock()
+	z.persistedHosts = map[string]string{}
+	for _, each := range domains {
+		z.persistedHosts[each] = ZenModeIP
+	}
+	if len(z.runtimeHosts) == 0 {
+		z.refreshActiveHostsLocked()
+	}
+}
+
+func (z *ZenMode) ReplacePersistedExcludes(values []string) {
+	z.stateMu.Lock()
+	defer z.stateMu.Unlock()
+	z.persistedExcludes = append([]string(nil), values...)
+	z.excludeRules = parseSelectors(append(append([]string(nil), z.configuredExcludes...), z.persistedExcludes...))
+}
+
+func (z *ZenMode) refreshActiveHostsLocked() {
+	z.Hosts = mergeHostMaps(z.configuredHosts, z.persistedHosts)
 }
 
 func (z *ZenMode) Start() {
@@ -227,19 +279,29 @@ func (z *ZenMode) StatusView() (ZenModeStatus, error) {
 	z.stateMu.RLock()
 	defer z.stateMu.RUnlock()
 
-	runtimeDomains := make([]string, 0, len(z.Hosts))
-	for each := range z.Hosts {
+	persistedDomains := make([]string, 0, len(z.persistedHosts))
+	for each := range z.persistedHosts {
+		persistedDomains = append(persistedDomains, each)
+	}
+	sort.Strings(persistedDomains)
+
+	runtimeDomains := make([]string, 0, len(z.runtimeHosts))
+	for each := range z.runtimeHosts {
 		runtimeDomains = append(runtimeDomains, each)
 	}
 	sort.Strings(runtimeDomains)
 
 	status := ZenModeStatus{
-		Enabled:           z.enabled,
-		File:              z.c.ZenMode.File,
-		DurationMinutes:   z.c.ZenMode.Time,
-		ConfiguredDomains: configuredDomains,
-		RuntimeDomains:    runtimeDomains,
-		RemainingSeconds:  0,
+		Enabled:            z.enabled,
+		File:               z.c.ZenMode.File,
+		DurationMinutes:    z.c.ZenMode.Time,
+		ConfiguredDomains:  configuredDomains,
+		PersistedDomains:   persistedDomains,
+		ConfiguredExcludes: append([]string(nil), z.configuredExcludes...),
+		PersistedExcludes:  append([]string(nil), z.persistedExcludes...),
+		Labels:             append([]string(nil), z.labels...),
+		RuntimeDomains:     runtimeDomains,
+		RemainingSeconds:   0,
 	}
 	if z.enabled && !z.startedAt.IsZero() {
 		status.StartedAt = z.startedAt.Format(time.RFC3339)

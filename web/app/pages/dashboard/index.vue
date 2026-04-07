@@ -91,7 +91,7 @@ async function loadDashboard() {
 
 async function loadTopDomains() {
   topDomainsLoading.value = true
-  const response = await getDnsLogTop(5, '24h')
+  const response = await getDnsLogTop(5, { since: '24h' })
   if (response?.log_items) {
     topDomains.value = response.log_items
   } else {

@@ -13,6 +13,7 @@ var CtxKey = "values"
 
 type CtxValue struct {
 	RemoteAddr net.Addr
+	Labels     []string
 	Values     map[string]string
 }
 
@@ -84,8 +85,9 @@ type DNSLogConf struct {
 }
 
 type CacheConf struct {
-	Enabled bool `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
-	Ttl     int  `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
+	Enabled  bool     `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
+	Ttl      int      `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
+	Excludes []string `mapstructure:"excludes" yaml:"excludes,omitempty" json:"excludes,omitempty"`
 }
 type BlacklistConfig struct {
 	Enabled            bool     `mapstructure:"enabled" yaml:"enabled"`
@@ -95,11 +97,15 @@ type BlacklistConfig struct {
 	ExternalRepoBranch string   `mapstructure:"external_repo_branch" yaml:"external_repo_branch,omitempty"`
 	ExternalPullPeriod string   `mapstructure:"external_pull_period" yaml:"external_pull_period,omitempty"`
 	Excludes           []string `mapstructure:"exclude" yaml:"excludes"`
+	PersistedExcludes  []string `mapstructure:"-" yaml:"-"`
+	ExtraHosts         []string `mapstructure:"-" yaml:"-"`
 }
 
 type StaticResponseConf struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
-	File    string `mapstructure:"file" yaml:"file"`
+	Enabled    bool              `mapstructure:"enabled" yaml:"enabled"`
+	File       string            `mapstructure:"file" yaml:"file"`
+	Labels     []string          `mapstructure:"labels" yaml:"labels,omitempty"`
+	ExtraHosts map[string]string `mapstructure:"-" yaml:"-"`
 }
 
 type StatusConf struct {
@@ -109,10 +115,14 @@ type StatusConf struct {
 }
 
 type ZenModeConfig struct {
-	Enabled bool     `mapstructure:"enabled" yaml:"enabled,omitempty"`
-	File    string   `mapstructure:"file" yaml:"file,omitempty"`
-	Domains []string `mapstructure:"domains" yaml:"domains,omitempty"`
-	Time    int      `mapstructure:"time" yaml:"time,omitempty"`
+	Enabled           bool     `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	File              string   `mapstructure:"file" yaml:"file,omitempty"`
+	Domains           []string `mapstructure:"domains" yaml:"domains,omitempty"`
+	Excludes          []string `mapstructure:"excludes" yaml:"excludes,omitempty"`
+	PersistedDomains  []string `mapstructure:"-" yaml:"-"`
+	PersistedExcludes []string `mapstructure:"-" yaml:"-"`
+	Labels            []string `mapstructure:"labels" yaml:"labels,omitempty"`
+	Time              int      `mapstructure:"time" yaml:"time,omitempty"`
 }
 
 type StubResolverConf struct {

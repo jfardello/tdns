@@ -18,10 +18,14 @@ import (
 var DefaultStaticFile = "/etc/hosts"
 
 type StaticResponse struct {
-	hostsFile string
-	Hosts     map[string]string
-	Enabled   bool
-	mu        sync.RWMutex
+	hostsFile       string
+	Hosts           map[string]string
+	configuredHosts map[string]string
+	persistedHosts  map[string]string
+	runtimeHosts    map[string]string
+	Enabled         bool
+	labels          []string
+	mu              sync.RWMutex
 }
 
 type HostEntry struct {
@@ -32,12 +36,15 @@ type HostEntry struct {
 type StaticResponseStatus struct {
 	Enabled         bool        `json:"enabled"`
 	File            string      `json:"file,omitempty"`
+	Labels          []string    `json:"labels,omitempty"`
 	ConfiguredHosts []HostEntry `json:"configured_hosts,omitempty"`
+	PersistedHosts  []HostEntry `json:"persisted_hosts,omitempty"`
 	RuntimeHosts    []HostEntry `json:"runtime_hosts,omitempty"`
 }
 
 func (sr *StaticResponse) Config(c config.Config) error {
 	sr.Enabled = c.StaticResponse.Enabled
+	sr.labels = normalizeLabels(c.StaticResponse.Labels)
 	if c.StaticResponse.File != "" {
 		logger := log.GetLogger("middleware.StaticResponse", "config")
 		logger.Infof("Using file %s", c.StaticResponse.File)
@@ -55,7 +62,10 @@ func (sr *StaticResponse) Init() error {
 		return err
 	}
 	sr.mu.Lock()
-	sr.Hosts = h
+	sr.configuredHosts = cloneHostMap(h)
+	sr.persistedHosts = cloneHostMap(sr.activePersistedHosts())
+	sr.runtimeHosts = map[string]string{}
+	sr.refreshActiveHostsLocked()
 	sr.mu.Unlock()
 	return nil
 }
@@ -63,6 +73,7 @@ func (sr *StaticResponse) Init() error {
 func (sr *StaticResponse) Run(mess *Message) (*Message, error) {
 	sr.mu.RLock()
 	enabled := sr.Enabled
+	labels := append([]string(nil), sr.labels...)
 	hosts := make(map[string]string, len(sr.Hosts))
 	for k, v := range sr.Hosts {
 		hosts[k] = v
@@ -72,13 +83,16 @@ func (sr *StaticResponse) Run(mess *Message) (*Message, error) {
 	if !enabled {
 		return mess, nil
 	}
+	if !matchesClientScope(mess, labels) {
+		return mess, nil
+	}
 	m, err := mess.GetMsg()
 	if err != nil {
 		return mess, err
 	}
 
 	domain := m.Question[0].Name
-	//Ideally regexes should be precompiled, but with caching enables this is negligible.
+	//Ideally regexes should be precompiled, but with caching enabled this is negligible.
 	for k, v := range hosts {
 		match, _ := regexp.MatchString(k+"\\.", domain)
 		if match {
@@ -117,31 +131,65 @@ func (sr *StaticResponse) ReplaceRuntimeHosts(hosts map[string]string) error {
 	}
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
-	sr.Hosts = make(map[string]string, len(hosts))
-	for k, v := range hosts {
-		sr.Hosts[k] = v
-	}
+	sr.runtimeHosts = cloneHostMap(hosts)
+	sr.Hosts = cloneHostMap(hosts)
 	return nil
 }
 
-func (sr *StaticResponse) Status() (StaticResponseStatus, error) {
-	configuredHosts, err := ReadHosts(sr.hostsFile)
-	if err != nil {
-		return StaticResponseStatus{}, err
+func (sr *StaticResponse) ReplacePersistedHosts(hosts map[string]string) {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+	sr.persistedHosts = cloneHostMap(hosts)
+	if len(sr.runtimeHosts) == 0 {
+		sr.refreshActiveHostsLocked()
 	}
+}
 
+func (sr *StaticResponse) activePersistedHosts() map[string]string {
+	conf := config.GetRunningConfig()
+	return conf.StaticResponse.ExtraHosts
+}
+
+func (sr *StaticResponse) refreshActiveHostsLocked() {
+	sr.Hosts = mergeHostMaps(sr.configuredHosts, sr.persistedHosts)
+}
+
+func cloneHostMap(hosts map[string]string) map[string]string {
+	if len(hosts) == 0 {
+		return map[string]string{}
+	}
+	cloned := make(map[string]string, len(hosts))
+	for k, v := range hosts {
+		cloned[k] = v
+	}
+	return cloned
+}
+
+func mergeHostMaps(maps ...map[string]string) map[string]string {
+	merged := map[string]string{}
+	for _, hosts := range maps {
+		for domain, address := range hosts {
+			merged[domain] = address
+		}
+	}
+	return merged
+}
+
+func (sr *StaticResponse) Status() (StaticResponseStatus, error) {
 	sr.mu.RLock()
 	enabled := sr.Enabled
-	runtimeHosts := make(map[string]string, len(sr.Hosts))
-	for k, v := range sr.Hosts {
-		runtimeHosts[k] = v
-	}
+	labels := append([]string(nil), sr.labels...)
+	configuredHosts := cloneHostMap(sr.configuredHosts)
+	persistedHosts := cloneHostMap(sr.persistedHosts)
+	runtimeHosts := cloneHostMap(sr.runtimeHosts)
 	sr.mu.RUnlock()
 
 	return StaticResponseStatus{
 		Enabled:         enabled,
 		File:            sr.hostsFile,
+		Labels:          append([]string(nil), labels...),
 		ConfiguredHosts: sortedHostEntries(configuredHosts),
+		PersistedHosts:  sortedHostEntries(persistedHosts),
 		RuntimeHosts:    sortedHostEntries(runtimeHosts),
 	}, nil
 }

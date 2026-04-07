@@ -12,8 +12,8 @@ import (
 
 func TestSQLiteStorage_LabelAndMemberLifecycle(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "tagger.sqlite")
-	if err := db.RunMigrations(context.Background(), dbPath, db.TargetTagger); err != nil {
-		t.Fatalf("RunMigrations error: %v", err)
+	if _, err := db.Bootstrap(context.Background(), dbPath); err != nil {
+		t.Fatalf("Bootstrap error: %v", err)
 	}
 	store, err := NewSQLiteStorage(storage.WithDbPath(dbPath))
 	if err != nil {
@@ -30,6 +30,12 @@ func TestSQLiteStorage_LabelAndMemberLifecycle(t *testing.T) {
 	}
 	if err := store.AddMembersToLabel("red", []string{"1.1.1.1", "2.2.2.2", "1.1.1.1"}); err != nil {
 		t.Fatalf("AddMembersToLabel error: %v", err)
+	}
+	if _, err := store.executor.SyncExec(`INSERT INTO hosts (ipAddr, host) VALUES (?, ?)`, []any{"1.1.1.1", "router"}); err != nil {
+		t.Fatalf("insert host alias error: %v", err)
+	}
+	if _, err := store.executor.SyncExec(`INSERT INTO hosts (ipAddr, host) VALUES (?, ?)`, []any{"3.3.3.3", "tablet"}); err != nil {
+		t.Fatalf("insert host alias error: %v", err)
 	}
 	if err := store.ReplaceMemberLabels("3.3.3.3", []string{"blue", "green", "blue"}); err != nil {
 		t.Fatalf("ReplaceMemberLabels error: %v", err)
@@ -56,6 +62,17 @@ func TestSQLiteStorage_LabelAndMemberLifecycle(t *testing.T) {
 		t.Fatalf("GetLabelMembers got %v, want %v", redMembers, wantRedMembers)
 	}
 
+	redMemberDetails, err := store.GetLabelMemberDetails("red")
+	if err != nil {
+		t.Fatalf("GetLabelMemberDetails error: %v", err)
+	}
+	wantRedMemberDetails := []storage.TagMember{
+		{Address: "1.1.1.1", Host: "router", HasHostAlias: true},
+	}
+	if !reflect.DeepEqual(redMemberDetails, wantRedMemberDetails) {
+		t.Fatalf("GetLabelMemberDetails got %v, want %v", redMemberDetails, wantRedMemberDetails)
+	}
+
 	memberLabels, err := store.GetMemberLabels("3.3.3.3")
 	if err != nil {
 		t.Fatalf("GetMemberLabels error: %v", err)
@@ -74,6 +91,17 @@ func TestSQLiteStorage_LabelAndMemberLifecycle(t *testing.T) {
 	}
 	if !reflect.DeepEqual(memberLabels, []string{"blue"}) {
 		t.Fatalf("GetMemberLabels after DeleteLabel got %v, want %v", memberLabels, []string{"blue"})
+	}
+
+	knownHosts, err := store.SearchKnownHosts("tab", 10)
+	if err != nil {
+		t.Fatalf("SearchKnownHosts error: %v", err)
+	}
+	wantKnownHosts := []storage.KnownHost{
+		{Address: "3.3.3.3", Host: "tablet"},
+	}
+	if !reflect.DeepEqual(knownHosts, wantKnownHosts) {
+		t.Fatalf("SearchKnownHosts got %v, want %v", knownHosts, wantKnownHosts)
 	}
 
 	if err := store.DeleteMember("3.3.3.3"); err != nil {

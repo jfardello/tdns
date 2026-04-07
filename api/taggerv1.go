@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jfardello/tdns/middleware"
+	"github.com/jfardello/tdns/storage"
 )
 
 type AddTagRequest struct {
@@ -46,6 +48,18 @@ func writeTaggerResponse(w http.ResponseWriter, status int, message string, item
 		Message:       message,
 		CurrentStatus: "Enabled",
 		Items:         items,
+	}, w)
+}
+
+func writeTaggerDataResponse(w http.ResponseWriter, status int, message string, members []storage.TagMember, hosts []storage.KnownHost) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	writeJSON(Response{
+		Kind:          TaggerResponseKind,
+		Message:       message,
+		CurrentStatus: "Enabled",
+		TagMembers:    members,
+		KnownHosts:    hosts,
 	}, w)
 }
 
@@ -100,12 +114,12 @@ func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
 		writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-	members, err := p.GetMembers(tag)
+	members, err := p.GetMemberDetails(tag)
 	if err != nil {
 		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, members)
+	writeTaggerDataResponse(w, http.StatusOK, MESSAGE_OK, members, nil)
 }
 
 func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
@@ -116,12 +130,39 @@ func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tag := strings.TrimSpace(r.PathValue("tagName"))
-	members, err := p.GetMembers(tag)
+	members, err := p.GetMemberDetails(tag)
 	if err != nil {
 		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	writeTaggerResponse(w, http.StatusOK, MESSAGE_OK, members)
+	writeTaggerDataResponse(w, http.StatusOK, MESSAGE_OK, members, nil)
+}
+
+func (api *v1) TaggerKnownHosts(w http.ResponseWriter, r *http.Request) {
+	p, err := api.taggerMiddleware()
+	if err != nil {
+		writeTaggerResponse(w, http.StatusServiceUnavailable, err.Error(), nil)
+		return
+	}
+
+	query := strings.TrimSpace(r.URL.Query().Get("search"))
+	limit := 20
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeTaggerResponse(w, http.StatusBadRequest, err.Error(), nil)
+			return
+		}
+		limit = parsed
+	}
+
+	hosts, err := p.SearchKnownHosts(query, limit)
+	if err != nil {
+		writeTaggerResponse(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+
+	writeTaggerDataResponse(w, http.StatusOK, MESSAGE_OK, nil, hosts)
 }
 
 func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {

@@ -10,9 +10,13 @@ const {
   initialized,
   refreshing,
   toggleLoading,
+  persistedExcludesLoading,
+  persistedHostsLoading,
   runtimeWhitelistLoading,
   refresh,
   setEnabled,
+  replacePersistedExcludes,
+  replacePersistedHosts,
   addRuntimeWhitelistEntries
 } = useBlacklist()
 
@@ -24,6 +28,14 @@ const runtimeWhitelistState = reactive({
   domains: ''
 })
 
+const persistedExcludesState = reactive({
+  excludes: ''
+})
+
+const persistedHostsState = reactive({
+  hosts: ''
+})
+
 const sourceLabel = computed(() => (
   blacklist.value.external_repo ? 'Remote GitHub source' : 'Local blockfile'
 ))
@@ -33,6 +45,8 @@ const statusLabel = computed(() => (
 ))
 
 const persistedExcludes = computed(() => blacklist.value.excludes)
+const persistedOverrideExcludes = computed(() => blacklist.value.persisted_excludes)
+const persistedHosts = computed(() => blacklist.value.persisted_hosts)
 const runtimeWhitelist = computed(() => blacklist.value.runtime_whitelist)
 
 const configItems = computed(() => [
@@ -76,6 +90,38 @@ async function handleAddRuntimeWhitelist(event: FormSubmitEvent<z.output<typeof 
   toast.add({
     title: 'Runtime whitelist updated',
     description: `${domains.length} suffix${domains.length === 1 ? '' : 'es'} added for the running process`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+async function handleReplacePersistedExcludes() {
+  const excludes = splitDomains(persistedExcludesState.excludes)
+  const response = await replacePersistedExcludes(excludes)
+  if (!response) {
+    return
+  }
+
+  persistedExcludesState.excludes = ''
+  toast.add({
+    title: 'Persisted whitelist updated',
+    description: `${excludes.length} persisted whitelist selector${excludes.length === 1 ? '' : 's'} stored`,
+    color: 'success',
+    icon: 'i-lucide-check-circle'
+  })
+}
+
+async function handleReplacePersistedHosts() {
+  const hosts = splitDomains(persistedHostsState.hosts)
+  const response = await replacePersistedHosts(hosts)
+  if (!response) {
+    return
+  }
+
+  persistedHostsState.hosts = ''
+  toast.add({
+    title: 'Persisted blocked hosts updated',
+    description: `${hosts.length} extra blocked host${hosts.length === 1 ? '' : 's'} stored`,
     color: 'success',
     icon: 'i-lucide-check-circle'
   })
@@ -215,6 +261,110 @@ onMounted(() => {
             <UCard>
               <template #header>
                 <div>
+                  <h3 class="font-semibold">Persisted Whitelist Overrides</h3>
+                  <p class="text-sm text-muted">Selectors stored in the tdns overrides database.</p>
+                </div>
+              </template>
+
+              <div class="space-y-4">
+                <UFormField
+                  name="excludes"
+                  label="Persisted whitelist selectors"
+                  description="Enter one domain suffix or label: selector per line."
+                >
+                  <UTextarea
+                    v-model="persistedExcludesState.excludes"
+                    :rows="6"
+                    placeholder="example.com&#10;label:trusted"
+                  />
+                </UFormField>
+
+                <div class="flex justify-end">
+                  <UButton
+                    icon="i-lucide-database"
+                    label="Replace Persisted Whitelist"
+                    :loading="persistedExcludesLoading"
+                    @click="handleReplacePersistedExcludes"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <div v-if="persistedOverrideExcludes.length === 0" class="py-6">
+                  <UEmpty
+                    icon="i-lucide-database-zap"
+                    title="No persisted whitelist overrides"
+                    description="Store selectors here to keep them across restarts without editing YAML."
+                  />
+                </div>
+                <div v-else class="flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="entry in persistedOverrideExcludes"
+                    :key="`persisted-${entry}`"
+                    :label="entry"
+                    color="primary"
+                    variant="subtle"
+                  />
+                </div>
+              </div>
+            </UCard>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <UCard>
+              <template #header>
+                <div>
+                  <h3 class="font-semibold">Persisted Blocked Hosts</h3>
+                  <p class="text-sm text-muted">Extra blocked suffixes stored outside the blockfile.</p>
+                </div>
+              </template>
+
+              <div class="space-y-4">
+                <UFormField
+                  name="hosts"
+                  label="Persisted blocked suffixes"
+                  description="Enter one domain suffix per line."
+                >
+                  <UTextarea
+                    v-model="persistedHostsState.hosts"
+                    :rows="6"
+                    placeholder="ads.example.com&#10;tracker.example.net"
+                  />
+                </UFormField>
+
+                <div class="flex justify-end">
+                  <UButton
+                    icon="i-lucide-database"
+                    label="Replace Persisted Blocked Hosts"
+                    :loading="persistedHostsLoading"
+                    @click="handleReplacePersistedHosts"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <div v-if="persistedHosts.length === 0" class="py-6">
+                  <UEmpty
+                    icon="i-lucide-ban"
+                    title="No persisted blocked hosts"
+                    description="Store extra blocked suffixes here to keep them active across restarts."
+                  />
+                </div>
+                <div v-else class="flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="entry in persistedHosts"
+                    :key="entry"
+                    :label="entry"
+                    color="error"
+                    variant="subtle"
+                  />
+                </div>
+              </div>
+            </UCard>
+
+            <UCard>
+              <template #header>
+                <div>
                   <h3 class="font-semibold">Runtime Whitelist</h3>
                   <p class="text-sm text-muted">Add suffixes that should bypass blocking for the current process only.</p>
                 </div>
@@ -283,7 +433,7 @@ onMounted(() => {
             icon="i-lucide-info"
             color="warning"
             title="About Blacklisting"
-            description="Editing the whitelist here only changes the running process. These runtime whitelist entries are not persisted to configuration. To make whitelist changes permanent, edit blacklist.excludes in your YAML file and restart or reload tdns."
+            description="blacklist.excludes still defines the base YAML whitelist. Persisted overrides stored here survive restarts, but they are not written back to YAML. Runtime whitelist entries still affect only the running process."
           />
         </template>
       </div>

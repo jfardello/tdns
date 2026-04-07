@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jfardello/tdns/config"
@@ -37,7 +38,6 @@ func GetCache() *Cache {
 	cache = NewCache()
 	cacheInit = true
 	return cache
-
 }
 
 type CacheGet struct {
@@ -50,9 +50,13 @@ func (cs *CacheGet) Run(mess *Message) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !cs.cache.IsEnabled() || cs.cache.ShouldBypass(mess) {
+		return mess, nil
+	}
+
 	q := m.Question[0]
-	r, err := cs.cache.backend.Get(cache.Key(&q))
-	//ToDO: distinguish EntryNotFoudErr from err
+	key := cache.Key(&q, mess.Labels())
+	r, err := cs.cache.backend.Get(key)
 	if err != nil {
 		misses.Inc()
 		return mess, nil
@@ -68,16 +72,16 @@ func (cs *CacheGet) Run(mess *Message) (*Message, error) {
 	mess.Resolved(true)
 	hits.Inc()
 	return mess, nil
-
 }
 
 func (cs *CacheGet) Info() (string, Stage) {
 	return "cacheget", PreRouting
 }
+
 func (cs *CacheGet) Config(_ config.Config) error {
 	return nil
-
 }
+
 func (cs *CacheGet) Init() error {
 	cs.cache = GetCache()
 	return nil
@@ -93,13 +97,15 @@ func (cs *CacheSet) Run(mess *Message) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	if m.Rcode == dns.RcodeSuccess {
-		if m.Response && len(m.Answer) > 0 {
-			q := m.Question[0]
-			logger.Debugf("Setting cache for %s, key: %s", q.Name, cache.Key(&q))
-			err := cache.Set(cache.Key(&q), m)
-			return mess, err
-		}
+	if !cs.cache.IsEnabled() || cs.cache.ShouldBypass(mess) {
+		return mess, nil
+	}
+	if m.Rcode == dns.RcodeSuccess && m.Response && len(m.Answer) > 0 {
+		q := m.Question[0]
+		key := cache.Key(&q, mess.Labels())
+		logger.Debugf("Setting cache for %s, key: %s", q.Name, key)
+		err := cache.Set(key, m)
+		return mess, err
 	}
 	return mess, nil
 }
@@ -107,17 +113,31 @@ func (cs *CacheSet) Run(mess *Message) (*Message, error) {
 func (cs *CacheSet) Info() (string, Stage) {
 	return "cacheset", PostRouting
 }
+
 func (cs *CacheSet) Config(config.Config) error {
 	return nil
-
 }
+
 func (cs *CacheSet) Init() error {
 	cs.cache = GetCache()
 	return nil
 }
 
 type Cache struct {
-	backend *bigcache.BigCache
+	backend  *bigcache.BigCache
+	mu       sync.RWMutex
+	enabled  bool
+	excludes []string
+	rules    requestSelectorSet
+	ttl      int
+}
+
+type CacheStatus struct {
+	Enabled  bool     `json:"enabled"`
+	Ttl      int      `json:"ttl"`
+	Excludes []string `json:"excludes,omitempty"`
+	Hits     int64    `json:"hits"`
+	Misses   int64    `json:"misses"`
 }
 
 func (c *Cache) Get(k string) (string, bool) {
@@ -134,7 +154,6 @@ func (c *Cache) Get(k string) (string, bool) {
 func (c *Cache) Set(k string, m *dns.Msg) error {
 	logger := log.GetLogger("Cache", "Set")
 	if k == "" {
-		//Don't fail if there is no cache key
 		logger.Debugf("No cache key, skipping chache phase.")
 		return nil
 	}
@@ -144,8 +163,6 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 		return nil
 	}
 
-	//ToDo: cache a all the RRs for th answer,
-	//Just cache ipv4/ipv6 anchors and aliases.
 	if t, ok := m.Answer[idx].(*dns.A); ok {
 		logger.Debugf("Seting cache for %s", k)
 		return c.backend.Set(k, []byte(t.String()))
@@ -159,21 +176,64 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 	return nil
 }
 
-func (c *Cache) Key(q *dns.Question) string {
+func (c *Cache) Key(q *dns.Question, labels []string) string {
+	labelPart := labelFingerprint(labels)
 
 	switch q.Qtype {
 	case dns.TypeA, dns.TypeCNAME, dns.TypeAAAA:
-		return fmt.Sprintf("%d-%d-%s", q.Qtype, q.Qclass, q.Name)
+		return fmt.Sprintf("%d-%d-%s-%s", q.Qtype, q.Qclass, q.Name, labelPart)
 	}
 	return ""
-
 }
+
 func (c *Cache) Clear() error {
 	return c.backend.Reset()
 }
 
 func (c *Cache) Status() bigcache.Stats {
 	return c.backend.Stats()
+}
+
+func (c *Cache) StatusView() CacheStatus {
+	stats := c.backend.Stats()
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return CacheStatus{
+		Enabled:  c.enabled,
+		Ttl:      c.ttl,
+		Excludes: append([]string(nil), c.excludes...),
+		Hits:     stats.Hits,
+		Misses:   stats.Misses,
+	}
+}
+
+func (c *Cache) SetEnabled(state bool) {
+	c.mu.Lock()
+	c.enabled = state
+	c.mu.Unlock()
+}
+
+func (c *Cache) IsEnabled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.enabled
+}
+
+func (c *Cache) ReplaceExcludes(values []string) {
+	normalized := normalizeRequestSelectors(values)
+	c.mu.Lock()
+	c.excludes = normalized
+	c.rules = parseRequestSelectors(normalized)
+	c.mu.Unlock()
+}
+
+func (c *Cache) ShouldBypass(message *Message) bool {
+	c.mu.RLock()
+	rules := c.rules
+	c.mu.RUnlock()
+	return matchesRequestSelectors(message, rules)
 }
 
 func NewCache() *Cache {
@@ -187,7 +247,11 @@ func NewCache() *Cache {
 		LifeWindow:       time.Duration(conf.Cache.Ttl) * time.Minute,
 	}
 	c, _ := bigcache.New(context.Background(), cf)
-	return &Cache{
+	cache := &Cache{
 		backend: c,
+		enabled: conf.Cache.Enabled,
+		ttl:     conf.Cache.Ttl,
 	}
+	cache.ReplaceExcludes(conf.Cache.Excludes)
+	return cache
 }

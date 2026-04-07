@@ -72,3 +72,34 @@ func TestBlackListRunBypassesRuntimeWhitelistSuffixes(t *testing.T) {
 		t.Fatalf("expected blocked context value to be absent, got %q", value)
 	}
 }
+
+func TestBlackListRunBypassesLabelWhitelist(t *testing.T) {
+	bp := &BlackList{
+		Enabled:    true,
+		Hole:       radix.New(),
+		WhiteList:  []string{"label:trusted"},
+		whiteRules: parseSelectors([]string{"label:trusted"}),
+	}
+	bp.Hole.Insert("ads.example.com", None{})
+
+	msg := new(dns.Msg)
+	msg.SetQuestion(dns.Fqdn("ads.example.com"), dns.TypeA)
+
+	request := &Message{}
+	request.SetMsg(msg)
+	request.SetCtx(context.WithValue(context.Background(), config.CtxKey, config.CtxValue{
+		Labels: []string{"trusted"},
+		Values: map[string]string{},
+	}))
+
+	response, err := bp.Run(request)
+	if err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	if response.IsResolved() {
+		t.Fatal("expected label-whitelisted domain not to be blocked")
+	}
+	if value, ok := response.GetValue("blocked"); ok || value != "" {
+		t.Fatalf("expected blocked context value to be absent, got %q", value)
+	}
+}

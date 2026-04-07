@@ -59,19 +59,23 @@ func (wc *WriteCounter) PrintProgress() {
 }
 
 type BlackList struct {
-	Enabled      bool
-	Hole         *radix.Tree
-	HoleFile     string
-	externalFile string
-	externalRepo string
-	branch       string
-	pullPeriod   string
-	WhiteList    []string
-	DefaultAddr  string
-	ctx          context.Context
-	cancel       context.CancelFunc
-	runtimeList  []string
-	mu           sync.RWMutex
+	Enabled       bool
+	Hole          *radix.Tree
+	HoleFile      string
+	externalFile  string
+	externalRepo  string
+	branch        string
+	pullPeriod    string
+	WhiteList     []string
+	persistedList []string
+	extraHosts    []string
+	whiteRules    selectorSet
+	DefaultAddr   string
+	ctx           context.Context
+	cancel        context.CancelFunc
+	runtimeList   []string
+	runtimeRules  selectorSet
+	mu            sync.RWMutex
 }
 
 type BlacklistStatus struct {
@@ -82,6 +86,8 @@ type BlacklistStatus struct {
 	ExternalRepoBranch    string   `json:"external_repo_branch,omitempty"`
 	ExternalPullPeriod    string   `json:"external_pull_period,omitempty"`
 	Excludes              []string `json:"excludes,omitempty"`
+	PersistedExcludes     []string `json:"persisted_excludes,omitempty"`
+	PersistedHosts        []string `json:"persisted_hosts,omitempty"`
 	RuntimeWhitelist      []string `json:"runtime_whitelist,omitempty"`
 	BlockfileTotalEntries int      `json:"blockfile_total_entries"`
 }
@@ -95,7 +101,14 @@ func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
 	bp.mu.RLock()
 	enabled := bp.Enabled
 	hole := bp.Hole
-	runtimeList := append([]string(nil), bp.runtimeList...)
+	runtimeRules := bp.runtimeRules
+	configRules := bp.whiteRules
+	if len(runtimeRules.Domains) == 0 && len(runtimeRules.Labels) == 0 && len(bp.runtimeList) > 0 {
+		runtimeRules = parseSelectors(bp.runtimeList)
+	}
+	if len(configRules.Domains) == 0 && len(configRules.Labels) == 0 && len(bp.WhiteList) > 0 {
+		configRules = parseSelectors(bp.WhiteList)
+	}
 	bp.mu.RUnlock()
 
 	if !enabled {
@@ -108,8 +121,12 @@ func (bp *BlackList) Run(mess *Message) (message *Message, err error) {
 	}
 	domain := normalizeDomainPattern(m.Question[0].Name)
 
-	if matchesSuffix(domain, runtimeList) {
+	if matchesSuffix(domain, runtimeRules.Domains) || matchesAnyLabel(mess.Labels(), runtimeRules.Labels) {
 		logger.Debugf("%s bypassed by runtime whitelist", domain)
+		return mess, nil
+	}
+	if matchesSuffix(domain, configRules.Domains) || matchesAnyLabel(mess.Labels(), configRules.Labels) {
+		logger.Debugf("%s bypassed by config whitelist", domain)
 		return mess, nil
 	}
 	if hole == nil {
@@ -151,7 +168,11 @@ func (bp *BlackList) Config(c config.Config) error {
 	bp.ctx, bp.cancel = context.WithCancel(context.Background())
 	if bf != "" {
 		bp.HoleFile = bf
-		bp.WhiteList = normalizeDomainPatterns(c.Blacklist.Excludes)
+		bp.WhiteList = normalizeSelectorValues(c.Blacklist.Excludes)
+		bp.persistedList = normalizeSelectorValues(c.Blacklist.PersistedExcludes)
+		bp.extraHosts = normalizeDomainPatterns(c.Blacklist.ExtraHosts)
+		mergedWhitelist := append(append([]string(nil), bp.WhiteList...), bp.persistedList...)
+		bp.whiteRules = parseSelectors(mergedWhitelist)
 		bp.externalFile = ef
 		bp.externalRepo = er
 		bp.DefaultAddr = BLAddr
@@ -298,16 +319,11 @@ func (bp *BlackList) Download() error {
 	return nil
 }
 
-func (bp *BlackList) Init() error {
-	err := bp.Download()
-	if err != nil {
-		return err
-	}
+func (bp *BlackList) reloadHole() error {
 	bp.mu.RLock()
 	holeFile := bp.HoleFile
-	configWhiteList := append([]string(nil), bp.WhiteList...)
-	pullPeriod := bp.pullPeriod
-	ctx := bp.ctx
+	configWhiteList := append([]string(nil), bp.whiteRules.Domains...)
+	extraHosts := append([]string(nil), bp.extraHosts...)
 	bp.mu.RUnlock()
 
 	readFile, err := os.OpenFile(holeFile, os.O_RDONLY|os.O_CREATE, 0644)
@@ -345,10 +361,32 @@ OUTER:
 	if err := scanner.Err(); err != nil {
 		return err
 	}
+	for _, each := range extraHosts {
+		if each == "" || matchesSuffix(each, configWhiteList) {
+			continue
+		}
+		hole.Insert(each, None{})
+	}
 
 	bp.mu.Lock()
 	bp.Hole = hole
 	bp.mu.Unlock()
+	return nil
+}
+
+func (bp *BlackList) Init() error {
+	err := bp.Download()
+	if err != nil {
+		return err
+	}
+	bp.mu.RLock()
+	pullPeriod := bp.pullPeriod
+	ctx := bp.ctx
+	bp.mu.RUnlock()
+
+	if err := bp.reloadHole(); err != nil {
+		return err
+	}
 
 	cf := config.GetRunningConfig()
 	mf := int64(BLMaxFuzziness * time.Second)
@@ -384,7 +422,7 @@ func (bp *BlackList) IsEnabled() bool {
 }
 
 func (bp *BlackList) AddRuntimeWhitelist(domains []string) error {
-	normalized := normalizeDomainPatterns(domains)
+	normalized := normalizeSelectorValues(domains)
 	if len(normalized) == 0 {
 		return errors.New("at least one valid domain is required")
 	}
@@ -410,6 +448,8 @@ func (bp *BlackList) AddRuntimeWhitelist(domains []string) error {
 	if added == 0 {
 		return errors.New("all runtime whitelist values are already present")
 	}
+
+	bp.runtimeRules = parseSelectors(bp.runtimeList)
 
 	return nil
 }
@@ -455,6 +495,8 @@ func (bp *BlackList) Status() (BlacklistStatus, error) {
 		ExternalRepoBranch: bp.branch,
 		ExternalPullPeriod: bp.pullPeriod,
 		Excludes:           append([]string(nil), bp.WhiteList...),
+		PersistedExcludes:  append([]string(nil), bp.persistedList...),
+		PersistedHosts:     append([]string(nil), bp.extraHosts...),
 		RuntimeWhitelist:   append([]string(nil), bp.runtimeList...),
 	}
 	bp.mu.RUnlock()
@@ -466,6 +508,24 @@ func (bp *BlackList) Status() (BlacklistStatus, error) {
 	status.BlockfileTotalEntries = totalEntries
 
 	return status, nil
+}
+
+func (bp *BlackList) ReplacePersistedHosts(domains []string) error {
+	normalized := normalizeDomainPatterns(domains)
+	bp.mu.Lock()
+	bp.extraHosts = append([]string(nil), normalized...)
+	bp.mu.Unlock()
+	return bp.reloadHole()
+}
+
+func (bp *BlackList) ReplacePersistedExcludes(values []string) error {
+	normalized := normalizeSelectorValues(values)
+	bp.mu.Lock()
+	bp.persistedList = append([]string(nil), normalized...)
+	mergedWhitelist := append(append([]string(nil), bp.WhiteList...), bp.persistedList...)
+	bp.whiteRules = parseSelectors(mergedWhitelist)
+	bp.mu.Unlock()
+	return bp.reloadHole()
 }
 
 func parseGitHub(uri string) (owner, repo string, err error) {

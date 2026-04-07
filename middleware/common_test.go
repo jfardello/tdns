@@ -5,6 +5,7 @@ import (
 	"github.com/jfardello/tdns/config"
 	"github.com/miekg/dns"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -81,6 +82,29 @@ func TestMessage_AddCtxValue(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestMessage_AddLabels(t *testing.T) {
+	addr, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
+	c := context.WithValue(context.Background(), config.CtxKey, config.CtxValue{
+		RemoteAddr: addr,
+		Labels:     []string{"existing"},
+		Values:     map[string]string{},
+	})
+
+	m := &Message{ctx: c, mu: sync.Mutex{}}
+	if err := m.AddLabels("existing", "family", "kids"); err != nil {
+		t.Fatalf("AddLabels error: %v", err)
+	}
+
+	got := m.Labels()
+	want := []string{"existing", "family", "kids"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Labels got %v, want %v", got, want)
+	}
+	if !m.HasLabel("family") {
+		t.Fatal("expected HasLabel(family) to be true")
 	}
 }
 

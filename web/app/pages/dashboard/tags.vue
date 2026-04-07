@@ -1,31 +1,32 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import type { KnownHostCandidate, TagMember } from '~/composables/useApi'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-const { getTags, createTag, deleteTag, getTagMembers, addTagMembers, removeTagMember } = useApi()
+const { getTags, createTag, deleteTag, getTagMembers, addTagMembers, removeTagMember, getKnownHosts } = useApi()
 const toast = useToast()
 
 const loading = ref(false)
 const tags = ref<string[]>([])
 const selectedTag = ref<string | null>(null)
-const tagMembers = ref<string[]>([])
+const tagMembers = ref<TagMember[]>([])
 const membersLoading = ref(false)
 
-// Create tag modal
 const showCreateModal = ref(false)
 const createSchema = z.object({
   name: z.string().min(1, 'Tag name is required')
 })
 const createState = reactive({ name: '' })
 
-// Add member modal
 const showAddMemberModal = ref(false)
-const addMemberSchema = z.object({
-  members: z.string().min(1, 'At least one member is required')
-})
-const addMemberState = reactive({ members: '' })
+const knownHostsLoading = ref(false)
+const knownHosts = ref<KnownHostCandidate[]>([])
+const selectedKnownHosts = ref<KnownHostCandidate[]>([])
+const hostSearch = ref('')
+const manualMembers = ref('')
+let hostSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 async function loadTags() {
   loading.value = true
@@ -34,6 +35,38 @@ async function loadTags() {
     tags.value = response.items
   }
   loading.value = false
+}
+
+async function loadKnownHosts(search = '') {
+  knownHostsLoading.value = true
+  const response = await getKnownHosts(search, 20)
+  knownHosts.value = response?.known_hosts ?? []
+  knownHostsLoading.value = false
+}
+
+function resetAddMembersModal() {
+  selectedKnownHosts.value = []
+  knownHosts.value = []
+  hostSearch.value = ''
+  manualMembers.value = ''
+}
+
+function memberLabel(member: Pick<TagMember, 'address' | 'host' | 'has_host_alias'>) {
+  return member.has_host_alias && member.host
+    ? `${member.host} (${member.address})`
+    : member.address
+}
+
+function isKnownHostSelected(address: string) {
+  return selectedKnownHosts.value.some(host => host.address === address)
+}
+
+function toggleKnownHost(host: KnownHostCandidate) {
+  if (isKnownHostSelected(host.address)) {
+    selectedKnownHosts.value = selectedKnownHosts.value.filter(candidate => candidate.address !== host.address)
+    return
+  }
+  selectedKnownHosts.value = [...selectedKnownHosts.value, host]
 }
 
 async function handleCreateTag(event: FormSubmitEvent<z.output<typeof createSchema>>) {
@@ -72,18 +105,33 @@ async function selectTag(tagName: string) {
   selectedTag.value = tagName
   membersLoading.value = true
   const response = await getTagMembers(tagName)
-  if (response?.items) {
-    tagMembers.value = response.items
-  } else {
-    tagMembers.value = []
-  }
+  tagMembers.value = response?.tag_members ?? []
   membersLoading.value = false
 }
 
-async function handleAddMembers(event: FormSubmitEvent<z.output<typeof addMemberSchema>>) {
-  if (!selectedTag.value) return
-  
-  const members = event.data.members.split('\n').map(m => m.trim()).filter(m => m)
+async function handleAddMembers() {
+  if (!selectedTag.value) {
+    return
+  }
+
+  const members = Array.from(new Set([
+    ...selectedKnownHosts.value.map(host => host.address),
+    ...manualMembers.value
+      .split('\n')
+      .map(member => member.trim())
+      .filter(Boolean)
+  ]))
+
+  if (members.length === 0) {
+    toast.add({
+      title: 'No members selected',
+      description: 'Pick known hosts or enter at least one IP address or CIDR',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle'
+    })
+    return
+  }
+
   const response = await addTagMembers(selectedTag.value, members)
   if (response) {
     toast.add({
@@ -92,15 +140,15 @@ async function handleAddMembers(event: FormSubmitEvent<z.output<typeof addMember
       color: 'success',
       icon: 'i-lucide-check-circle'
     })
+    tagMembers.value = response.tag_members ?? []
     showAddMemberModal.value = false
-    addMemberState.members = ''
-    selectTag(selectedTag.value)
+    resetAddMembersModal()
   }
 }
 
 async function handleRemoveMember(address: string) {
   if (!selectedTag.value) return
-  
+
   const response = await removeTagMember(selectedTag.value, address)
   if (response) {
     toast.add({
@@ -112,6 +160,32 @@ async function handleRemoveMember(address: string) {
     selectTag(selectedTag.value)
   }
 }
+
+watch(showAddMemberModal, (open) => {
+  if (hostSearchTimer) {
+    clearTimeout(hostSearchTimer)
+    hostSearchTimer = null
+  }
+
+  if (open) {
+    loadKnownHosts('')
+    return
+  }
+
+  resetAddMembersModal()
+})
+
+watch(hostSearch, (value) => {
+  if (!showAddMemberModal.value) {
+    return
+  }
+  if (hostSearchTimer) {
+    clearTimeout(hostSearchTimer)
+  }
+  hostSearchTimer = setTimeout(() => {
+    loadKnownHosts(value)
+  }, 200)
+})
 
 onMounted(() => {
   loadTags()
@@ -135,7 +209,6 @@ onMounted(() => {
     <template #body>
       <div class="p-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Tags List -->
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
@@ -196,7 +269,6 @@ onMounted(() => {
             </div>
           </UCard>
 
-          <!-- Tag Members -->
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
@@ -242,19 +314,22 @@ onMounted(() => {
             <div v-else class="space-y-2">
               <div
                 v-for="member in tagMembers"
-                :key="member"
+                :key="member.address"
                 class="flex items-center justify-between p-3 rounded-lg bg-muted/50"
               >
-                <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-network" class="size-4" />
-                  <span class="font-mono text-sm">{{ member }}</span>
+                <div class="flex items-center gap-3">
+                  <UIcon :name="member.has_host_alias ? 'i-lucide-monitor' : 'i-lucide-network'" class="size-4" />
+                  <div class="space-y-1">
+                    <div class="font-medium text-sm">{{ memberLabel(member) }}</div>
+                    <div v-if="member.has_host_alias" class="text-xs text-muted font-mono">{{ member.address }}</div>
+                  </div>
                 </div>
                 <UButton
                   icon="i-lucide-x"
                   variant="ghost"
                   size="sm"
                   color="error"
-                  @click="handleRemoveMember(member)"
+                  @click="handleRemoveMember(member.address)"
                 />
               </div>
             </div>
@@ -264,7 +339,6 @@ onMounted(() => {
     </template>
   </UDashboardPanel>
 
-  <!-- Create Tag Modal -->
   <UModal v-model:open="showCreateModal" title="Create Tag" description="Enter a name for the new tag">
     <template #body>
       <UForm :schema="createSchema" :state="createState" class="space-y-4" @submit="handleCreateTag">
@@ -279,22 +353,83 @@ onMounted(() => {
     </template>
   </UModal>
 
-  <!-- Add Member Modal -->
-  <UModal v-model:open="showAddMemberModal" title="Add Members" description="Add IP addresses or networks to this tag">
+  <UModal
+    v-model:open="showAddMemberModal"
+    title="Add Members"
+    description="Pick known hosts by alias and optionally add raw IP addresses or CIDRs"
+  >
     <template #body>
-      <UForm :schema="addMemberSchema" :state="addMemberState" class="space-y-4" @submit="handleAddMembers">
-        <UFormField name="members" label="Members" description="One IP address or CIDR per line">
+      <div class="space-y-4">
+        <UFormField
+          label="Known Hosts"
+          description="Search aliased clients from DNS logs. Selected hosts are stored by address."
+        >
+          <div class="space-y-3">
+            <UInput
+              v-model="hostSearch"
+              icon="i-lucide-search"
+              placeholder="Search by alias or address"
+            />
+
+            <div v-if="selectedKnownHosts.length > 0" class="flex flex-wrap gap-2">
+              <UBadge
+                v-for="host in selectedKnownHosts"
+                :key="host.address"
+                color="primary"
+                variant="subtle"
+                class="cursor-pointer"
+                @click="toggleKnownHost(host)"
+              >
+                {{ host.host }} ({{ host.address }})
+              </UBadge>
+            </div>
+
+            <div class="rounded-lg border border-default max-h-56 overflow-y-auto">
+              <div v-if="knownHostsLoading" class="p-3 space-y-2">
+                <USkeleton class="h-10 w-full" v-for="i in 4" :key="i" />
+              </div>
+              <div v-else-if="knownHosts.length === 0" class="p-4 text-sm text-muted">
+                No known hosts match this search.
+              </div>
+              <button
+                v-for="host in knownHosts"
+                :key="host.address"
+                type="button"
+                class="w-full px-3 py-3 text-left border-b border-default last:border-b-0 transition-colors"
+                :class="isKnownHostSelected(host.address) ? 'bg-primary/10' : 'hover:bg-muted/50'"
+                @click="toggleKnownHost(host)"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div class="space-y-1">
+                    <div class="font-medium text-sm">{{ host.host }}</div>
+                    <div class="font-mono text-xs text-muted">{{ host.address }}</div>
+                  </div>
+                  <UIcon
+                    :name="isKnownHostSelected(host.address) ? 'i-lucide-check-circle-2' : 'i-lucide-plus-circle'"
+                    class="size-4"
+                  />
+                </div>
+              </button>
+            </div>
+          </div>
+        </UFormField>
+
+        <UFormField
+          label="Manual Members"
+          description="One raw IP address or CIDR per line. These are also stored by address."
+        >
           <UTextarea
-            v-model="addMemberState.members"
+            v-model="manualMembers"
             placeholder="192.168.1.1&#10;10.0.0.0/24"
             :rows="5"
           />
         </UFormField>
+
         <div class="flex justify-end gap-2">
           <UButton variant="ghost" label="Cancel" @click="showAddMemberModal = false" />
-          <UButton type="submit" label="Add Members" />
+          <UButton label="Add Members" @click="handleAddMembers" />
         </div>
-      </UForm>
+      </div>
     </template>
   </UModal>
 </template>

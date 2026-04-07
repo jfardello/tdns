@@ -5,6 +5,9 @@ const EMPTY_ZEN_MODE: ZenModeState = {
   file: '',
   duration_minutes: 0,
   configured_domains: [],
+  persisted_domains: [],
+  configured_excludes: [],
+  persisted_excludes: [],
   runtime_domains: [],
   started_at: '',
   ends_at: '',
@@ -12,12 +15,14 @@ const EMPTY_ZEN_MODE: ZenModeState = {
 }
 
 export function useZenMode() {
-  const { getZenMode, replaceZenDomains, startZenMode } = useApi()
+  const { getZenMode, replaceZenDomains, replaceZenPersistedDomains, replaceZenPersistedExcludes, startZenMode } = useApi()
 
   const zenMode = useState<ZenModeState>('zen-mode-state', () => ({ ...EMPTY_ZEN_MODE }))
   const initialized = useState<boolean>('zen-mode-initialized', () => false)
   const refreshing = useState<boolean>('zen-mode-refreshing', () => false)
   const startLoading = useState<boolean>('zen-mode-start-loading', () => false)
+  const persistedDomainsLoading = useState<boolean>('zen-mode-persisted-domains-loading', () => false)
+  const persistedExcludesLoading = useState<boolean>('zen-mode-persisted-excludes-loading', () => false)
   const runtimeDomainsLoading = useState<boolean>('zen-mode-runtime-domains-loading', () => false)
 
   async function refresh(force = false) {
@@ -63,14 +68,42 @@ export function useZenMode() {
     return response
   }
 
+  async function replacePersistedDomains(domains: string[]) {
+    persistedDomainsLoading.value = true
+    const response = await replaceZenPersistedDomains(domains)
+    if (response?.zen_mode) {
+      zenMode.value = response.zen_mode
+      initialized.value = true
+    }
+    persistedDomainsLoading.value = false
+
+    return response
+  }
+
+  async function replacePersistedExcludes(excludes: string[]) {
+    persistedExcludesLoading.value = true
+    const response = await replaceZenPersistedExcludes(excludes)
+    if (response?.zen_mode) {
+      zenMode.value = response.zen_mode
+      initialized.value = true
+    }
+    persistedExcludesLoading.value = false
+
+    return response
+  }
+
   return {
     zenMode,
     initialized,
     refreshing,
     startLoading,
+    persistedDomainsLoading,
+    persistedExcludesLoading,
     runtimeDomainsLoading,
     refresh,
     startSession,
+    replacePersistedDomains,
+    replacePersistedExcludes,
     replaceRuntimeDomains
   }
 }

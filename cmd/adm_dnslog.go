@@ -7,15 +7,20 @@ import (
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
+	"net"
+	"net/url"
 	"os"
 	"text/tabwriter"
 )
 
 var (
-	topLimit  int
-	hostName  string
-	ipAddress string
-	since     string
+	topLimit      int
+	hostName      string
+	ipAddress     string
+	since         string
+	topStatus     string
+	topClient     string
+	topClientMode string
 )
 
 var topCmd = &cobra.Command{
@@ -71,6 +76,9 @@ func init() {
 	manageCmd.AddCommand(aliasCmd)
 	topCmd.Flags().StringVarP(&since, "since", "s", "1w", "Return logs newer than a relative duration like 5s, 2m, or 3h. (default 1w)")
 	topCmd.Flags().IntVarP(&topLimit, "limit", "l", 20, "Top query limit")
+	topCmd.Flags().StringVar(&topStatus, "status", "", "Filter by query status: blocked or allowed")
+	topCmd.Flags().StringVar(&topClient, "client", "", "Filter by client alias or IP address")
+	topCmd.Flags().StringVar(&topClientMode, "client-mode", "", "Client filter mode: host or ip. If omitted it is inferred from the client value")
 	aliasCmd.Flags().StringVarP(&hostName, "hostname", "n", "", "hostname")
 	aliasCmd.Flags().StringVarP(&ipAddress, "address", "a", "", "hostname")
 
@@ -79,8 +87,27 @@ func init() {
 func getTop() error {
 	logger := log.GetLogger("cmd", "getTop")
 	u := fmt.Sprintf("/api/dns-log/top/%d", topLimit)
+	values := url.Values{}
 	if since != "" {
-		u = fmt.Sprintf("%s?since=%s", u, since)
+		values.Set("since", since)
+	}
+	if topStatus != "" {
+		values.Set("status", topStatus)
+	}
+	if topClient != "" {
+		values.Set("client", topClient)
+		mode := topClientMode
+		if mode == "" {
+			if net.ParseIP(topClient) != nil {
+				mode = "ip"
+			} else {
+				mode = "host"
+			}
+		}
+		values.Set("client_mode", mode)
+	}
+	if encoded := values.Encode(); encoded != "" {
+		u = fmt.Sprintf("%s?%s", u, encoded)
 	}
 	resp, err := api.Get(context.Background(), u)
 	if err != nil {

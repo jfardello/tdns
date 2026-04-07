@@ -16,6 +16,7 @@ import (
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/db"
+	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/server"
@@ -98,7 +99,7 @@ func init() {
 	serveCmd.PersistentFlags().IntVarP(&upstreamTimeout, "upstreamtimeout", "U", 300, "Upstream timeout for forwarding DNS requests")
 
 	//Viper will try pflags, environment variables and config file, in that order, default values
-	//are mapped to oflags if they exist, or just viper default in case there is no config option
+	//are mapped to pflags if they exist, or just viper default in case there is no config option
 	//defined
 
 	viper.SetDefault("upstreams", []string{DefaultUpstream})
@@ -123,6 +124,7 @@ func init() {
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.purge", "180d")
 	viper.SetDefault("tagger.enabled", true)
+	viper.SetDefault("cache.enabled", true)
 
 	viper.SetDefault("loglevel", "INFO")
 
@@ -135,16 +137,31 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	config.SetRunningConfig(c)
 	log.Configure(c.LogLevel, verbose)
-	if c.DNSLog.Enabled || c.Tagger.Enabled {
+	if c.Database.File != "" {
 		dbPath, err := db.Bootstrap(context.Background(), c.Database.File)
 		if err != nil {
 			logger.Fatal(err)
 		}
 		c.Database.File = dbPath
-		config.SetRunningConfig(c)
+
+		store, err := overrides.Open(context.Background(), dbPath)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		defer func() {
+			_ = store.Close()
+		}()
+
+		rows, err := store.List(context.Background())
+		if err != nil {
+			logger.Fatal(err)
+		}
+		if err := overrides.Apply(c, rows); err != nil {
+			logger.Fatal(err)
+		}
 	}
+	config.SetRunningConfig(c)
 	fmt.Print(blue + `
    __      __          
   / /_____/ /___  _____

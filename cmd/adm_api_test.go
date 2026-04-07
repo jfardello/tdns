@@ -113,12 +113,39 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 			run: func(cmd *cobra.Command) {
 				topLimit = 5
 				since = "1w"
+				topStatus = ""
+				topClient = ""
+				topClientMode = ""
 				if err := getTop(); err != nil {
 					t.Fatalf("getTop error: %v", err)
 				}
 			},
 			wantMethod: http.MethodGet,
 			wantPath:   "https://tdns.example/api/dns-log/top/5?since=1w",
+			handler: func(r *http.Request) api.Response {
+				return api.Response{
+					Kind:    api.DNSLogResponseKind,
+					Message: api.MESSAGE_OK,
+					LogItems: []middleware.LogDetails{
+						{Domain: "example.com.", Counter: 10, Host: "office"},
+					},
+				}
+			},
+		},
+		{
+			name: "dnslog top filtered by status and client",
+			run: func(cmd *cobra.Command) {
+				topLimit = 5
+				since = "24h"
+				topStatus = "blocked"
+				topClient = "office"
+				topClientMode = "host"
+				if err := getTop(); err != nil {
+					t.Fatalf("getTop error: %v", err)
+				}
+			},
+			wantMethod: http.MethodGet,
+			wantPath:   "https://tdns.example/api/dns-log/top/5?client=office&client_mode=host&since=24h&status=blocked",
 			handler: func(r *http.Request) api.Response {
 				return api.Response{
 					Kind:    api.DNSLogResponseKind,

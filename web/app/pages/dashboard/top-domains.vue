@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import type { DnsLogItem } from '~/composables/useApi'
+import type { DnsLogClientCandidate, DnsLogItem } from '~/composables/useApi'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
-const { getDnsLogTop, rotateDnsLog, setDnsLogAlias } = useApi()
+const { getDnsLogTop, searchDnsLogClients, rotateDnsLog, setDnsLogAlias } = useApi()
 const toast = useToast()
 
 const loading = ref(false)
 const logs = ref<DnsLogItem[]>([])
 const topCount = ref(50)
 const sinceFilter = ref('24h')
+const filterByStatus = ref(false)
+const statusShowsBlocked = ref(true)
+const filterByClient = ref(false)
+const clientSearch = ref('')
+const clientSearchLoading = ref(false)
+const selectedClientValue = ref('')
+const clientOptions = ref<Array<{ label: string, value: string, mode: 'host' | 'ip' }>>([])
 
 interface TopDomainRow extends DnsLogItem {
   rank: number
@@ -42,13 +49,71 @@ const aliasState = reactive({ name: '', addr: '' })
 
 async function loadLogs() {
   loading.value = true
-  const response = await getDnsLogTop(topCount.value, sinceFilter.value)
+  const response = await getDnsLogTop(topCount.value, {
+    since: sinceFilter.value,
+    status: filterByStatus.value ? (statusShowsBlocked.value ? 'blocked' : 'allowed') : '',
+    client: filterByClient.value ? selectedClientValue.value : '',
+    client_mode: filterByClient.value ? selectedClientMode.value : ''
+  })
   if (response?.log_items) {
     logs.value = response.log_items
   } else {
     logs.value = []
   }
   loading.value = false
+}
+
+function optionLabel(item: DnsLogClientCandidate) {
+  if (item.host) {
+    return `${item.host} (${item.address})`
+  }
+  return item.address
+}
+
+const selectedClientMode = computed<'host' | 'ip' | ''>(() => {
+  if (!filterByClient.value || !selectedClientValue.value) {
+    return ''
+  }
+  const match = clientOptions.value.find(item => item.value === selectedClientValue.value)
+  return match?.mode ?? ''
+})
+
+const activeFilterSummary = computed(() => {
+  const parts: string[] = []
+  if (filterByStatus.value) {
+    parts.push(statusShowsBlocked.value ? 'blocked queries' : 'allowed queries')
+  }
+  if (filterByClient.value && selectedClientValue.value) {
+    const selected = clientOptions.value.find(item => item.value === selectedClientValue.value)
+    parts.push(`client ${selected?.label ?? selectedClientValue.value}`)
+  }
+  if (parts.length === 0) {
+    return `last ${sinceFilter.value}`
+  }
+  return `${parts.join(' for ')} in the last ${sinceFilter.value}`
+})
+
+async function loadClientOptions() {
+  clientSearchLoading.value = true
+  const response = await searchDnsLogClients(clientSearch.value, 25)
+  const clients = response?.clients ?? []
+  clientOptions.value = clients.flatMap((item) => {
+    const options: Array<{ label: string, value: string, mode: 'host' | 'ip' }> = []
+    if (item.host) {
+      options.push({
+        label: optionLabel(item),
+        value: item.host,
+        mode: 'host'
+      })
+    }
+    options.push({
+      label: optionLabel(item),
+      value: item.address,
+      mode: 'ip'
+    })
+    return options
+  })
+  clientSearchLoading.value = false
 }
 
 async function handleRotate(event: FormSubmitEvent<z.output<typeof rotateSchema>>) {
@@ -95,11 +160,25 @@ const columns: TableColumn<TopDomainRow>[] = [
 ]
 
 onMounted(() => {
+  loadClientOptions()
   loadLogs()
 })
 
-watch([topCount, sinceFilter], () => {
+watch([topCount, sinceFilter, filterByStatus, statusShowsBlocked, filterByClient, selectedClientValue], () => {
   loadLogs()
+})
+
+watch(clientSearch, () => {
+  loadClientOptions()
+})
+
+watch(filterByClient, (enabled) => {
+  if (!enabled) {
+    clientSearch.value = ''
+    selectedClientValue.value = ''
+  } else {
+    loadClientOptions()
+  }
 })
 </script>
 
@@ -129,13 +208,45 @@ watch([topCount, sinceFilter], () => {
 
       <UDashboardToolbar>
         <template #left>
-          <div class="flex items-center gap-4">
+          <div class="flex flex-wrap items-end gap-4">
             <UFormField label="Time Period">
               <USelect v-model="sinceFilter" :items="sinceOptions" value-key="value" />
             </UFormField>
             <UFormField label="Show Top">
               <UInputNumber v-model="topCount" :min="10" :max="500" :step="10" />
             </UFormField>
+            <div class="flex items-center gap-3 rounded-lg border border-default px-3 py-2">
+              <UCheckbox v-model="filterByStatus" />
+              <span class="text-sm font-medium">Filter by status</span>
+              <span class="text-sm text-muted">Allowed</span>
+              <USwitch
+                :model-value="statusShowsBlocked"
+                :disabled="!filterByStatus"
+                @update:model-value="statusShowsBlocked = $event"
+              />
+              <span class="text-sm text-muted">Blocked</span>
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-default px-3 py-2">
+              <UCheckbox v-model="filterByClient" />
+              <span class="text-sm font-medium">Filter by client</span>
+            </div>
+            <template v-if="filterByClient">
+              <UFormField label="Search clients">
+                <UInput
+                  v-model="clientSearch"
+                  placeholder="Search by alias or IP"
+                  :loading="clientSearchLoading"
+                />
+              </UFormField>
+              <UFormField label="Choose client">
+                <USelect
+                  v-model="selectedClientValue"
+                  :items="clientOptions"
+                  value-key="value"
+                  placeholder="Select alias or IP"
+                />
+              </UFormField>
+            </template>
           </div>
         </template>
         <template #right>
@@ -200,7 +311,7 @@ watch([topCount, sinceFilter], () => {
 
         <!-- Summary -->
         <div class="mt-4 flex items-center justify-between text-sm text-muted">
-          <span>Showing {{ logs.length }} entries</span>
+          <span>Showing {{ logs.length }} entries for {{ activeFilterSummary }}</span>
           <span>Total queries: {{ logs.reduce((sum, l) => sum + l.counter, 0).toLocaleString() }}</span>
         </div>
       </div>
