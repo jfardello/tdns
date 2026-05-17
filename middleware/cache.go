@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -30,6 +31,13 @@ var (
 	cacheInit = false
 )
 
+const cacheHitValue = "tdns/cache-hit"
+
+type cachedMessage struct {
+	CachedAt int64  `json:"cached_at"`
+	Message  []byte `json:"message"`
+}
+
 // GetCache returns the cache singleton.
 func GetCache() *Cache {
 	if cacheInit {
@@ -55,20 +63,27 @@ func (cs *CacheGet) Run(mess *Message) (*Message, error) {
 	}
 
 	q := m.Question[0]
-	key := cache.Key(&q, mess.Labels())
+	key := cs.cache.Key(&q, mess.Labels())
 	r, err := cs.cache.backend.Get(key)
 	if err != nil {
 		misses.Inc()
 		return mess, nil
 	}
 	logger.Debugf("Responding from cache for %s", q.Name)
-	rr, err := dns.NewRR(string(r))
+	response, ok, err := cs.cache.responseFromEntry(r, m)
 	if err != nil {
 		return nil, err
 	}
+	if !ok {
+		_ = cs.cache.backend.Delete(key)
+		misses.Inc()
+		return mess, nil
+	}
 
-	m.Answer = append(m.Answer, rr)
-	mess.SetMsg(m)
+	mess.SetMsg(response)
+	if err := mess.AddValue(cacheHitValue, "true"); err != nil {
+		return nil, err
+	}
 	mess.Resolved(true)
 	hits.Inc()
 	return mess, nil
@@ -100,11 +115,14 @@ func (cs *CacheSet) Run(mess *Message) (*Message, error) {
 	if !cs.cache.IsEnabled() || cs.cache.ShouldBypass(mess) {
 		return mess, nil
 	}
+	if v, ok := mess.GetValue(cacheHitValue); ok && v == "true" {
+		return mess, nil
+	}
 	if m.Rcode == dns.RcodeSuccess && m.Response && len(m.Answer) > 0 {
 		q := m.Question[0]
-		key := cache.Key(&q, mess.Labels())
+		key := cs.cache.Key(&q, mess.Labels())
 		logger.Debugf("Setting cache for %s, key: %s", q.Name, key)
-		err := cache.Set(key, m)
+		err := cs.cache.Set(key, m)
 		return mess, err
 	}
 	return mess, nil
@@ -157,23 +175,120 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 		logger.Debugf("No cache key, skipping chache phase.")
 		return nil
 	}
-
-	idx := len(m.Answer) - 1
-	if idx < 0 {
+	if len(m.Answer) == 0 || !cacheableAnswers(m.Answer) {
 		return nil
 	}
 
-	if t, ok := m.Answer[idx].(*dns.A); ok {
-		logger.Debugf("Seting cache for %s", k)
-		return c.backend.Set(k, []byte(t.String()))
-	} else if t, ok := m.Answer[idx].(*dns.CNAME); ok {
-		logger.Debugf("Seting cache for %s", k)
-		return c.backend.Set(k, []byte(t.String()))
-	} else if t, ok := m.Answer[idx].(*dns.AAAA); ok {
-		logger.Debugf("Seting cache for %s", k)
-		return c.backend.Set(k, []byte(t.String()))
+	response := m.Copy()
+	if c.ttl > 0 {
+		capResponseTTLs(response, uint32(c.ttl*60))
 	}
-	return nil
+
+	packed, err := response.Pack()
+	if err != nil {
+		return err
+	}
+	entry, err := json.Marshal(cachedMessage{
+		CachedAt: time.Now().Unix(),
+		Message:  packed,
+	})
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Seting cache for %s", k)
+	return c.backend.Set(k, entry)
+}
+
+func cacheableAnswers(answers []dns.RR) bool {
+	for _, rr := range answers {
+		if rr == nil {
+			return false
+		}
+		if rr.Header().Ttl == 0 {
+			return false
+		}
+		switch rr.Header().Rrtype {
+		case dns.TypeA, dns.TypeAAAA, dns.TypeCNAME:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Cache) responseFromEntry(raw []byte, request *dns.Msg) (*dns.Msg, bool, error) {
+	entry := cachedMessage{}
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return nil, false, err
+	}
+
+	response := new(dns.Msg)
+	if err := response.Unpack(entry.Message); err != nil {
+		return nil, false, err
+	}
+
+	age := time.Since(time.Unix(entry.CachedAt, 0))
+	if age > 0 {
+		elapsed := uint32(age.Seconds())
+		answers, ok := adjustSectionTTLs(response.Answer, elapsed, true)
+		if !ok || len(answers) == 0 {
+			return nil, false, nil
+		}
+		response.Answer = answers
+		response.Ns, _ = adjustSectionTTLs(response.Ns, elapsed, false)
+		response.Extra, _ = adjustSectionTTLs(response.Extra, elapsed, false)
+	}
+
+	response.Id = request.Id
+	response.Response = true
+	response.Opcode = request.Opcode
+	response.RecursionDesired = request.RecursionDesired
+	response.CheckingDisabled = request.CheckingDisabled
+	if len(request.Question) > 0 {
+		response.Question = []dns.Question{request.Question[0]}
+	}
+	return response, true, nil
+}
+
+func capResponseTTLs(response *dns.Msg, ttl uint32) {
+	capSectionTTLs(response.Answer, ttl)
+	capSectionTTLs(response.Ns, ttl)
+	capSectionTTLs(response.Extra, ttl)
+}
+
+func capSectionTTLs(records []dns.RR, ttl uint32) {
+	for _, rr := range records {
+		if rr != nil && rr.Header().Ttl > ttl {
+			rr.Header().Ttl = ttl
+		}
+	}
+}
+
+func adjustSectionTTLs(records []dns.RR, elapsed uint32, requireAll bool) ([]dns.RR, bool) {
+	if len(records) == 0 {
+		return records, true
+	}
+	adjusted := make([]dns.RR, 0, len(records))
+	for _, rr := range records {
+		if rr == nil {
+			if requireAll {
+				return nil, false
+			}
+			continue
+		}
+		cloned := dns.Copy(rr)
+		if cloned.Header().Ttl <= elapsed {
+			if requireAll {
+				return nil, false
+			}
+			continue
+		}
+		cloned.Header().Ttl -= elapsed
+		adjusted = append(adjusted, cloned)
+	}
+	return adjusted, true
 }
 
 func (c *Cache) Key(q *dns.Question, labels []string) string {
@@ -242,7 +357,7 @@ func NewCache() *Cache {
 		Shards:           64,
 		HardMaxCacheSize: 32,
 		Verbose:          true,
-		MaxEntrySize:     512,
+		MaxEntrySize:     8192,
 		CleanWindow:      1 * time.Minute,
 		LifeWindow:       time.Duration(conf.Cache.Ttl) * time.Minute,
 	}

@@ -1,4 +1,4 @@
-//go:build sqlite_mattn || (!sqlite_modernc && !sqlite_ncruces)
+//go:build sqlite_mattn && !sqlite_modernc && !sqlite_ncruces
 
 package sqliteutil
 
