@@ -2,6 +2,8 @@
 
 **A DNS over TLS forwarder with caching, black hole, and runtime reconfiguration features.**
 
+![tdns logo](gopher-sm.png)
+
 TDNS focuses on privacy by acting as a DNS over TLS proxy and DNS sinkhole, preventing data gathering by carriers and
 trackers. **It can also route DNS requests to stub servers for local internal networks** in changing environments
 like public Wi-Fi, VPNs, or 5G services.
