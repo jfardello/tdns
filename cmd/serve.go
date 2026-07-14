@@ -302,15 +302,15 @@ func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, 
 	mux.Handle("/_nuxt/", uiHandlers.Static)
 	mux.Handle("/", uiHandlers.SPA)
 
-	server := &http.Server{Addr: c.Server.APIAddr, Handler: mux}
+	srv := &http.Server{Addr: c.Server.APIAddr, Handler: mux}
 	go func() {
 		logger.Infof("Starting https server at %s, (crt:%s, keyfile:%s)", c.Server.APIAddr, c.Server.APICertFile, c.Server.APIKeyFile)
-		if err := server.ListenAndServeTLS(c.Server.APICertFile, c.Server.APIKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.ListenAndServeTLS(c.Server.APICertFile, c.Server.APIKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error(err)
 		}
 	}()
 
-	return server, nil
+	return srv, nil
 }
 
 func startPProfServer(addr string) *http.Server {
@@ -321,12 +321,12 @@ func startPProfServer(addr string) *http.Server {
 	mux.HandleFunc("/debug/pprof/profile", netpprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
-	server := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: addr, Handler: mux}
 	go func() {
 		logger.Infof("Starting pprof server at %s", addr)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error(err)
 		}
 	}()
-	return server
+	return srv
 }

@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/jfardello/tdns/log"
-	"github.com/spf13/viper"
+	"fmt"
 	"os"
 
+	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -14,6 +15,7 @@ var (
 	compiledate *string
 	verbose     bool
 	configFile  string
+	showVersion bool
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -27,6 +29,13 @@ new interfaces like wifi or VPN tun/tap can configure internal network specific 
 servers for its search domains.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		setPersistentOps()
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		if showVersion {
+			printVersion()
+		} else {
+			_ = cmd.Help()
+		}
 	},
 }
 
@@ -44,6 +53,7 @@ func init() {
 	rf := rootCmd.PersistentFlags()
 	rf.BoolVarP(&verbose, "verbose", "v", false, "Show verbose output.")
 	rf.StringVarP(&configFile, "configfile", "c", "", "Config file.")
+	rootCmd.Flags().BoolVar(&showVersion, "version", false, "Print version information and exit.")
 
 }
 
@@ -52,4 +62,22 @@ func setPersistentOps() {
 		viper.SetConfigFile(configFile)
 	}
 	log.Configure("", verbose)
+}
+
+func printVersion() {
+	fmt.Print(formatVersion())
+}
+
+func formatVersion() string {
+	version := valueOrDefault(ver, "dev")
+	commit := valueOrDefault(gitcommit, "none")
+	date := valueOrDefault(compiledate, "unknown")
+	return fmt.Sprintf("tdns version %s\ncommit %s\nbuilt %s\n", version, commit, date)
+}
+
+func valueOrDefault(value *string, fallback string) string {
+	if value == nil || *value == "" {
+		return fallback
+	}
+	return *value
 }

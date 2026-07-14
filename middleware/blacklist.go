@@ -395,9 +395,10 @@ func (bp *BlackList) Init() error {
 		t := sched.Task{
 			Name: name,
 			Fn: sched.FuzzyTask(name, ctx, mf, func(context.Context) {
+				logger := log.GetLogger("blacklist", name)
 				err := bp.Download()
 				if err != nil {
-					panic(err)
+					logger.Error(err.Error())
 				}
 			}),
 			Expr: cf.Blacklist.ExternalPullPeriod,
