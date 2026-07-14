@@ -31,7 +31,7 @@ func TestBootstrapCreatesUnifiedSchema(t *testing.T) {
 		t.Fatalf("Bootstrap path got %q, want %q", resolvedPath, dbPath)
 	}
 
-	conn, err := sql.Open(sqliteutil.DriverName(), connString(dbPath))
+	conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.DSN(dbPath))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

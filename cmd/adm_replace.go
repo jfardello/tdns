@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jfardello/tdns/api"
+	"github.com/jfardello/tdns/internal/apiclient"
 	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -50,11 +50,11 @@ func init() {
 }
 
 func handleStubs(stubs []string) error {
-	sreq := api.StubReplaceRequest{
+	sreq := apiclient.StubReplaceRequest{
 		Stubs: stubs,
 	}
 
-	resp, err := api.Post(context.Background(), "/api/stub-resolver", sreq)
+	resp, err := apiclient.Post(context.Background(), "/api/stub-resolver", sreq)
 	if err != nil {
 		return err
 	}
@@ -67,12 +67,12 @@ func handleStubs(stubs []string) error {
 }
 
 func handleZenDomains(domains []string) error {
-	sreq := api.ZenReplaceRequest{
+	sreq := apiclient.ZenReplaceRequest{
 		ZenDomains: domains,
 	}
 
 	logger := log.GetLogger("adm", "handleZenDomains")
-	resp, err := api.Post(context.Background(), "/api/zen-mode", sreq)
+	resp, err := apiclient.Post(context.Background(), "/api/zen-mode", sreq)
 	if err != nil {
 		logger.Error(err)
 		return err

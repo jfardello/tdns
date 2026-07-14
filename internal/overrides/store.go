@@ -3,7 +3,6 @@ package overrides
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/jfardello/tdns/internal/db"
@@ -19,7 +18,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := sql.Open(sqliteutil.DriverName(), connString(resolvedPath))
+	conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.ReadWriteDSN(resolvedPath))
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +135,4 @@ WHERE kind = ? AND target = ?`,
 	row.CreatedAt = time.Unix(createdAt, 0).UTC()
 	row.UpdatedAt = time.Unix(updatedAt, 0).UTC()
 	return &row, nil
-}
-
-func connString(dbPath string) string {
-	return fmt.Sprintf("file:%s?cache=shared&mode=rwc", dbPath)
 }

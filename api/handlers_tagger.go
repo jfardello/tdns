@@ -11,23 +11,6 @@ import (
 	"github.com/jfardello/tdns/storage"
 )
 
-type AddTagRequest struct {
-	Name string `json:"name"`
-}
-
-type AddMemberRequest struct {
-	Members []string `json:"members"`
-}
-
-type MemberLabelsRequest struct {
-	Address string   `json:"address"`
-	Tags    []string `json:"tags"`
-}
-
-type ReplaceMemberLabelsRequest struct {
-	Tags []string `json:"tags"`
-}
-
 func (api *v1) taggerMiddleware() (*middleware.Tagger, error) {
 	p, ok := api.server.Middlewares["tagger"]
 	if !ok {
@@ -58,8 +41,8 @@ func writeTaggerDataResponse(w http.ResponseWriter, status int, message string, 
 		Kind:          TaggerResponseKind,
 		Message:       message,
 		CurrentStatus: "Enabled",
-		TagMembers:    members,
-		KnownHosts:    hosts,
+		TagMembers:    tagMemberDTOs(members),
+		KnownHosts:    knownHostDTOs(hosts),
 	}, w)
 }
 

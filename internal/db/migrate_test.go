@@ -16,7 +16,7 @@ func newTempDBPath(t *testing.T) string {
 
 func openDB(t *testing.T, dbPath string) *sql.DB {
 	t.Helper()
-	conn, err := sql.Open(sqliteutil.DriverName(), connString(dbPath))
+	conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.DSN(dbPath))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -101,34 +101,6 @@ func TestRunMigrationsIsIdempotent(t *testing.T) {
 	}
 	if count != 3 {
 		t.Fatalf("expected 3 dnslog migrations, got %d", count)
-	}
-}
-
-func TestConnStringPreservesFileURLs(t *testing.T) {
-	got := connString("file:/tmp/example.sqlite?cache=shared")
-	want := "file:/tmp/example.sqlite?cache=shared"
-	if got != want {
-		t.Fatalf("connString got %q want %q", got, want)
-	}
-}
-
-func TestAddConnParamsAppendsCorrectly(t *testing.T) {
-	tests := []struct {
-		name string
-		base string
-		want string
-	}{
-		{name: "with query", base: "file:test.sqlite?cache=shared", want: "file:test.sqlite?cache=shared&mode=rwc"},
-		{name: "without query", base: "file:test.sqlite", want: "file:test.sqlite?mode=rwc"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := addConnParams(tt.base, "mode=rwc")
-			if got != tt.want {
-				t.Fatalf("addConnParams got %q want %q", got, tt.want)
-			}
-		})
 	}
 }
 

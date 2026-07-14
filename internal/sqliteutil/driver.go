@@ -1,9 +1,6 @@
 package sqliteutil
 
-import (
-	_ "github.com/ncruces/go-sqlite3/driver"
-	_ "github.com/ncruces/go-sqlite3/embed"
-)
+import _ "github.com/ncruces/go-sqlite3/driver"
 
 func DriverName() string {
 	return "sqlite3"

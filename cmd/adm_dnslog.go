@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jfardello/tdns/api"
+	"github.com/jfardello/tdns/internal/apiclient"
 	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
 	"net"
@@ -54,11 +54,11 @@ var aliasCmd = &cobra.Command{
 }
 
 func handleAlias(hostName, ipAddress string) error {
-	payLoad := api.DNSLogAliasRequest{
+	payLoad := apiclient.DNSLogAliasRequest{
 		Name: hostName,
 		Addr: ipAddress,
 	}
-	resp, err := api.Post(context.Background(), "/api/dns-log/alias", payLoad)
+	resp, err := apiclient.Post(context.Background(), "/api/dns-log/alias", payLoad)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func getTop() error {
 	if encoded := values.Encode(); encoded != "" {
 		u = fmt.Sprintf("%s?%s", u, encoded)
 	}
-	resp, err := api.Get(context.Background(), u)
+	resp, err := apiclient.Get(context.Background(), u)
 	if err != nil {
 		return err
 	}

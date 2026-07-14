@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jfardello/tdns/api"
+	"github.com/jfardello/tdns/internal/apiclient"
 
 	"github.com/spf13/cobra"
 )
@@ -30,7 +30,7 @@ var stopStubsCmd = &cobra.Command{
 	Use:   "stub-resolver",
 	Short: "Stops the stub resolver middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/stub-resolver/stop", nil)
+		resp, err := apiclient.Post(cmd.Context(), "/api/stub-resolver/stop", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -43,7 +43,7 @@ var stoppStaticCmd = &cobra.Command{
 	Use:   "static-response",
 	Short: "Stops the static response middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/static-response/stop", nil)
+		resp, err := apiclient.Post(cmd.Context(), "/api/static-response/stop", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -56,7 +56,7 @@ var stopBlacklistCmd = &cobra.Command{
 	Use:   "blacklist",
 	Short: "Stops the blacklist middleware.",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := api.Post(cmd.Context(), "/api/blacklist/stop", nil)
+		resp, err := apiclient.Post(cmd.Context(), "/api/blacklist/stop", nil)
 		if err != nil {
 			fmt.Println(err.Error())
 		}

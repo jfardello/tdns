@@ -30,7 +30,7 @@ func RunMigrations(ctx context.Context, dbPath string, target Target) error {
 		return fmt.Errorf("migration target %s: empty database path", target)
 	}
 
-	conn, err := sql.Open(sqliteutil.DriverName(), addConnParams(connString(dbPath), "mode=rwc"))
+	conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.ReadWriteDSN(dbPath))
 	if err != nil {
 		return err
 	}
@@ -125,21 +125,4 @@ func migrationApplied(ctx context.Context, conn *sql.DB, target Target, version 
 	}
 
 	return count > 0, nil
-}
-
-func connString(dbPath string) string {
-	if strings.HasPrefix(dbPath, "file:") {
-		if strings.Contains(dbPath, "?") {
-			return dbPath
-		}
-		return dbPath + "?cache=shared"
-	}
-	return fmt.Sprintf("file:%s?cache=shared", dbPath)
-}
-
-func addConnParams(base string, params string) string {
-	if strings.Contains(base, "?") {
-		return base + "&" + params
-	}
-	return base + "?" + params
 }

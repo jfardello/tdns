@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/apiclient"
 )
 
 type apiRequest struct {
@@ -23,11 +23,11 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
 }
 
-func newMockAPI(t *testing.T, handler func(*http.Request) api.Response) <-chan apiRequest {
+func newMockAPI(t *testing.T, handler func(*http.Request) apiclient.Response) <-chan apiRequest {
 	t.Helper()
 
 	requests := make(chan apiRequest, 16)
-	restore := api.SetClientFactoryForTest(func() (*http.Client, error) {
+	restore := apiclient.SetClientFactoryForTest(func() (*http.Client, error) {
 		return &http.Client{
 			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 				requests <- apiRequest{Method: r.Method, Path: r.URL.String()}
@@ -69,10 +69,10 @@ func expectRequest(t *testing.T, requests <-chan apiRequest, wantMethod string, 
 }
 
 func Test_handleStubs(t *testing.T) {
-	requests := newMockAPI(t, func(r *http.Request) api.Response {
-		return api.Response{
-			Kind:          api.StubResolverResponseKind,
-			Message:       api.MESSAGE_OK,
+	requests := newMockAPI(t, func(r *http.Request) apiclient.Response {
+		return apiclient.Response{
+			Kind:          apiclient.StubResolverResponseKind,
+			Message:       apiclient.MESSAGE_OK,
 			CurrentStatus: "true",
 		}
 	})
@@ -84,10 +84,10 @@ func Test_handleStubs(t *testing.T) {
 }
 
 func Test_handleZenDomains(t *testing.T) {
-	requests := newMockAPI(t, func(r *http.Request) api.Response {
-		return api.Response{
-			Kind:          api.ZenModeResponseKind,
-			Message:       api.MESSAGE_OK,
+	requests := newMockAPI(t, func(r *http.Request) apiclient.Response {
+		return apiclient.Response{
+			Kind:          apiclient.ZenModeResponseKind,
+			Message:       apiclient.MESSAGE_OK,
 			CurrentStatus: "enabled",
 		}
 	})

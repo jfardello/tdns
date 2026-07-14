@@ -215,7 +215,7 @@ func (se *SyncExecutor) BulkAdd(stmt *ExecStmt) {
 
 func (se *SyncExecutor) InitConnectionPool(connString string) {
 	if !se.initDone {
-		conn, err := sql.Open(sqliteutil.DriverName(), addConnParams(connString, "mode=rwc"))
+		conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.ReadWriteDSN(connString))
 		if err != nil {
 			se.log.Fatalf("Error opening connection pool: %v", err)
 		}
@@ -224,7 +224,7 @@ func (se *SyncExecutor) InitConnectionPool(connString string) {
 		}
 		se.rwConnDatabase = conn
 		for range se.MaxReadOnlyConnections {
-			conn, err := sql.Open(sqliteutil.DriverName(), addConnParams(connString, "mode=ro"))
+			conn, err := sql.Open(sqliteutil.DriverName(), sqliteutil.ReadOnlyDSN(connString))
 			if err != nil {
 				panic(err)
 			}
@@ -238,20 +238,7 @@ func (se *SyncExecutor) InitConnectionPool(connString string) {
 }
 
 func ConnString(path string) string {
-	if strings.HasPrefix(path, "file:") {
-		if strings.Contains(path, "?") {
-			return path
-		}
-		return path + "?cache=shared"
-	}
-	return fmt.Sprintf("file:%s?cache=shared", path)
-}
-
-func addConnParams(connString string, params string) string {
-	if strings.Contains(connString, "?") {
-		return connString + "&" + params
-	}
-	return connString + "?" + params
+	return sqliteutil.DSN(path)
 }
 
 func NewSyncExecutor(connString string, maxReadOnlyConnections int) *SyncExecutor {
