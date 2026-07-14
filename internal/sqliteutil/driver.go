@@ -1,5 +1,3 @@
-//go:build sqlite_ncruces || (!sqlite_mattn && !sqlite_modernc)
-
 package sqliteutil
 
 import (

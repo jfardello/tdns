@@ -31,17 +31,20 @@ Download from the project releases and add `tdns` to your `$PATH`.
 
 ## Quick start
 
+
 ```bash
 sudo tdns config -o /etc/tdns -p /etc/tdns
 sudo tdns serve -c /etc/tdns/tdns.yaml
 ```
+     
+> **[Note]:**  tdns will fail to bind to port 53 if it is already being used, check for network-manager/dnsmasq/etc listening to :53. 
 
 The generated `tdns.yaml` contains the settings needed by both sides of the binary:
 
 * The `server` section used by `tdns serve`.
 * The `client` section used by `tdns adm ...` commands.
 
-That is intentional. `tdns` is both the server and the CLI client for the management API.
+`tdns` is both the server and the CLI client for the management API.
 
 ## Installation bootstrap
 
@@ -344,3 +347,12 @@ The current OpenAPI description is available at [api/openapi.yaml](api/openapi.y
 TDNS uses plain hosts files, usually pointing to `0.0.0.0`. Various projects provide quality hosts files.
 TDNS has been tested with data from `stevenblack/hosts`. TDNS ignores the IP in the hosts file and uses `0.0.0.0`
 as the sinkhole answer.
+
+## History
+
+tdns started as shell script that used to manage dnsmask over dbus in order to activate/deactivate on demand so that I could have multiple VPNs fast, also I hated to send all the internet traffic over the slow VPN, when downloading public images, so with some scripting and linux Cgroups I achieved
+having a cgroup using normal internet and the rest using the VPN that was publishing a 0/0 route through itself, tdns was needed in order to make this dynamic on post connect scripts.
+
+Over the time it became bloated, default DNS was a localhost instance of stubby for DNS over TLS, and a pit  of python for dbus scripting, after that I added some black listing and my "zen" where I block for some hours all social stuf, directly on my home router.
+
+Too bloated for a shell script, but existing solutions lacked the dynamic reconfiguration so I re-wrote it aas a go program I have being using this for years now.  
