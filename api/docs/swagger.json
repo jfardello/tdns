@@ -1,0 +1,2347 @@
+{
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Configure and inspect a running TDNS server.",
+        "title": "TDNS Management API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/blacklist": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return blacklist sources, exclusions, and runtime state.",
+                "tags": [
+                    "blacklist"
+                ],
+                "summary": "Get blacklist status",
+                "operationId": "blacklistStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/blacklist/persisted/excludes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace blacklist exclusion selectors stored in configuration overrides.",
+                "tags": [
+                    "blacklist"
+                ],
+                "summary": "Replace persisted blacklist exclusions",
+                "operationId": "blacklistPersistedExcludesReplace",
+                "parameters": [
+                    {
+                        "description": "Persisted blacklist exclusions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BlacklistExcludesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/blacklist/persisted/hosts": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace additional blocked hosts stored in configuration overrides.",
+                "tags": [
+                    "blacklist"
+                ],
+                "summary": "Replace persisted blacklist hosts",
+                "operationId": "blacklistPersistedHostsReplace",
+                "parameters": [
+                    {
+                        "description": "Persisted blacklist hosts",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BlacklistHostsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/blacklist/whitelist": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add domains to the in-memory blacklist whitelist.",
+                "tags": [
+                    "blacklist"
+                ],
+                "summary": "Add runtime whitelist domains",
+                "operationId": "blacklistRuntimeWhitelistAdd",
+                "parameters": [
+                    {
+                        "description": "Runtime whitelist domains",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BlacklistWhitelistRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/blacklist/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enable or disable blacklist filtering.",
+                "tags": [
+                    "blacklist"
+                ],
+                "summary": "Toggle blacklist filtering",
+                "operationId": "blacklistToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cache": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return cache configuration and counters.",
+                "tags": [
+                    "cache"
+                ],
+                "summary": "Get cache status",
+                "operationId": "cacheStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete all currently cached DNS responses.",
+                "tags": [
+                    "cache"
+                ],
+                "summary": "Clear the DNS cache",
+                "operationId": "cacheClear",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cache/excludes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace and persist selectors excluded from caching.",
+                "tags": [
+                    "cache"
+                ],
+                "summary": "Replace cache exclusions",
+                "operationId": "cacheExcludesReplace",
+                "parameters": [
+                    {
+                        "description": "Cache exclusion selectors",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.CacheExcludeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cache/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enable or disable the cache and persist the selected state.",
+                "tags": [
+                    "cache"
+                ],
+                "summary": "Toggle the DNS cache",
+                "operationId": "cacheToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/alias": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Associate a client IP address with a display name.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Set a DNS client alias",
+                "operationId": "dnsLogAliasSet",
+                "parameters": [
+                    {
+                        "description": "Client alias",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.DNSLogAliasRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/clients": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search observed clients by address or alias.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Search DNS clients",
+                "operationId": "dnsLogClientsSearch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address or alias substring",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum result count",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return summary and hourly query statistics.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Get DNS log dashboard",
+                "operationId": "dnsLogDashboard",
+                "parameters": [
+                    {
+                        "maximum": 336,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 24,
+                        "description": "Dashboard window in hours",
+                        "name": "hours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/rotate": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete DNS log entries selected by a relative duration.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Rotate DNS log entries",
+                "operationId": "dnsLogRotate",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "1w",
+                        "description": "Relative age such as 24h or 1w",
+                        "name": "since",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/top/{top}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return top domains with optional status and client filters.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Get top queried domains",
+                "operationId": "dnsLogTop",
+                "parameters": [
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Maximum result count",
+                        "name": "top",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "1w",
+                        "description": "Relative age such as 24h or 1w",
+                        "name": "since",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "blocked",
+                            "allowed"
+                        ],
+                        "type": "string",
+                        "description": "Query disposition",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client alias or IP address",
+                        "name": "client",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "host",
+                            "ip"
+                        ],
+                        "type": "string",
+                        "description": "Client matching mode",
+                        "name": "client_mode",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/static-response": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return configured, persisted, and runtime static hosts.",
+                "tags": [
+                    "static-response"
+                ],
+                "summary": "Get static response status",
+                "operationId": "staticResponseStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace static hosts held in memory.",
+                "tags": [
+                    "static-response"
+                ],
+                "summary": "Replace runtime static hosts",
+                "operationId": "staticResponseReplace",
+                "parameters": [
+                    {
+                        "description": "Runtime hosts file lines",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StaticReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/static-response/persisted": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace static hosts stored in configuration overrides.",
+                "tags": [
+                    "static-response"
+                ],
+                "summary": "Replace persisted static hosts",
+                "operationId": "staticResponsePersistedReplace",
+                "parameters": [
+                    {
+                        "description": "Persisted hosts file lines",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StaticReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/static-response/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enable or disable static DNS responses.",
+                "tags": [
+                    "static-response"
+                ],
+                "summary": "Toggle static responses",
+                "operationId": "staticResponseToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/stub-resolver": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return configured and runtime stub resolver state.",
+                "tags": [
+                    "stub-resolver"
+                ],
+                "summary": "Get stub resolver status",
+                "operationId": "stubResolverStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace the in-memory stub resolver entries.",
+                "tags": [
+                    "stub-resolver"
+                ],
+                "summary": "Replace runtime stub resolvers",
+                "operationId": "stubResolverReplace",
+                "parameters": [
+                    {
+                        "description": "Stub resolver entries",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.StubReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/stub-resolver/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enable or disable stub resolution.",
+                "tags": [
+                    "stub-resolver"
+                ],
+                "summary": "Toggle the stub resolver",
+                "operationId": "stubResolverToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/addr/{tagName}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace all tags assigned to an address through the legacy endpoint.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Replace address tags using the legacy path",
+                "operationId": "taggerLegacyAddressReplace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address encoded in the legacy path parameter",
+                        "name": "tagName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement tags",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ReplaceMemberLabelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/address": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Set all tags for an address supplied in the request body.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Create or update an address",
+                "operationId": "taggerAddressCreate",
+                "parameters": [
+                    {
+                        "description": "Address and tags",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.MemberLabelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/address/{address}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace all tags assigned to an address.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Replace address tags",
+                "operationId": "taggerAddressReplace",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "IP address or CIDR",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Replacement tags",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ReplaceMemberLabelsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/hosts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search hosts observed in the DNS log.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Search known hosts",
+                "operationId": "taggerKnownHostsSearch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address or host substring",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum result count",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/tags": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return all client classification tags.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "List tags",
+                "operationId": "taggerTagsList",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a client classification tag.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Create a tag",
+                "operationId": "taggerTagCreate",
+                "parameters": [
+                    {
+                        "description": "Tag name",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AddTagRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/tags/{tagName}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return addresses assigned to a tag.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "List tag members",
+                "operationId": "taggerTagMembersList",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag name",
+                        "name": "tagName",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign one or more addresses to a tag.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Add tag members",
+                "operationId": "taggerTagMembersAdd",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag name",
+                        "name": "tagName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Member addresses",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AddMemberRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a client classification tag.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Delete a tag",
+                "operationId": "taggerTagDelete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag name",
+                        "name": "tagName",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/tagger/tags/{tagName}/{address}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove an address from a tag.",
+                "tags": [
+                    "tagger"
+                ],
+                "summary": "Remove a tag member",
+                "operationId": "taggerTagMemberDelete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tag name",
+                        "name": "tagName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "IP address or CIDR",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/zen-mode": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Return zen mode configuration, runtime state, and timing.",
+                "tags": [
+                    "zen-mode"
+                ],
+                "summary": "Get zen mode status",
+                "operationId": "zenModeStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace the in-memory domains blocked by zen mode.",
+                "tags": [
+                    "zen-mode"
+                ],
+                "summary": "Replace runtime zen domains",
+                "operationId": "zenModeDomainsReplace",
+                "parameters": [
+                    {
+                        "description": "Zen mode domains",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ZenReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/zen-mode/persisted/domains": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace zen domains stored in configuration overrides.",
+                "tags": [
+                    "zen-mode"
+                ],
+                "summary": "Replace persisted zen domains",
+                "operationId": "zenModePersistedDomainsReplace",
+                "parameters": [
+                    {
+                        "description": "Persisted zen mode domains",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ZenReplaceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/zen-mode/persisted/excludes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Replace zen exclusions stored in configuration overrides.",
+                "tags": [
+                    "zen-mode"
+                ],
+                "summary": "Replace persisted zen exclusions",
+                "operationId": "zenModePersistedExcludesReplace",
+                "parameters": [
+                    {
+                        "description": "Persisted zen mode exclusions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ZenExcludesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/zen-mode/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Start a zen mode period using the current configuration.",
+                "tags": [
+                    "zen-mode"
+                ],
+                "summary": "Start zen mode",
+                "operationId": "zenModeStart",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Return Prometheus metrics.",
+                "tags": [
+                    "monitoring"
+                ],
+                "summary": "Metrics",
+                "operationId": "metricsGet",
+                "responses": {
+                    "200": {
+                        "description": "Prometheus metrics",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.AddMemberRequest": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.AddTagRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "trusted"
+                }
+            }
+        },
+        "api.BlacklistExcludesRequest": {
+            "type": "object",
+            "properties": {
+                "excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.BlacklistHostsRequest": {
+            "type": "object",
+            "properties": {
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.BlacklistStatus": {
+            "type": "object",
+            "properties": {
+                "blockfile_total_entries": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "external_file": {
+                    "type": "string"
+                },
+                "external_pull_period": {
+                    "type": "string"
+                },
+                "external_repo": {
+                    "type": "string"
+                },
+                "external_repo_branch": {
+                    "type": "string"
+                },
+                "file": {
+                    "type": "string"
+                },
+                "persisted_excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "persisted_hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "runtime_whitelist": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.BlacklistWhitelistRequest": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.CacheExcludeRequest": {
+            "type": "object",
+            "properties": {
+                "excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.CacheStatus": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hits": {
+                    "type": "integer"
+                },
+                "misses": {
+                    "type": "integer"
+                },
+                "ttl": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.ClientCandidate": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "host": {
+                    "type": "string",
+                    "example": "office"
+                }
+            }
+        },
+        "api.DNSLogAliasRequest": {
+            "type": "object",
+            "properties": {
+                "addr": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "office"
+                }
+            }
+        },
+        "api.DashboardHourlyPoint": {
+            "type": "object",
+            "properties": {
+                "allowed_queries": {
+                    "type": "integer"
+                },
+                "blocked_queries": {
+                    "type": "integer"
+                },
+                "hour_bucket": {
+                    "type": "integer"
+                },
+                "hour_start": {
+                    "type": "string"
+                },
+                "total_queries": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.DashboardSummary": {
+            "type": "object",
+            "properties": {
+                "allowed_queries": {
+                    "type": "integer"
+                },
+                "blocked_queries": {
+                    "type": "integer"
+                },
+                "cache_hits": {
+                    "type": "integer"
+                },
+                "cache_misses": {
+                    "type": "integer"
+                },
+                "total_queries": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.HostEntry": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "domain": {
+                    "type": "string",
+                    "example": "example.com"
+                }
+            }
+        },
+        "api.KnownHost": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "host": {
+                    "type": "string",
+                    "example": "office"
+                }
+            }
+        },
+        "api.LogDetails": {
+            "type": "object",
+            "properties": {
+                "counter": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 42
+                },
+                "domain": {
+                    "type": "string",
+                    "example": "example.com."
+                },
+                "host": {
+                    "type": "string",
+                    "example": "office"
+                }
+            }
+        },
+        "api.MemberLabelsRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.ReplaceMemberLabelsRequest": {
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.Response": {
+            "type": "object",
+            "properties": {
+                "blacklist": {
+                    "$ref": "#/definitions/api.BlacklistStatus"
+                },
+                "cache": {
+                    "$ref": "#/definitions/api.CacheStatus"
+                },
+                "clients": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ClientCandidate"
+                    }
+                },
+                "current_status": {
+                    "type": "string",
+                    "example": "enabled"
+                },
+                "hourly": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.DashboardHourlyPoint"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "kind": {
+                    "type": "string",
+                    "example": "api.tdns/cache/response"
+                },
+                "known_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.KnownHost"
+                    }
+                },
+                "log_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.LogDetails"
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Status OK"
+                },
+                "static_response": {
+                    "$ref": "#/definitions/api.StaticResponseStatus"
+                },
+                "stub_resolver": {
+                    "$ref": "#/definitions/api.StubResolverStatus"
+                },
+                "summary": {
+                    "$ref": "#/definitions/api.DashboardSummary"
+                },
+                "tag_members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.TagMember"
+                    }
+                },
+                "window_hours": {
+                    "type": "integer",
+                    "maximum": 336,
+                    "minimum": 1
+                },
+                "zen_mode": {
+                    "$ref": "#/definitions/api.ZenModeStatus"
+                }
+            }
+        },
+        "api.StaticReplaceRequest": {
+            "type": "object",
+            "properties": {
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.StaticResponseStatus": {
+            "type": "object",
+            "properties": {
+                "configured_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.HostEntry"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "file": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "persisted_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.HostEntry"
+                    }
+                },
+                "runtime_hosts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.HostEntry"
+                    }
+                }
+            }
+        },
+        "api.StubReplaceRequest": {
+            "type": "object",
+            "properties": {
+                "stubs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.StubResolverStatus": {
+            "type": "object",
+            "properties": {
+                "configured_stubs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "runtime_stubs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.TagMember": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "192.0.2.10"
+                },
+                "has_host_alias": {
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string",
+                    "example": "office"
+                }
+            }
+        },
+        "api.ZenExcludesRequest": {
+            "type": "object",
+            "properties": {
+                "excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.ZenModeStatus": {
+            "type": "object",
+            "properties": {
+                "configured_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "configured_excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "duration_minutes": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "ends_at": {
+                    "type": "string"
+                },
+                "file": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "persisted_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "persisted_excludes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "remaining_seconds": {
+                    "type": "integer"
+                },
+                "runtime_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ZenReplaceRequest": {
+            "type": "object",
+            "properties": {
+                "zen_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer token using the format \"Bearer {token}\".",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "tags": [
+        {
+            "description": "Stub resolver configuration and state.",
+            "name": "stub-resolver"
+        },
+        {
+            "description": "Scheduled domain blocking configuration and state.",
+            "name": "zen-mode"
+        },
+        {
+            "description": "DNS cache configuration and state.",
+            "name": "cache"
+        },
+        {
+            "description": "Blacklist configuration and state.",
+            "name": "blacklist"
+        },
+        {
+            "description": "Static DNS response configuration and state.",
+            "name": "static-response"
+        },
+        {
+            "description": "DNS query log reports and maintenance.",
+            "name": "dns-log"
+        },
+        {
+            "description": "Client address labels and known hosts.",
+            "name": "tagger"
+        },
+        {
+            "description": "Service monitoring endpoints.",
+            "name": "monitoring"
+        }
+    ]
+}

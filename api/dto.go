@@ -15,10 +15,10 @@ const (
 const MESSAGE_OK = MessageOK
 
 type Response struct {
-	Kind          string                 `json:"kind"`
-	Message       string                 `json:"message"`
-	CurrentStatus string                 `json:"current_status"`
-	WindowHours   int                    `json:"window_hours,omitempty"`
+	Kind          string                 `json:"kind" example:"api.tdns/cache/response"`
+	Message       string                 `json:"message" example:"Status OK"`
+	CurrentStatus string                 `json:"current_status" example:"enabled"`
+	WindowHours   int                    `json:"window_hours,omitempty" minimum:"1" maximum:"336"`
 	Items         []string               `json:"items,omitempty"`
 	LogItems      []LogDetails           `json:"log_items,omitempty"`
 	Summary       *DashboardSummary      `json:"summary,omitempty"`
@@ -34,14 +34,14 @@ type Response struct {
 }
 
 type LogDetails struct {
-	Domain  string `json:"domain"`
-	Counter int    `json:"counter"`
-	Host    string `json:"host"`
+	Domain  string `json:"domain" example:"example.com."`
+	Counter int    `json:"counter" example:"42" minimum:"0"`
+	Host    string `json:"host" example:"office"`
 }
 
 type ClientCandidate struct {
-	Address string `json:"address"`
-	Host    string `json:"host"`
+	Address string `json:"address" example:"192.0.2.10"`
+	Host    string `json:"host" example:"office"`
 }
 
 type DashboardSummary struct {
@@ -90,8 +90,8 @@ type ZenModeStatus struct {
 }
 
 type HostEntry struct {
-	Domain  string `json:"domain"`
-	Address string `json:"address"`
+	Domain  string `json:"domain" example:"example.com"`
+	Address string `json:"address" example:"192.0.2.10"`
 }
 
 type StaticResponseStatus struct {
@@ -118,14 +118,14 @@ type CacheStatus struct {
 }
 
 type TagMember struct {
-	Address      string `json:"address"`
-	Host         string `json:"host,omitempty"`
+	Address      string `json:"address" example:"192.0.2.10"`
+	Host         string `json:"host,omitempty" example:"office"`
 	HasHostAlias bool   `json:"has_host_alias"`
 }
 
 type KnownHost struct {
-	Address string `json:"address"`
-	Host    string `json:"host"`
+	Address string `json:"address" example:"192.0.2.10"`
+	Host    string `json:"host" example:"office"`
 }
 
 type StubReplaceRequest struct {
@@ -161,12 +161,12 @@ type CacheExcludeRequest struct {
 }
 
 type DNSLogAliasRequest struct {
-	Name string `json:"name"`
-	Addr string `json:"addr"`
+	Name string `json:"name" example:"office"`
+	Addr string `json:"addr" example:"192.0.2.10"`
 }
 
 type AddTagRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" example:"trusted"`
 }
 
 type AddMemberRequest struct {
@@ -174,7 +174,7 @@ type AddMemberRequest struct {
 }
 
 type MemberLabelsRequest struct {
-	Address string   `json:"address"`
+	Address string   `json:"address" example:"192.0.2.10"`
 	Tags    []string `json:"tags"`
 }
 

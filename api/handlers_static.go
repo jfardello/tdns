@@ -9,6 +9,19 @@ import (
 	"github.com/jfardello/tdns/middleware"
 )
 
+// Toggle static responses.
+//
+//	@Summary		Toggle static responses
+//	@Description	Enable or disable static DNS responses.
+//	@Tags			static-response
+//	@ID				staticResponseToggle
+//	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/static-response/{action} [post]
 func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
 	if !ok {
@@ -54,6 +67,17 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Get static response status.
+//
+//	@Summary		Get static response status
+//	@Description	Return configured, persisted, and runtime static hosts.
+//	@Tags			static-response
+//	@ID				staticResponseStatus
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		500	{object}	Response
+//	@Router			/api/static-response [get]
 func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
 	if !ok {
@@ -84,6 +108,19 @@ func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 	}, w)
 }
 
+// Replace runtime static hosts.
+//
+//	@Summary		Replace runtime static hosts
+//	@Description	Replace static hosts held in memory.
+//	@Tags			static-response
+//	@ID				staticResponseReplace
+//	@Param			request	body	StaticReplaceRequest	true	"Runtime hosts file lines"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/static-response [post]
 func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
 	if !ok {
@@ -148,6 +185,19 @@ func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 	}, w)
 }
 
+// Replace persisted static hosts.
+//
+//	@Summary		Replace persisted static hosts
+//	@Description	Replace static hosts stored in configuration overrides.
+//	@Tags			static-response
+//	@ID				staticResponsePersistedReplace
+//	@Param			request	body	StaticReplaceRequest	true	"Persisted hosts file lines"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/static-response/persisted [post]
 func (api *v1) StaticResponseReplacePersisted(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
 	if !ok {

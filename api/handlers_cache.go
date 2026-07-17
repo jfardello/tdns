@@ -11,6 +11,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Clear the DNS cache.
+//
+//	@Summary		Clear the DNS cache
+//	@Description	Delete all currently cached DNS responses.
+//	@Tags			cache
+//	@ID				cacheClear
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Router			/api/cache [delete]
 func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")
 	logger := l.WithFields(logrus.Fields{"Method": "ClearCache"})
@@ -35,6 +45,16 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 	}, w)
 }
 
+// Get cache status.
+//
+//	@Summary		Get cache status
+//	@Description	Return cache configuration and counters.
+//	@Tags			cache
+//	@ID				cacheStatus
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Router			/api/cache [get]
 func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 	status := middleware.GetCache().StatusView()
 	writeJSON(Response{
@@ -45,6 +65,19 @@ func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 	}, w)
 }
 
+// Toggle the DNS cache.
+//
+//	@Summary		Toggle the DNS cache
+//	@Description	Enable or disable the cache and persist the selected state.
+//	@Tags			cache
+//	@ID				cacheToggle
+//	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/cache/{action} [post]
 func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 	state, err := actionToBool(r.PathValue("action"))
 	if err != nil {
@@ -89,6 +122,19 @@ func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 	}, w)
 }
 
+// Replace cache exclusions.
+//
+//	@Summary		Replace cache exclusions
+//	@Description	Replace and persist selectors excluded from caching.
+//	@Tags			cache
+//	@ID				cacheExcludesReplace
+//	@Param			request	body	CacheExcludeRequest	true	"Cache exclusion selectors"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/cache/excludes [post]
 func (api *v1) CacheReplaceExcludes(w http.ResponseWriter, r *http.Request) {
 	req := &CacheExcludeRequest{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {

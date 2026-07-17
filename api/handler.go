@@ -14,6 +14,18 @@ type v1 struct {
 	server *server.Server
 }
 
+// Metrics.
+//
+//	@Summary		Metrics
+//	@Description	Return Prometheus metrics.
+//	@Tags			monitoring
+//	@ID				metricsGet
+//	@Success		200	{string}	string	"Prometheus metrics"
+//	@Router			/metrics [get]
+func (api *v1) Metrics(w http.ResponseWriter, r *http.Request) {
+	promhttp.Handler().ServeHTTP(w, r)
+}
+
 func NewHandler(dns *server.Server) http.Handler {
 	conf := config.GetRunningConfig()
 	protected := Auth{IsRequired: true, Scope: RWSCOPE}
@@ -57,9 +69,9 @@ func NewHandler(dns *server.Server) http.Handler {
 	mux.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
 	mux.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
 	mux.HandleFunc("PUT /api/tagger/address/{address}", Require(api.TaggerAddressReplace, protected))
-	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerAddressReplace, protected))
+	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerLegacyAddressReplace, protected))
 
-	mux.Handle("GET /metrics", promhttp.Handler())
+	mux.HandleFunc("GET /metrics", api.Metrics)
 	return withCORS(mux, conf.CORS)
 }
 

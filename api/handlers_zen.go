@@ -11,6 +11,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Replace runtime zen domains.
+//
+//	@Summary		Replace runtime zen domains
+//	@Description	Replace the in-memory domains blocked by zen mode.
+//	@Tags			zen-mode
+//	@ID				zenModeDomainsReplace
+//	@Param			request	body	ZenReplaceRequest	true	"Zen mode domains"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/zen-mode [post]
 func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")
 	logger := l.WithFields(logrus.Fields{"Method": "ZenDomainsReplace"})
@@ -58,6 +71,19 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Replace persisted zen domains.
+//
+//	@Summary		Replace persisted zen domains
+//	@Description	Replace zen domains stored in configuration overrides.
+//	@Tags			zen-mode
+//	@ID				zenModePersistedDomainsReplace
+//	@Param			request	body	ZenReplaceRequest	true	"Persisted zen mode domains"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/zen-mode/persisted/domains [post]
 func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
 	req := &ZenReplaceRequest{}
@@ -118,6 +144,19 @@ func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request
 	}, w)
 }
 
+// Replace persisted zen exclusions.
+//
+//	@Summary		Replace persisted zen exclusions
+//	@Description	Replace zen exclusions stored in configuration overrides.
+//	@Tags			zen-mode
+//	@ID				zenModePersistedExcludesReplace
+//	@Param			request	body	ZenExcludesRequest	true	"Persisted zen mode exclusions"
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		400	{object}	Response
+//	@Failure		500	{object}	Response
+//	@Router			/api/zen-mode/persisted/excludes [post]
 func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
 	req := &ZenExcludesRequest{}
@@ -178,6 +217,17 @@ func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Reques
 	}, w)
 }
 
+// Start zen mode.
+//
+//	@Summary		Start zen mode
+//	@Description	Start a zen mode period using the current configuration.
+//	@Tags			zen-mode
+//	@ID				zenModeStart
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		500	{object}	Response
+//	@Router			/api/zen-mode/start [post]
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"]
 	z := p.(*middleware.ZenMode)
@@ -202,6 +252,17 @@ func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(res, w)
 }
 
+// Get zen mode status.
+//
+//	@Summary		Get zen mode status
+//	@Description	Return zen mode configuration, runtime state, and timing.
+//	@Tags			zen-mode
+//	@ID				zenModeStatus
+//	@Security		BearerAuth
+//	@Success		200	{object}	Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		500	{object}	Response
+//	@Router			/api/zen-mode [get]
 func (api *v1) ZenModeStatus(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
 	status, err := p.StatusView()
