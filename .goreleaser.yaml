@@ -12,8 +12,10 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
-    # Refresh embedded SPA assets before release builds.
-    - go generate ./...
+    # Use the same API and web generation paths as CI.
+    - npm --prefix web ci
+    - ./tools/generate_api.sh
+    - ./tools/generate_web.sh
 
 builds:
   - env:

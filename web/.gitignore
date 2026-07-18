@@ -21,6 +21,7 @@ node_modules
 # Logs
 logs
 *.log
+*.tsbuildinfo
 
 # Misc
 .DS_Store

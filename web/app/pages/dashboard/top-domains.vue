@@ -193,14 +193,14 @@ watch(filterByClient, (enabled) => {
               label="Set Alias"
               variant="outline"
               color="neutral"
-              @click="showAliasModal = true"
+              @click="() => { showAliasModal = true }"
             />
             <UButton
               icon="i-lucide-trash-2"
               label="Rotate Logs"
               variant="outline"
               color="error"
-              @click="showRotateModal = true"
+              @click="() => { showRotateModal = true }"
             />
           </div>
         </template>
@@ -342,7 +342,7 @@ watch(filterByClient, (enabled) => {
           description="This action cannot be undone. Old logs will be permanently deleted."
         />
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" label="Cancel" @click="showRotateModal = false" />
+          <UButton variant="ghost" label="Cancel" @click="() => { showRotateModal = false }" />
           <UButton type="submit" label="Rotate Logs" color="error" />
         </div>
       </UForm>
@@ -360,7 +360,7 @@ watch(filterByClient, (enabled) => {
           <UInput v-model="aliasState.name" placeholder="e.g., Living Room TV" />
         </UFormField>
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" label="Cancel" @click="showAliasModal = false" />
+          <UButton variant="ghost" label="Cancel" @click="() => { showAliasModal = false }" />
           <UButton type="submit" label="Set Alias" />
         </div>
       </UForm>

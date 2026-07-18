@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -17,10 +17,10 @@ import (
 //	@ID				blacklistToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/{action} [post]
 func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
@@ -66,9 +66,9 @@ func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			blacklist
 //	@ID				blacklistStatus
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		500	{object}	Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist [get]
 func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
@@ -97,12 +97,12 @@ func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
 //	@Description	Add domains to the in-memory blacklist whitelist.
 //	@Tags			blacklist
 //	@ID				blacklistRuntimeWhitelistAdd
-//	@Param			request	body	BlacklistWhitelistRequest	true	"Runtime whitelist domains"
+//	@Param			request	body	api.BlacklistWhitelistRequest	true	"Runtime whitelist domains"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/whitelist [post]
 func (api *v1) BlacklistAddRuntimeWhitelist(w http.ResponseWriter, r *http.Request) {
 	req := &BlacklistWhitelistRequest{}
@@ -152,12 +152,12 @@ func (api *v1) BlacklistAddRuntimeWhitelist(w http.ResponseWriter, r *http.Reque
 //	@Description	Replace additional blocked hosts stored in configuration overrides.
 //	@Tags			blacklist
 //	@ID				blacklistPersistedHostsReplace
-//	@Param			request	body	BlacklistHostsRequest	true	"Persisted blacklist hosts"
+//	@Param			request	body	api.BlacklistHostsRequest	true	"Persisted blacklist hosts"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/persisted/hosts [post]
 func (api *v1) BlacklistReplacePersistedHosts(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)
@@ -233,12 +233,12 @@ func (api *v1) BlacklistReplacePersistedHosts(w http.ResponseWriter, r *http.Req
 //	@Description	Replace blacklist exclusion selectors stored in configuration overrides.
 //	@Tags			blacklist
 //	@ID				blacklistPersistedExcludesReplace
-//	@Param			request	body	BlacklistExcludesRequest	true	"Persisted blacklist exclusions"
+//	@Param			request	body	api.BlacklistExcludesRequest	true	"Persisted blacklist exclusions"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/persisted/excludes [post]
 func (api *v1) BlacklistReplacePersistedExcludes(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["blacklist"].(*middleware.BlackList)

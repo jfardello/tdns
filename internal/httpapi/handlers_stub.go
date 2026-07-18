@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -18,9 +18,9 @@ import (
 //	@ID				stubResolverToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
+//	@Failure		400	{object}	api.Response
 //	@Router			/api/stub-resolver/{action} [post]
 func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["stub-resolver"].(*middleware.StubResolver)
@@ -54,7 +54,7 @@ func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			stub-resolver
 //	@ID				stubResolverStatus
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/stub-resolver [get]
 func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
@@ -74,11 +74,11 @@ func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
 //	@Description	Replace the in-memory stub resolver entries.
 //	@Tags			stub-resolver
 //	@ID				stubResolverReplace
-//	@Param			request	body	StubReplaceRequest	true	"Stub resolver entries"
+//	@Param			request	body	api.StubReplaceRequest	true	"Stub resolver entries"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
+//	@Failure		400	{object}	api.Response
 //	@Router			/api/stub-resolver [post]
 func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")

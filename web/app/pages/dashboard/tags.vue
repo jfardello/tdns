@@ -200,7 +200,7 @@ onMounted(() => {
           <UButton
             icon="i-lucide-plus"
             label="Create Tag"
-            @click="showCreateModal = true"
+            @click="() => { showCreateModal = true }"
           />
         </template>
       </UDashboardNavbar>
@@ -236,7 +236,7 @@ onMounted(() => {
                 <UButton
                   icon="i-lucide-plus"
                   label="Create Tag"
-                  @click="showCreateModal = true"
+                  @click="() => { showCreateModal = true }"
                 />
               </UEmpty>
             </div>
@@ -280,7 +280,7 @@ onMounted(() => {
                   icon="i-lucide-plus"
                   label="Add Members"
                   size="sm"
-                  @click="showAddMemberModal = true"
+                  @click="() => { showAddMemberModal = true }"
                 />
               </div>
             </template>
@@ -306,7 +306,7 @@ onMounted(() => {
                 <UButton
                   icon="i-lucide-plus"
                   label="Add Members"
-                  @click="showAddMemberModal = true"
+                  @click="() => { showAddMemberModal = true }"
                 />
               </UEmpty>
             </div>
@@ -346,7 +346,7 @@ onMounted(() => {
           <UInput v-model="createState.name" placeholder="e.g., work, family, blocked" />
         </UFormField>
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" label="Cancel" @click="showCreateModal = false" />
+          <UButton variant="ghost" label="Cancel" @click="() => { showCreateModal = false }" />
           <UButton type="submit" label="Create" />
         </div>
       </UForm>
@@ -426,7 +426,7 @@ onMounted(() => {
         </UFormField>
 
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" label="Cancel" @click="showAddMemberModal = false" />
+          <UButton variant="ghost" label="Cancel" @click="() => { showAddMemberModal = false }" />
           <UButton label="Add Members" @click="handleAddMembers" />
         </div>
       </div>

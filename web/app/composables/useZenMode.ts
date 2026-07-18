@@ -8,6 +8,7 @@ const EMPTY_ZEN_MODE: ZenModeState = {
   persisted_domains: [],
   configured_excludes: [],
   persisted_excludes: [],
+  labels: [],
   runtime_domains: [],
   started_at: '',
   ends_at: '',
@@ -25,12 +26,12 @@ export function useZenMode() {
   const persistedExcludesLoading = useState<boolean>('zen-mode-persisted-excludes-loading', () => false)
   const runtimeDomainsLoading = useState<boolean>('zen-mode-runtime-domains-loading', () => false)
 
-  async function refresh(force = false) {
+  async function refresh(force = false): Promise<void> {
     if (refreshing.value) {
-      return zenMode.value
+      return
     }
     if (initialized.value && !force) {
-      return zenMode.value
+      return
     }
 
     refreshing.value = true
@@ -40,8 +41,6 @@ export function useZenMode() {
       initialized.value = true
     }
     refreshing.value = false
-
-    return response
   }
 
   async function startSession() {

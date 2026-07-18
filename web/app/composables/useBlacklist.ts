@@ -25,12 +25,12 @@ export function useBlacklist() {
   const persistedHostsLoading = useState<boolean>('blacklist-persisted-hosts-loading', () => false)
   const runtimeWhitelistLoading = useState<boolean>('blacklist-runtime-whitelist-loading', () => false)
 
-  async function refresh(force = false) {
+  async function refresh(force = false): Promise<void> {
     if (refreshing.value) {
-      return blacklist.value
+      return
     }
     if (initialized.value && !force) {
-      return blacklist.value
+      return
     }
 
     refreshing.value = true
@@ -40,8 +40,6 @@ export function useBlacklist() {
       initialized.value = true
     }
     refreshing.value = false
-
-    return response
   }
 
   async function setEnabled(nextEnabled: boolean) {

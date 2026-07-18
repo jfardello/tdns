@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -17,12 +17,12 @@ import (
 //	@Description	Replace the in-memory domains blocked by zen mode.
 //	@Tags			zen-mode
 //	@ID				zenModeDomainsReplace
-//	@Param			request	body	ZenReplaceRequest	true	"Zen mode domains"
+//	@Param			request	body	api.ZenReplaceRequest	true	"Zen mode domains"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode [post]
 func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")
@@ -77,12 +77,12 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 //	@Description	Replace zen domains stored in configuration overrides.
 //	@Tags			zen-mode
 //	@ID				zenModePersistedDomainsReplace
-//	@Param			request	body	ZenReplaceRequest	true	"Persisted zen mode domains"
+//	@Param			request	body	api.ZenReplaceRequest	true	"Persisted zen mode domains"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/persisted/domains [post]
 func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
@@ -150,12 +150,12 @@ func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request
 //	@Description	Replace zen exclusions stored in configuration overrides.
 //	@Tags			zen-mode
 //	@ID				zenModePersistedExcludesReplace
-//	@Param			request	body	ZenExcludesRequest	true	"Persisted zen mode exclusions"
+//	@Param			request	body	api.ZenExcludesRequest	true	"Persisted zen mode exclusions"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/persisted/excludes [post]
 func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)
@@ -224,9 +224,9 @@ func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Reques
 //	@Tags			zen-mode
 //	@ID				zenModeStart
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		500	{object}	Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/start [post]
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"]
@@ -259,9 +259,9 @@ func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 //	@Tags			zen-mode
 //	@ID				zenModeStatus
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		500	{object}	Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode [get]
 func (api *v1) ZenModeStatus(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["zen-mode"].(*middleware.ZenMode)

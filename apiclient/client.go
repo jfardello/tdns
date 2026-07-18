@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/jfardello/tdns/api"
+	"github.com/jfardello/tdns/apiclient/generated"
 	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/internal/apiclient/generated"
 )
 
 const (

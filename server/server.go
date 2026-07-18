@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/middleware"
+	"github.com/jfardello/tdns/resolver"
 	"github.com/miekg/dns"
 	"net"
 	"sort"
@@ -16,7 +16,7 @@ type Server struct {
 	Middlewares     map[string]middleware.Middleware
 	middlewareIndex *MiddlewareIndex
 	Config          config.Config
-	defaultUpstream client.Mux
+	defaultUpstream resolver.Mux
 }
 
 type MiddlewareIndex struct {

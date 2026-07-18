@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -46,7 +46,7 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 		})
 	}
 
-	generated, err := os.ReadFile("docs/swagger.json")
+	generated, err := os.ReadFile("../../api/docs/swagger.json")
 	if err != nil {
 		t.Fatalf("read generated Swagger: %v", err)
 	}

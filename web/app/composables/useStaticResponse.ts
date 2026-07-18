@@ -3,6 +3,7 @@ import type { StaticResponseState } from '~/composables/useApi'
 const EMPTY_STATIC_RESPONSE: StaticResponseState = {
   enabled: false,
   file: '',
+  labels: [],
   configured_hosts: [],
   persisted_hosts: [],
   runtime_hosts: []
@@ -18,12 +19,12 @@ export function useStaticResponse() {
   const persistedHostsLoading = useState<boolean>('static-response-persisted-hosts-loading', () => false)
   const runtimeHostsLoading = useState<boolean>('static-response-runtime-hosts-loading', () => false)
 
-  async function refresh(force = false) {
+  async function refresh(force = false): Promise<void> {
     if (refreshing.value) {
-      return staticResponse.value
+      return
     }
     if (initialized.value && !force) {
-      return staticResponse.value
+      return
     }
 
     refreshing.value = true
@@ -33,8 +34,6 @@ export function useStaticResponse() {
       initialized.value = true
     }
     refreshing.value = false
-
-    return response
   }
 
   async function setEnabled(nextEnabled: boolean) {

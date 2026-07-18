@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/armon/go-radix"
-	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/resolver"
 )
 
 var DEFAULT_TIMEOUT_MILLIS int = 1000
@@ -78,9 +78,9 @@ func WithZenMode() func(*Server) {
 func WithUpstreams(u []string, globalTimeOut int, upstreamTimeOut int) func(*Server) {
 
 	return func(s *Server) {
-		ds := client.NewClientMux(u,
-			client.WithMuxUpstreamOptions(client.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)),
-			client.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond))
+		ds := resolver.NewClientMux(u,
+			resolver.WithMuxUpstreamOptions(resolver.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)),
+			resolver.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond))
 		s.defaultUpstream = *ds
 	}
 }

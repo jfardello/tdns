@@ -1,850 +1,377 @@
-export interface DnsLogItem {
-  domain: string
-  counter: number
-  host: string
+import type { components } from '~/generated/api'
+
+type Schema<Name extends keyof components['schemas']> = components['schemas'][Name]
+
+export type DnsLogItem = Required<Schema<'api.LogDetails'>>
+export type DnsLogClientCandidate = Required<Schema<'api.ClientCandidate'>>
+export type DashboardSummary = Required<Schema<'api.DashboardSummary'>>
+export type DashboardHourlyPoint = Required<Schema<'api.DashboardHourlyPoint'>>
+export type BlacklistState = Required<Schema<'api.BlacklistStatus'>>
+export type CacheState = Required<Schema<'api.CacheStatus'>>
+export type HostEntry = Required<Schema<'api.HostEntry'>>
+export type TagMember = Required<Schema<'api.TagMember'>>
+export type KnownHostCandidate = Required<Schema<'api.KnownHost'>>
+export type ZenModeState = Required<Schema<'api.ZenModeStatus'>>
+export type StaticResponseState = Required<Schema<'api.StaticResponseStatus'>>
+export type StubResolverState = Required<Schema<'api.StubResolverStatus'>>
+
+function normalizeStringArray(value: string[] | undefined): string[] {
+  return value ?? []
 }
 
-export interface DnsLogClientCandidate {
-  address: string
-  host: string
-}
-
-export interface DashboardSummary {
-  total_queries: number
-  blocked_queries: number
-  allowed_queries: number
-  cache_hits: number
-  cache_misses: number
-}
-
-export interface DashboardHourlyPoint {
-  hour_bucket: number
-  hour_start: string
-  total_queries: number
-  blocked_queries: number
-  allowed_queries: number
-}
-
-export interface BlacklistState {
-  enabled: boolean
-  file: string
-  external_file: string
-  external_repo: string
-  external_repo_branch: string
-  external_pull_period: string
-  excludes: string[]
-  persisted_excludes: string[]
-  persisted_hosts: string[]
-  runtime_whitelist: string[]
-  blockfile_total_entries: number
-}
-
-export interface CacheState {
-  enabled: boolean
-  ttl: number
-  excludes: string[]
-  hits: number
-  misses: number
-}
-
-export interface HostEntry {
-  domain: string
-  address: string
-}
-
-export interface TagMember {
-  address: string
-  host: string
-  has_host_alias: boolean
-}
-
-export interface KnownHostCandidate {
-  address: string
-  host: string
-}
-
-export interface ZenModeState {
-  enabled: boolean
-  file: string
-  duration_minutes: number
-  configured_domains: string[]
-  persisted_domains: string[]
-  configured_excludes: string[]
-  persisted_excludes: string[]
-  runtime_domains: string[]
-  started_at: string
-  ends_at: string
-  remaining_seconds: number
-}
-
-export interface StaticResponseState {
-  enabled: boolean
-  file: string
-  configured_hosts: HostEntry[]
-  persisted_hosts: HostEntry[]
-  runtime_hosts: HostEntry[]
-}
-
-export interface StubResolverState {
-  enabled: boolean
-  configured_stubs: string[]
-  runtime_stubs: string[]
-}
-
-interface ApiResponse {
-  kind?: string
-  message: string
-  current_status?: string
-  window_hours?: number
-  items?: string[]
-  log_items?: DnsLogItem[]
-  summary?: DashboardSummary
-  hourly?: DashboardHourlyPoint[]
-  blacklist?: BlacklistState
-  cache?: CacheState
-  zen_mode?: ZenModeState
-  static_response?: StaticResponseState
-  stub_resolver?: StubResolverState
-  tag_members?: TagMember[]
-  known_hosts?: KnownHostCandidate[]
-  clients?: DnsLogClientCandidate[]
-}
-
-interface DnsLogApiItem {
-  Domain?: unknown
-  Counter?: unknown
-  Host?: unknown
-  domain?: unknown
-  counter?: unknown
-  host?: unknown
-}
-
-interface DnsLogClientApiItem {
-  address?: unknown
-  host?: unknown
-}
-
-interface DashboardSummaryApi {
-  total_queries?: unknown
-  blocked_queries?: unknown
-  allowed_queries?: unknown
-  cache_hits?: unknown
-  cache_misses?: unknown
-}
-
-interface DashboardHourlyApiItem {
-  hour_bucket?: unknown
-  hour_start?: unknown
-  total_queries?: unknown
-  blocked_queries?: unknown
-  allowed_queries?: unknown
-}
-
-interface BlacklistApiState {
-  enabled?: unknown
-  file?: unknown
-  external_file?: unknown
-  external_repo?: unknown
-  external_repo_branch?: unknown
-  external_pull_period?: unknown
-  excludes?: unknown
-  persisted_excludes?: unknown
-  persisted_hosts?: unknown
-  runtime_whitelist?: unknown
-  blockfile_total_entries?: unknown
-}
-
-interface CacheApiState {
-  enabled?: unknown
-  ttl?: unknown
-  excludes?: unknown
-  hits?: unknown
-  misses?: unknown
-}
-
-interface HostEntryApi {
-  domain?: unknown
-  address?: unknown
-}
-
-interface TagMemberApi {
-  address?: unknown
-  host?: unknown
-  has_host_alias?: unknown
-}
-
-interface KnownHostApi {
-  address?: unknown
-  host?: unknown
-}
-
-interface ZenModeApiState {
-  enabled?: unknown
-  file?: unknown
-  duration_minutes?: unknown
-  configured_domains?: unknown
-  persisted_domains?: unknown
-  configured_excludes?: unknown
-  persisted_excludes?: unknown
-  runtime_domains?: unknown
-  started_at?: unknown
-  ends_at?: unknown
-  remaining_seconds?: unknown
-}
-
-interface StaticResponseApiState {
-  enabled?: unknown
-  file?: unknown
-  configured_hosts?: unknown
-  persisted_hosts?: unknown
-  runtime_hosts?: unknown
-}
-
-interface StubResolverApiState {
-  enabled?: unknown
-  configured_stubs?: unknown
-  runtime_stubs?: unknown
-}
-
-function normalizeDnsLogItem(item: DnsLogApiItem): DnsLogItem {
+function normalizeDnsLogItem(item: Schema<'api.LogDetails'>): DnsLogItem {
   return {
-    domain: String(item.domain ?? item.Domain ?? ''),
-    counter: Number(item.counter ?? item.Counter ?? 0),
-    host: String(item.host ?? item.Host ?? '')
+    domain: item.domain ?? '',
+    counter: item.counter ?? 0,
+    host: item.host ?? ''
   }
 }
 
-function normalizeDnsLogClient(item: DnsLogClientApiItem): DnsLogClientCandidate {
+function normalizeDnsLogClient(item: Schema<'api.ClientCandidate'>): DnsLogClientCandidate {
   return {
-    address: String(item.address ?? ''),
-    host: String(item.host ?? '')
+    address: item.address ?? '',
+    host: item.host ?? ''
   }
 }
 
-function normalizeDnsLogClients(value: unknown): DnsLogClientCandidate[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value
-    .filter(item => item && typeof item === 'object')
-    .map(item => normalizeDnsLogClient(item as DnsLogClientApiItem))
-}
-
-function normalizeDashboardSummary(summary: DashboardSummaryApi | undefined): DashboardSummary {
+function normalizeDashboardSummary(summary: Schema<'api.DashboardSummary'> | undefined): DashboardSummary {
   return {
-    total_queries: Number(summary?.total_queries ?? 0),
-    blocked_queries: Number(summary?.blocked_queries ?? 0),
-    allowed_queries: Number(summary?.allowed_queries ?? 0),
-    cache_hits: Number(summary?.cache_hits ?? 0),
-    cache_misses: Number(summary?.cache_misses ?? 0)
+    total_queries: summary?.total_queries ?? 0,
+    blocked_queries: summary?.blocked_queries ?? 0,
+    allowed_queries: summary?.allowed_queries ?? 0,
+    cache_hits: summary?.cache_hits ?? 0,
+    cache_misses: summary?.cache_misses ?? 0
   }
 }
 
-function normalizeDashboardHourlyPoint(point: DashboardHourlyApiItem): DashboardHourlyPoint {
+function normalizeDashboardHourlyPoint(point: Schema<'api.DashboardHourlyPoint'>): DashboardHourlyPoint {
   return {
-    hour_bucket: Number(point.hour_bucket ?? 0),
-    hour_start: String(point.hour_start ?? ''),
-    total_queries: Number(point.total_queries ?? 0),
-    blocked_queries: Number(point.blocked_queries ?? 0),
-    allowed_queries: Number(point.allowed_queries ?? 0)
+    hour_bucket: point.hour_bucket ?? 0,
+    hour_start: point.hour_start ?? '',
+    total_queries: point.total_queries ?? 0,
+    blocked_queries: point.blocked_queries ?? 0,
+    allowed_queries: point.allowed_queries ?? 0
   }
 }
 
-function normalizeStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value.map(item => String(item ?? '')).filter(Boolean)
-}
-
-function normalizeBlacklistState(state: BlacklistApiState | undefined): BlacklistState {
+function normalizeBlacklistState(state: Schema<'api.BlacklistStatus'> | undefined): BlacklistState {
   return {
-    enabled: Boolean(state?.enabled ?? false),
-    file: String(state?.file ?? ''),
-    external_file: String(state?.external_file ?? ''),
-    external_repo: String(state?.external_repo ?? ''),
-    external_repo_branch: String(state?.external_repo_branch ?? ''),
-    external_pull_period: String(state?.external_pull_period ?? ''),
+    enabled: state?.enabled ?? false,
+    file: state?.file ?? '',
+    external_file: state?.external_file ?? '',
+    external_repo: state?.external_repo ?? '',
+    external_repo_branch: state?.external_repo_branch ?? '',
+    external_pull_period: state?.external_pull_period ?? '',
     excludes: normalizeStringArray(state?.excludes),
     persisted_excludes: normalizeStringArray(state?.persisted_excludes),
     persisted_hosts: normalizeStringArray(state?.persisted_hosts),
     runtime_whitelist: normalizeStringArray(state?.runtime_whitelist),
-    blockfile_total_entries: Number(state?.blockfile_total_entries ?? 0)
+    blockfile_total_entries: state?.blockfile_total_entries ?? 0
   }
 }
 
-function normalizeCacheState(state: CacheApiState | undefined): CacheState {
+function normalizeCacheState(state: Schema<'api.CacheStatus'> | undefined): CacheState {
   return {
-    enabled: Boolean(state?.enabled ?? false),
-    ttl: Number(state?.ttl ?? 0),
+    enabled: state?.enabled ?? false,
+    ttl: state?.ttl ?? 0,
     excludes: normalizeStringArray(state?.excludes),
-    hits: Number(state?.hits ?? 0),
-    misses: Number(state?.misses ?? 0)
+    hits: state?.hits ?? 0,
+    misses: state?.misses ?? 0
   }
 }
 
-function normalizeHostEntry(entry: HostEntryApi): HostEntry {
+function normalizeHostEntry(entry: Schema<'api.HostEntry'>): HostEntry {
   return {
-    domain: String(entry.domain ?? ''),
-    address: String(entry.address ?? '')
+    domain: entry.domain ?? '',
+    address: entry.address ?? ''
   }
 }
 
-function normalizeTagMember(entry: TagMemberApi): TagMember {
+function normalizeTagMember(entry: Schema<'api.TagMember'>): TagMember {
   return {
-    address: String(entry.address ?? ''),
-    host: String(entry.host ?? ''),
-    has_host_alias: Boolean(entry.has_host_alias ?? false)
+    address: entry.address ?? '',
+    host: entry.host ?? '',
+    has_host_alias: entry.has_host_alias ?? false
   }
 }
 
-function normalizeTagMembers(value: unknown): TagMember[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value
-    .filter(item => item && typeof item === 'object')
-    .map(item => normalizeTagMember(item as TagMemberApi))
-}
-
-function normalizeKnownHost(entry: KnownHostApi): KnownHostCandidate {
+function normalizeKnownHost(entry: Schema<'api.KnownHost'>): KnownHostCandidate {
   return {
-    address: String(entry.address ?? ''),
-    host: String(entry.host ?? '')
+    address: entry.address ?? '',
+    host: entry.host ?? ''
   }
 }
 
-function normalizeKnownHosts(value: unknown): KnownHostCandidate[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value
-    .filter(item => item && typeof item === 'object')
-    .map(item => normalizeKnownHost(item as KnownHostApi))
-}
-
-function normalizeHostEntries(value: unknown): HostEntry[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value
-    .filter(item => item && typeof item === 'object')
-    .map(item => normalizeHostEntry(item as HostEntryApi))
-}
-
-function normalizeZenModeState(state: ZenModeApiState | undefined): ZenModeState {
+function normalizeZenModeState(state: Schema<'api.ZenModeStatus'> | undefined): ZenModeState {
   return {
-    enabled: Boolean(state?.enabled ?? false),
-    file: String(state?.file ?? ''),
-    duration_minutes: Number(state?.duration_minutes ?? 0),
+    enabled: state?.enabled ?? false,
+    file: state?.file ?? '',
+    duration_minutes: state?.duration_minutes ?? 0,
     configured_domains: normalizeStringArray(state?.configured_domains),
     persisted_domains: normalizeStringArray(state?.persisted_domains),
     configured_excludes: normalizeStringArray(state?.configured_excludes),
     persisted_excludes: normalizeStringArray(state?.persisted_excludes),
+    labels: normalizeStringArray(state?.labels),
     runtime_domains: normalizeStringArray(state?.runtime_domains),
-    started_at: String(state?.started_at ?? ''),
-    ends_at: String(state?.ends_at ?? ''),
-    remaining_seconds: Number(state?.remaining_seconds ?? 0)
+    started_at: state?.started_at ?? '',
+    ends_at: state?.ends_at ?? '',
+    remaining_seconds: state?.remaining_seconds ?? 0
   }
 }
 
-function normalizeStaticResponseState(state: StaticResponseApiState | undefined): StaticResponseState {
+function normalizeStaticResponseState(state: Schema<'api.StaticResponseStatus'> | undefined): StaticResponseState {
   return {
-    enabled: Boolean(state?.enabled ?? false),
-    file: String(state?.file ?? ''),
-    configured_hosts: normalizeHostEntries(state?.configured_hosts),
-    persisted_hosts: normalizeHostEntries(state?.persisted_hosts),
-    runtime_hosts: normalizeHostEntries(state?.runtime_hosts)
+    enabled: state?.enabled ?? false,
+    file: state?.file ?? '',
+    labels: normalizeStringArray(state?.labels),
+    configured_hosts: (state?.configured_hosts ?? []).map(normalizeHostEntry),
+    persisted_hosts: (state?.persisted_hosts ?? []).map(normalizeHostEntry),
+    runtime_hosts: (state?.runtime_hosts ?? []).map(normalizeHostEntry)
   }
 }
 
-function normalizeStubResolverState(state: StubResolverApiState | undefined): StubResolverState {
+function normalizeStubResolverState(state: Schema<'api.StubResolverStatus'> | undefined): StubResolverState {
   return {
-    enabled: Boolean(state?.enabled ?? false),
+    enabled: state?.enabled ?? false,
     configured_stubs: normalizeStringArray(state?.configured_stubs),
     runtime_stubs: normalizeStringArray(state?.runtime_stubs)
   }
 }
 
 export function useApi() {
-  const config = useRuntimeConfig()
-  const { getAuthHeaders, clearToken } = useAuth()
-  const toast = useToast()
-  const apiBaseUrl = config.public.apiBaseUrl.replace(/\/$/, '')
+  const { client, execute } = useApiClient()
 
-  async function apiCall<T = ApiResponse>(
-    endpoint: string,
-    options: {
-      method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
-      body?: unknown
-    } = {}
-  ): Promise<T | null> {
-    try {
-      const response = await $fetch<T>(`${apiBaseUrl}${endpoint}`, {
-        method: options.method || 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: options.body ? JSON.stringify(options.body) : undefined
-      })
-      return response
-    } catch (error: unknown) {
-      const fetchError = error as { status?: number; statusText?: string; message?: string }
-      if (fetchError.status === 401) {
-        clearToken()
-        toast.add({
-          title: 'Session expired',
-          description: 'Please login again',
-          color: 'error',
-          icon: 'i-lucide-alert-circle'
-        })
-        navigateTo('/login')
-      } else {
-        toast.add({
-          title: 'API Error',
-          description: fetchError.statusText || fetchError.message || 'An error occurred',
-          color: 'error',
-          icon: 'i-lucide-alert-circle'
-        })
-      }
-      return null
-    }
+  async function getStubResolver() {
+    const response = await execute(client.GET('/api/stub-resolver'))
+    return response && { ...response, stub_resolver: normalizeStubResolverState(response.stub_resolver) }
   }
 
-  // Stub Resolver
   async function toggleStubResolver(action: 'start' | 'stop') {
-    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>(`/api/stub-resolver/${action}`, { method: 'POST' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      stub_resolver: normalizeStubResolverState(response.stub_resolver)
-    }
+    const response = await execute(client.POST('/api/stub-resolver/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, stub_resolver: normalizeStubResolverState(response.stub_resolver) }
   }
 
   async function replaceStubResolvers(stubs: string[]) {
-    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>('/api/stub-resolver', { method: 'POST', body: { stubs } })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      stub_resolver: normalizeStubResolverState(response.stub_resolver)
-    }
+    const response = await execute(client.POST('/api/stub-resolver', { body: { stubs } }))
+    return response && { ...response, stub_resolver: normalizeStubResolverState(response.stub_resolver) }
   }
 
-  async function getStubResolver() {
-    const response = await apiCall<ApiResponse & { stub_resolver?: StubResolverApiState }>('/api/stub-resolver')
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      stub_resolver: normalizeStubResolverState(response.stub_resolver)
-    }
+  async function getBlacklist() {
+    const response = await execute(client.GET('/api/blacklist'))
+    return response && { ...response, blacklist: normalizeBlacklistState(response.blacklist) }
   }
 
-  // Blacklist
-  async function getBlacklist(): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist')
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      blacklist: normalizeBlacklistState(response.blacklist)
-    }
+  async function toggleBlacklist(action: 'start' | 'stop') {
+    const response = await execute(client.POST('/api/blacklist/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, blacklist: normalizeBlacklistState(response.blacklist) }
   }
 
-  async function toggleBlacklist(action: 'start' | 'stop'): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>(`/api/blacklist/${action}`, { method: 'POST' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      blacklist: normalizeBlacklistState(response.blacklist)
-    }
+  async function addBlacklistRuntimeWhitelist(domains: string[]) {
+    const response = await execute(client.POST('/api/blacklist/whitelist', { body: { domains } }))
+    return response && { ...response, blacklist: normalizeBlacklistState(response.blacklist) }
   }
 
-  async function addBlacklistRuntimeWhitelist(domains: string[]): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/whitelist', {
-      method: 'POST',
-      body: { domains }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      blacklist: normalizeBlacklistState(response.blacklist)
-    }
+  async function replaceBlacklistPersistedHosts(hosts: string[]) {
+    const response = await execute(client.POST('/api/blacklist/persisted/hosts', { body: { hosts } }))
+    return response && { ...response, blacklist: normalizeBlacklistState(response.blacklist) }
   }
 
-  async function replaceBlacklistPersistedHosts(hosts: string[]): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/persisted/hosts', {
-      method: 'POST',
-      body: { hosts }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      blacklist: normalizeBlacklistState(response.blacklist)
-    }
-  }
-
-  async function replaceBlacklistPersistedExcludes(excludes: string[]): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & { blacklist?: BlacklistApiState }>('/api/blacklist/persisted/excludes', {
-      method: 'POST',
-      body: { excludes }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      blacklist: normalizeBlacklistState(response.blacklist)
-    }
-  }
-
-  // Static Response
-  async function toggleStaticResponse(action: 'start' | 'stop') {
-    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>(`/api/static-response/${action}`, { method: 'POST' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      static_response: normalizeStaticResponseState(response.static_response)
-    }
+  async function replaceBlacklistPersistedExcludes(excludes: string[]) {
+    const response = await execute(client.POST('/api/blacklist/persisted/excludes', { body: { excludes } }))
+    return response && { ...response, blacklist: normalizeBlacklistState(response.blacklist) }
   }
 
   async function getStaticResponse() {
-    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response')
-    if (!response) {
-      return null
-    }
+    const response = await execute(client.GET('/api/static-response'))
+    return response && { ...response, static_response: normalizeStaticResponseState(response.static_response) }
+  }
 
-    return {
-      ...response,
-      static_response: normalizeStaticResponseState(response.static_response)
-    }
+  async function toggleStaticResponse(action: 'start' | 'stop') {
+    const response = await execute(client.POST('/api/static-response/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, static_response: normalizeStaticResponseState(response.static_response) }
   }
 
   async function replaceStaticResponseHosts(hosts: string[]) {
-    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response', {
-      method: 'POST',
-      body: { hosts }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      static_response: normalizeStaticResponseState(response.static_response)
-    }
+    const response = await execute(client.POST('/api/static-response', { body: { hosts } }))
+    return response && { ...response, static_response: normalizeStaticResponseState(response.static_response) }
   }
 
   async function replaceStaticResponsePersistedHosts(hosts: string[]) {
-    const response = await apiCall<ApiResponse & { static_response?: StaticResponseApiState }>('/api/static-response/persisted', {
-      method: 'POST',
-      body: { hosts }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      static_response: normalizeStaticResponseState(response.static_response)
-    }
+    const response = await execute(client.POST('/api/static-response/persisted', { body: { hosts } }))
+    return response && { ...response, static_response: normalizeStaticResponseState(response.static_response) }
   }
 
-  // DNS Log
   async function getDnsLogTop(top: number, options: {
     since?: string
     status?: 'blocked' | 'allowed' | ''
     client?: string
     client_mode?: 'host' | 'ip' | ''
-  } = {}): Promise<ApiResponse | null> {
-    const query = new URLSearchParams()
-    if (options.since) {
-      query.set('since', options.since)
-    }
-    if (options.status) {
-      query.set('status', options.status)
-    }
-    if (options.client) {
-      query.set('client', options.client)
-    }
-    if (options.client_mode) {
-      query.set('client_mode', options.client_mode)
-    }
-    const suffix = query.toString() ? `?${query.toString()}` : ''
-    const response = await apiCall<ApiResponse & { log_items?: DnsLogApiItem[] }>(`/api/dns-log/top/${top}${suffix}`)
-    if (!response) {
-      return null
-    }
-
-    return {
+  } = {}) {
+    const response = await execute(client.GET('/api/dns-log/top/{top}', {
+      params: {
+        path: { top },
+        query: {
+          since: options.since || undefined,
+          status: options.status || undefined,
+          client: options.client || undefined,
+          client_mode: options.client_mode || undefined
+        }
+      }
+    }))
+    return response && {
       ...response,
-      log_items: Array.isArray(response.log_items)
-        ? response.log_items.map(normalizeDnsLogItem)
-        : []
+      log_items: (response.log_items ?? []).map(normalizeDnsLogItem)
     }
   }
 
-  async function searchDnsLogClients(search = '', limit = 20): Promise<ApiResponse | null> {
-    const query = new URLSearchParams()
-    if (search.trim()) {
-      query.set('search', search.trim())
-    }
-    query.set('limit', String(limit))
-    const response = await apiCall<ApiResponse>(`/api/dns-log/clients?${query.toString()}`)
-    if (!response) {
-      return null
-    }
-
-    return {
+  async function searchDnsLogClients(search = '', limit = 20) {
+    const response = await execute(client.GET('/api/dns-log/clients', {
+      params: { query: { search: search.trim() || undefined, limit } }
+    }))
+    return response && {
       ...response,
-      clients: normalizeDnsLogClients(response.clients)
+      clients: (response.clients ?? []).map(normalizeDnsLogClient)
     }
   }
 
-  async function getDnsDashboard(hours = 24): Promise<ApiResponse | null> {
-    const response = await apiCall<ApiResponse & {
-      summary?: DashboardSummaryApi
-      hourly?: DashboardHourlyApiItem[]
-    }>(`/api/dns-log/dashboard?hours=${hours}`)
-    if (!response) {
-      return null
-    }
-
-    return {
+  async function getDnsDashboard(hours = 24) {
+    const response = await execute(client.GET('/api/dns-log/dashboard', {
+      params: { query: { hours } }
+    }))
+    return response && {
       ...response,
-      window_hours: Number(response.window_hours ?? hours),
+      window_hours: response.window_hours ?? hours,
       summary: normalizeDashboardSummary(response.summary),
-      hourly: Array.isArray(response.hourly)
-        ? response.hourly.map(normalizeDashboardHourlyPoint)
-        : []
+      hourly: (response.hourly ?? []).map(normalizeDashboardHourlyPoint)
     }
   }
 
   async function rotateDnsLog(since: string) {
-    return apiCall(`/api/dns-log/rotate?since=${since}`)
+    return execute(client.GET('/api/dns-log/rotate', {
+      params: { query: { since } }
+    }))
   }
 
   async function setDnsLogAlias(name: string, addr: string) {
-    return apiCall('/api/dns-log/alias', { method: 'POST', body: { name, addr } })
+    return execute(client.POST('/api/dns-log/alias', { body: { name, addr } }))
   }
 
-  // Zen Mode
   async function getZenMode() {
-    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode')
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      zen_mode: normalizeZenModeState(response.zen_mode)
-    }
+    const response = await execute(client.GET('/api/zen-mode'))
+    return response && { ...response, zen_mode: normalizeZenModeState(response.zen_mode) }
   }
 
   async function startZenMode() {
-    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/start', { method: 'POST' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      zen_mode: normalizeZenModeState(response.zen_mode)
-    }
+    const response = await execute(client.POST('/api/zen-mode/start'))
+    return response && { ...response, zen_mode: normalizeZenModeState(response.zen_mode) }
   }
 
   async function replaceZenDomains(zen_domains: string[]) {
-    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode', { method: 'POST', body: { zen_domains } })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      zen_mode: normalizeZenModeState(response.zen_mode)
-    }
+    const response = await execute(client.POST('/api/zen-mode', { body: { zen_domains } }))
+    return response && { ...response, zen_mode: normalizeZenModeState(response.zen_mode) }
   }
 
   async function replaceZenPersistedDomains(zen_domains: string[]) {
-    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/persisted/domains', {
-      method: 'POST',
-      body: { zen_domains }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      zen_mode: normalizeZenModeState(response.zen_mode)
-    }
+    const response = await execute(client.POST('/api/zen-mode/persisted/domains', { body: { zen_domains } }))
+    return response && { ...response, zen_mode: normalizeZenModeState(response.zen_mode) }
   }
 
   async function replaceZenPersistedExcludes(excludes: string[]) {
-    const response = await apiCall<ApiResponse & { zen_mode?: ZenModeApiState }>('/api/zen-mode/persisted/excludes', {
-      method: 'POST',
-      body: { excludes }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      zen_mode: normalizeZenModeState(response.zen_mode)
-    }
-  }
-
-  // Cache
-  async function clearCache() {
-    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache', { method: 'DELETE' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      cache: normalizeCacheState(response.cache)
-    }
+    const response = await execute(client.POST('/api/zen-mode/persisted/excludes', { body: { excludes } }))
+    return response && { ...response, zen_mode: normalizeZenModeState(response.zen_mode) }
   }
 
   async function getCache() {
-    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache')
-    if (!response) {
-      return null
-    }
+    const response = await execute(client.GET('/api/cache'))
+    return response && { ...response, cache: normalizeCacheState(response.cache) }
+  }
 
-    return {
-      ...response,
-      cache: normalizeCacheState(response.cache)
-    }
+  async function clearCache() {
+    const response = await execute(client.DELETE('/api/cache'))
+    return response && { ...response, cache: normalizeCacheState(response.cache) }
   }
 
   async function toggleCache(action: 'start' | 'stop') {
-    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>(`/api/cache/${action}`, { method: 'POST' })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      cache: normalizeCacheState(response.cache)
-    }
+    const response = await execute(client.POST('/api/cache/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, cache: normalizeCacheState(response.cache) }
   }
 
   async function replaceCacheExcludes(excludes: string[]) {
-    const response = await apiCall<ApiResponse & { cache?: CacheApiState }>('/api/cache/excludes', {
-      method: 'POST',
-      body: { excludes }
-    })
-    if (!response) {
-      return null
-    }
-
-    return {
-      ...response,
-      cache: normalizeCacheState(response.cache)
-    }
+    const response = await execute(client.POST('/api/cache/excludes', { body: { excludes } }))
+    return response && { ...response, cache: normalizeCacheState(response.cache) }
   }
 
-  // Tagger
   async function getTags() {
-    return apiCall('/api/tagger/tags')
+    return execute(client.GET('/api/tagger/tags'))
   }
 
   async function createTag(name: string) {
-    return apiCall('/api/tagger/tags', { method: 'POST', body: { name } })
+    return execute(client.POST('/api/tagger/tags', { body: { name } }))
   }
 
   async function deleteTag(tagName: string) {
-    return apiCall(`/api/tagger/tags/${tagName}`, { method: 'DELETE' })
+    return execute(client.DELETE('/api/tagger/tags/{tagName}', {
+      params: { path: { tagName } }
+    }))
   }
 
   async function getTagMembers(tagName: string) {
-    const response = await apiCall<ApiResponse>(`/api/tagger/tags/${tagName}`)
-    if (!response) {
-      return null
-    }
-
-    return {
+    const response = await execute(client.GET('/api/tagger/tags/{tagName}', {
+      params: { path: { tagName } }
+    }))
+    return response && {
       ...response,
-      tag_members: normalizeTagMembers(response.tag_members)
+      tag_members: (response.tag_members ?? []).map(normalizeTagMember)
     }
   }
 
   async function addTagMembers(tagName: string, members: string[]) {
-    const response = await apiCall<ApiResponse>(`/api/tagger/tags/${tagName}`, { method: 'POST', body: { members } })
-    if (!response) {
-      return null
-    }
-
-    return {
+    const response = await execute(client.POST('/api/tagger/tags/{tagName}', {
+      params: { path: { tagName } },
+      body: { members }
+    }))
+    return response && {
       ...response,
-      tag_members: normalizeTagMembers(response.tag_members)
+      tag_members: (response.tag_members ?? []).map(normalizeTagMember)
     }
   }
 
   async function removeTagMember(tagName: string, address: string) {
-    return apiCall(`/api/tagger/tags/${tagName}/${address}`, { method: 'DELETE' })
+    return execute(client.DELETE('/api/tagger/tags/{tagName}/{address}', {
+      params: { path: { tagName, address } }
+    }))
   }
 
   async function getKnownHosts(search = '', limit = 20) {
-    const query = new URLSearchParams()
-    if (search.trim()) {
-      query.set('search', search.trim())
-    }
-    query.set('limit', String(limit))
-
-    const response = await apiCall<ApiResponse>(`/api/tagger/hosts?${query.toString()}`)
-    if (!response) {
-      return null
-    }
-
-    return {
+    const response = await execute(client.GET('/api/tagger/hosts', {
+      params: { query: { search: search.trim() || undefined, limit } }
+    }))
+    return response && {
       ...response,
-      known_hosts: normalizeKnownHosts(response.known_hosts)
+      known_hosts: (response.known_hosts ?? []).map(normalizeKnownHost)
     }
   }
 
   async function setAddressLabels(address: string, tags: string[]) {
-    return apiCall('/api/tagger/address', { method: 'POST', body: { address, tags } })
+    return execute(client.POST('/api/tagger/address', { body: { address, tags } }))
   }
 
   async function replaceAddressLabels(address: string, tags: string[]) {
-    return apiCall(`/api/tagger/address/${address}`, { method: 'PUT', body: { tags } })
+    return execute(client.PUT('/api/tagger/address/{address}', {
+      params: { path: { address } },
+      body: { tags }
+    }))
   }
 
   return {
-    apiCall,
     getStubResolver,
     getBlacklist,
     getStaticResponse,

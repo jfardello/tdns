@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/jfardello/tdns/internal/apiclient"
+	"github.com/jfardello/tdns/apiclient"
 	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

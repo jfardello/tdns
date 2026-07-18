@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -18,7 +18,7 @@ import (
 //	@Tags			cache
 //	@ID				cacheClear
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/cache [delete]
 func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 //	@Tags			cache
 //	@ID				cacheStatus
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/cache [get]
 func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
@@ -73,10 +73,10 @@ func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 //	@ID				cacheToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/cache/{action} [post]
 func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 	state, err := actionToBool(r.PathValue("action"))
@@ -128,12 +128,12 @@ func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 //	@Description	Replace and persist selectors excluded from caching.
 //	@Tags			cache
 //	@ID				cacheExcludesReplace
-//	@Param			request	body	CacheExcludeRequest	true	"Cache exclusion selectors"
+//	@Param			request	body	api.CacheExcludeRequest	true	"Cache exclusion selectors"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/cache/excludes [post]
 func (api *v1) CacheReplaceExcludes(w http.ResponseWriter, r *http.Request) {
 	req := &CacheExcludeRequest{}

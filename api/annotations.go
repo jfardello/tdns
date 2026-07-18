@@ -1,4 +1,4 @@
-// Package api implements the TDNS management HTTP API.
+// Package api defines the public TDNS management API contract.
 //
 //	@title						TDNS Management API
 //	@version					1.0

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/jfardello/tdns/internal/apiclient"
+	"github.com/jfardello/tdns/apiclient"
 	"github.com/spf13/cobra"
 )
 

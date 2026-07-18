@@ -7,18 +7,24 @@
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "prepare": "nuxt prepare"
+    "prepare": "nuxt prepare",
+    "test": "node --experimental-strip-types --experimental-default-type=module --test app/lib/*.test.ts",
+    "typecheck": "nuxt typecheck"
   },
   "dependencies": {
     "@nuxt/ui": "latest",
     "npm": "^11.12.1",
     "nuxt": "^4.4.2",
     "nuxt-charts": "^2.1.4",
+    "openapi-fetch": "0.17.0",
     "tailwindcss": "latest",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@redocly/cli": "2.38.0",
-    "swagger2openapi": "7.0.8"
+    "@types/node": "22.20.1",
+    "openapi-typescript": "7.13.0",
+    "swagger2openapi": "7.0.8",
+    "vue-tsc": "3.3.7"
   }
 }

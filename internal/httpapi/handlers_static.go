@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -17,10 +17,10 @@ import (
 //	@ID				staticResponseToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response/{action} [post]
 func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
@@ -74,9 +74,9 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			static-response
 //	@ID				staticResponseStatus
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		500	{object}	Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response [get]
 func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
@@ -114,12 +114,12 @@ func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 //	@Description	Replace static hosts held in memory.
 //	@Tags			static-response
 //	@ID				staticResponseReplace
-//	@Param			request	body	StaticReplaceRequest	true	"Runtime hosts file lines"
+//	@Param			request	body	api.StaticReplaceRequest	true	"Runtime hosts file lines"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response [post]
 func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)
@@ -191,12 +191,12 @@ func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 //	@Description	Replace static hosts stored in configuration overrides.
 //	@Tags			static-response
 //	@ID				staticResponsePersistedReplace
-//	@Param			request	body	StaticReplaceRequest	true	"Persisted hosts file lines"
+//	@Param			request	body	api.StaticReplaceRequest	true	"Persisted hosts file lines"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
-//	@Failure		400	{object}	Response
-//	@Failure		500	{object}	Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response/persisted [post]
 func (api *v1) StaticResponseReplacePersisted(w http.ResponseWriter, r *http.Request) {
 	p, ok := api.server.Middlewares["static-response"].(*middleware.StaticResponse)

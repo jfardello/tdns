@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,7 +28,7 @@ var tokenCmd = &cobra.Command{
 			panic(err)
 		}
 		config.SetRunningConfig(c)
-		t, _ := api.IssueToken(exp, sub)
+		t, _ := httpapi.IssueToken(exp, sub)
 		fmt.Printf("Creating token with %d expiration days.\n", exp)
 		fmt.Println("Access token (keep it secret): \n\t", t)
 

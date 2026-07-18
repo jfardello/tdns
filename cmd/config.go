@@ -16,8 +16,8 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 
-	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/jfardello/tdns/log"
 )
 
@@ -103,7 +103,7 @@ func WriteSampleConfig(fname, cert, key string) {
 	c.Server.SigningKey = base64.StdEncoding.EncodeToString(*k)
 
 	config.SetRunningConfig(c)
-	t, err := api.IssueToken(365, "admin")
+	t, err := httpapi.IssueToken(365, "admin")
 	if err != nil {
 		logger.Fatalf("Error generating token:%v", err)
 	}

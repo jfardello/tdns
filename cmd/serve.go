@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
-	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/db"
+	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/sched"
@@ -290,7 +290,7 @@ func run() {
 
 func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, error) {
 	logger := log.GetLogger("serve", "http-server")
-	apiHandler := api.NewHandler(dnsServer)
+	apiHandler := httpapi.NewHandler(dnsServer)
 	uiHandlers, err := webui.NewHandlers("")
 	if err != nil {
 		return nil, fmt.Errorf("prepare embedded web ui: %w", err)

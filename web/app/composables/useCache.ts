@@ -18,12 +18,12 @@ export function useCache() {
   const excludesLoading = useState<boolean>('cache-excludes-loading', () => false)
   const clearLoading = useState<boolean>('cache-clear-loading', () => false)
 
-  async function refresh(force = false) {
+  async function refresh(force = false): Promise<void> {
     if (refreshing.value) {
-      return cacheState.value
+      return
     }
     if (initialized.value && !force) {
-      return cacheState.value
+      return
     }
 
     refreshing.value = true
@@ -33,7 +33,6 @@ export function useCache() {
       initialized.value = true
     }
     refreshing.value = false
-    return response
   }
 
   async function setEnabled(nextEnabled: boolean) {

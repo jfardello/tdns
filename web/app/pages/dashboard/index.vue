@@ -38,14 +38,14 @@ function formatHourLabel(value: string) {
   if (parts.length < 2) {
     return value
   }
-  return parts[1].slice(0, 5)
+  return (parts[1] ?? '').slice(0, 5)
 }
 
 function getChartPoint(index: number) {
   return chartData.value[index]
 }
 
-function formatXAxisTick(_: number | Date, index: number) {
+function formatXAxisTick(_: number, index = 0) {
   return getChartPoint(index)?.hour_label || ''
 }
 

@@ -78,14 +78,18 @@ If you prefer to start the server directly:
 sudo tdns serve -c /etc/tdns/tdns.yaml
 ```
 
-To refresh the embedded frontend before building binaries:
+To refresh generated API clients and the embedded frontend before building
+binaries:
 
 ```bash
-go generate ./...
+./tools/generate_api.sh
+./tools/generate_web.sh
 go build ./...
 ```
 
-`go generate ./...` runs the static Nuxt generation step used by the embedded SPA. The release workflow uses the same command before compiling binaries.
+The release workflow uses these same generation scripts before compiling
+binaries. See [API Contract Maintenance](docs/api-contract-maintenance.md) for
+source ownership, generated files, and the complete verification workflow.
 
 ## Usage
 
@@ -343,6 +347,13 @@ REST calls require:
 * the CA or self-signed certificate trusted by the client
 
 The current OpenAPI description is available at [api/openapi.yaml](api/openapi.yaml).
+Set `server.swagger_enabled: true` to expose Swagger UI at `/swagger/`; it is
+disabled by default. Generation and client maintenance are documented in
+[API Contract Maintenance](docs/api-contract-maintenance.md).
+
+Go applications can import the management client from
+`github.com/jfardello/tdns/apiclient`. DNS upstream transport is exposed
+separately as `github.com/jfardello/tdns/resolver`.
 
 ## Getting black hole lists
 

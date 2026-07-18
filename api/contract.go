@@ -6,3 +6,8 @@ import _ "embed"
 //
 //go:embed openapi.yaml
 var openAPISpec []byte
+
+// OpenAPISpec returns a copy of the generated OpenAPI 3.0 contract.
+func OpenAPISpec() []byte {
+	return append([]byte(nil), openAPISpec...)
+}

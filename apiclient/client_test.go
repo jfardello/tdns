@@ -84,7 +84,7 @@ func TestClientReturnsTypedHTTPError(t *testing.T) {
 }
 
 func TestNewHTTPClientLoadsConfiguredCA(t *testing.T) {
-	client, err := NewHTTPClient("../../fixtures/tdns.crt")
+	client, err := NewHTTPClient("../fixtures/tdns.crt")
 	if err != nil {
 		t.Fatalf("NewHTTPClient: %v", err)
 	}

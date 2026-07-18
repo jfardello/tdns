@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 import (
 	"encoding/json"
@@ -14,9 +14,9 @@ import (
 //	@Description	Associate a client IP address with a display name.
 //	@Tags			dns-log
 //	@ID				dnsLogAliasSet
-//	@Param			request	body	DNSLogAliasRequest	true	"Client alias"
+//	@Param			request	body	api.DNSLogAliasRequest	true	"Client alias"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/dns-log/alias [post]
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +58,7 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@ID				dnsLogRotate
 //	@Param			since	query	string	false	"Relative age such as 24h or 1w"
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/dns-log/rotate [get]
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +96,7 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 //	@Param			client		query	string	false	"Client alias or IP address"
 //	@Param			client_mode	query	string	false	"Client matching mode"	Enums(host,ip)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/dns-log/top/{top} [get]
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +142,7 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 //	@Param			search	query	string	false	"Address or alias substring"
 //	@Param			limit	query	int		false	"Maximum result count"	default(20)	minimum(1)	maximum(100)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/dns-log/clients [get]
 func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +190,7 @@ func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
 //	@ID				dnsLogDashboard
 //	@Param			hours	query	int	false	"Dashboard window in hours"	default(24)	minimum(1)	maximum(336)
 //	@Security		BearerAuth
-//	@Success		200	{object}	Response
+//	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Router			/api/dns-log/dashboard [get]
 func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {

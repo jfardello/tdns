@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jfardello/tdns/apiclient"
 	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/internal/apiclient"
 )
 
 type apiRequest struct {

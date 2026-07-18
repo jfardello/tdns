@@ -1,8 +1,9 @@
-package api
+package httpapi
 
 import (
 	"net/http"
 
+	contractapi "github.com/jfardello/tdns/api"
 	_ "github.com/jfardello/tdns/api/docs"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
@@ -81,7 +82,7 @@ func NewHandler(dns *server.Server) http.Handler {
 		))
 		mux.HandleFunc("GET /swagger/openapi.yaml", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/yaml")
-			_, _ = w.Write(openAPISpec)
+			_, _ = w.Write(contractapi.OpenAPISpec())
 		})
 	}
 	return withCORS(mux, conf.CORS)

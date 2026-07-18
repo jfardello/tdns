@@ -6,8 +6,8 @@ package cmd
 import (
 	"context"
 
+	"github.com/jfardello/tdns/apiclient"
 	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/internal/apiclient"
 	"github.com/spf13/cobra"
 )
 

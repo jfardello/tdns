@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfardello/tdns/client"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/resolver"
 	"github.com/miekg/dns"
 )
 
@@ -18,7 +18,7 @@ import (
 type StubResolver struct {
 	mu          sync.Mutex
 	EnableStubs bool
-	Stubs       map[string]*client.Mux
+	Stubs       map[string]*resolver.Mux
 	runtime     []string
 	config      config.Config
 }
@@ -76,10 +76,10 @@ func (sr *StubResolver) Config(c config.Config) error {
 	return nil
 }
 
-func (sr *StubResolver) Replace(m map[string]*client.Mux) {
+func (sr *StubResolver) Replace(m map[string]*resolver.Mux) {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
-	sr.Stubs = make(map[string]*client.Mux, len(m))
+	sr.Stubs = make(map[string]*resolver.Mux, len(m))
 	for each := range m {
 		sr.Stubs[each] = m[each]
 	}
@@ -116,7 +116,7 @@ func (sr *StubResolver) ReplaceRuntimeEntries(entries []string, globalTimeout in
 	}
 
 	sr.mu.Lock()
-	sr.Stubs = make(map[string]*client.Mux, len(stubs))
+	sr.Stubs = make(map[string]*resolver.Mux, len(stubs))
 	for each := range stubs {
 		sr.Stubs[each] = stubs[each]
 	}
@@ -141,14 +141,14 @@ func (sr *StubResolver) Status() StubResolverStatus {
 	}
 }
 
-func ParseStubList(s []string, globalTimeOut int, upstreamTimeOut int) (map[string]*client.Mux, error) {
-	stubs := map[string]*client.Mux{}
+func ParseStubList(s []string, globalTimeOut int, upstreamTimeOut int) (map[string]*resolver.Mux, error) {
+	stubs := map[string]*resolver.Mux{}
 	for _, each := range s {
 		splitted := strings.Split(each, ",")
 		servers := splitted[1:]
-		mux := client.NewClientMux(servers,
-			client.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond),
-			client.WithMuxUpstreamOptions(client.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)))
+		mux := resolver.NewClientMux(servers,
+			resolver.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond),
+			resolver.WithMuxUpstreamOptions(resolver.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)))
 		stubs[splitted[0]] = mux
 	}
 	return stubs, nil
