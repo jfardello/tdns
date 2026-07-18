@@ -352,9 +352,6 @@ as the sinkhole answer.
 
 ## History
 
-tdns started as shell script that used to manage dnsmask over dbus in order to activate/deactivate on demand so that I could have multiple VPNs fast, also I hated to send all the internet traffic over the slow VPN, when downloading public images, so with some scripting and linux Cgroups I achieved
-having a cgroup using normal internet and the rest using the VPN that was publishing a 0/0 route through itself, tdns was needed in order to make this dynamic on post connect scripts.
+TDNS started as shell script that used to manage dnsmask over dbus in order to switch on demand DNS servers per domain as wel las the default one so that I could have multiple VPNs confined on Cgroups with isolated routing. Over the time it became bloated, default DNS pointed to an stubby instance for DNS over TLS, it had some python code for dbus scripting and managing black listing.
 
-Over the time it became bloated, default DNS was a localhost instance of stubby for DNS over TLS, and a pit  of python for dbus scripting, after that I added some black listing and my "zen" where I block for some hours all social stuf, directly on my home router.
-
-Too bloated for a shell script, but existing solutions lacked the dynamic reconfiguration so I re-wrote it aas a go program I have being using this for years now.  
+Too bloated for a shell script, but existing solutions lacked the dynamic reconfiguration so I re-wrote it as a go program. I've being using tdns for years now, lately I did some refactor in order to improve maintainability, documentation and added web interface.

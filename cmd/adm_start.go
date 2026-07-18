@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -27,7 +28,9 @@ var startZenCmd = &cobra.Command{
 	Use:   "zen-mode",
 	Short: "Starts zen mode period interceptor",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/zen-mode/start", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.ZenModeStart(ctx)
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -40,7 +43,9 @@ var startBlacklistCmd = &cobra.Command{
 	Use:   "blacklist",
 	Short: "Start blacklist middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/blacklist/start", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.BlacklistToggle(ctx, "start")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -54,7 +59,9 @@ var startStubsCmd = &cobra.Command{
 	Short: "Start stub resolver middleware",
 	Run: func(cmd *cobra.Command, args []string) {
 		setPersistentOps()
-		resp, err := apiclient.Post(cmd.Context(), "/api/stub-resolver/start", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.StubResolverToggle(ctx, "start")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -68,7 +75,9 @@ var startStaticCmd = &cobra.Command{
 	Use:   "static-response",
 	Short: "Start static response middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/static-response/start", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.StaticResponseToggle(ctx, "start")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}

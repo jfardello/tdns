@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -17,38 +16,23 @@ type apiRequest struct {
 	Path   string
 }
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
-}
-
 func newMockAPI(t *testing.T, handler func(*http.Request) apiclient.Response) <-chan apiRequest {
 	t.Helper()
 
 	requests := make(chan apiRequest, 16)
-	restore := apiclient.SetClientFactoryForTest(func() (*http.Client, error) {
-		return &http.Client{
-			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				requests <- apiRequest{Method: r.Method, Path: r.URL.String()}
-				resp := handler(r)
-				body, err := json.Marshal(resp)
-				if err != nil {
-					t.Fatalf("json.Marshal error: %v", err)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Header:     make(http.Header),
-					Body:       io.NopCloser(bytes.NewReader(body)),
-				}, nil
-			}),
-		}, nil
-	})
-	t.Cleanup(restore)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- apiRequest{Method: r.Method, Path: r.URL.RequestURI()}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(handler(r)); err != nil {
+			t.Errorf("encode mock response: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
 
 	c := &config.Config{}
-	c.Client.Server = "https://tdns.example"
+	c.Client.Server = server.URL
 	c.Client.CAcert = "../fixtures/tdns.crt"
+	c.Client.Token = "test-token"
 	config.SetRunningConfig(c)
 	return requests
 }
@@ -80,7 +64,7 @@ func Test_handleStubs(t *testing.T) {
 	if err := handleStubs([]string{"google.es,udp://8.8.8.8", "google.com,udp://8.8.8.8"}); err != nil {
 		t.Fatalf("handleStubs error: %v", err)
 	}
-	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/stub-resolver?")
+	expectRequest(t, requests, http.MethodPost, "/api/stub-resolver")
 }
 
 func Test_handleZenDomains(t *testing.T) {
@@ -95,5 +79,5 @@ func Test_handleZenDomains(t *testing.T) {
 	if err := handleZenDomains([]string{"example.com"}); err != nil {
 		t.Fatalf("handleZenDomains error: %v", err)
 	}
-	expectRequest(t, requests, http.MethodPost, "https://tdns.example/api/zen-mode?")
+	expectRequest(t, requests, http.MethodPost, "/api/zen-mode")
 }

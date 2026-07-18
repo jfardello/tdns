@@ -56,7 +56,7 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@Description	Delete DNS log entries selected by a relative duration.
 //	@Tags			dns-log
 //	@ID				dnsLogRotate
-//	@Param			since	query	string	false	"Relative age such as 24h or 1w"	example(1w)
+//	@Param			since	query	string	false	"Relative age such as 24h or 1w"
 //	@Security		BearerAuth
 //	@Success		200	{object}	Response
 //	@Failure		401	{string}	string	"Unauthorized"
@@ -90,9 +90,9 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 //	@Description	Return top domains with optional status and client filters.
 //	@Tags			dns-log
 //	@ID				dnsLogTop
-//	@Param			top			path	int		true	"Maximum result count"				minimum(1)	maximum(50)
-//	@Param			since		query	string	false	"Relative age such as 24h or 1w"	example(1w)
-//	@Param			status		query	string	false	"Query disposition"					Enums(blocked,allowed)
+//	@Param			top			path	int		true	"Maximum result count"	minimum(1)	maximum(50)
+//	@Param			since		query	string	false	"Relative age such as 24h or 1w"
+//	@Param			status		query	string	false	"Query disposition"	Enums(blocked,allowed)
 //	@Param			client		query	string	false	"Client alias or IP address"
 //	@Param			client_mode	query	string	false	"Client matching mode"	Enums(host,ip)
 //	@Security		BearerAuth

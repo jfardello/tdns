@@ -1,12 +1,53 @@
 package api
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jfardello/tdns/config"
 )
+
+func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		config.SetRunningConfig(&config.Config{})
+		handler := NewHandler(nil)
+		for _, path := range []string{"/swagger/index.html", "/swagger/doc.json", "/swagger/openapi.yaml"} {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+			if response.Code != http.StatusNotFound {
+				t.Errorf("%s status = %d, want %d", path, response.Code, http.StatusNotFound)
+			}
+		}
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		config.SetRunningConfig(&config.Config{Server: config.Server{SwaggerEnabled: true}})
+		handler := NewHandler(nil)
+
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("UI status = %d, want %d", response.Code, http.StatusOK)
+		}
+		if body, _ := io.ReadAll(response.Result().Body); !strings.Contains(string(body), "SwaggerUIBundle") {
+			t.Fatal("Swagger UI response does not contain the UI application")
+		}
+
+		for _, path := range []string{"/swagger/doc.json", "/swagger/openapi.yaml"} {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+			if response.Code != http.StatusOK {
+				t.Errorf("%s status = %d, want %d", path, response.Code, http.StatusOK)
+			}
+			if path == "/swagger/doc.json" && !strings.Contains(response.Body.String(), "BearerAuth") {
+				t.Error("generated Swagger document does not define bearer authentication")
+			}
+		}
+	})
+}
 
 func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})

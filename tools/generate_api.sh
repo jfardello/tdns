@@ -5,6 +5,9 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAG_VERSION=v1.16.6
 SWAG_PACKAGE="github.com/swaggo/swag/cmd/swag@${SWAG_VERSION}"
+OAPI_CODEGEN_VERSION=v2.8.0
+OAPI_CODEGEN_PACKAGE="github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@${OAPI_CODEGEN_VERSION}"
+NODE_BIN="$ROOT_DIR/web/node_modules/.bin"
 
 cd "$ROOT_DIR"
 
@@ -15,3 +18,18 @@ go run "$SWAG_PACKAGE" init \
 	-o api/docs \
 	--outputTypes go,json,yaml \
 	--parseInternal
+
+if [ ! -x "$NODE_BIN/swagger2openapi" ] || [ ! -x "$NODE_BIN/redocly" ]; then
+	echo "missing API generation dependencies; run: npm --prefix web install" >&2
+	exit 1
+fi
+
+"$NODE_BIN/redocly" lint api/docs/swagger.yaml --config redocly.yaml
+"$NODE_BIN/swagger2openapi" api/docs/swagger.yaml \
+	--outfile api/openapi.yaml \
+	--yaml
+"$NODE_BIN/redocly" lint api/openapi.yaml --config redocly.yaml
+
+go run "$OAPI_CODEGEN_PACKAGE" \
+	--config internal/apiclient/oapi-codegen.yaml \
+	api/openapi.yaml

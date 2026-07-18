@@ -4,6 +4,10 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"context"
+
+	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/apiclient"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +19,16 @@ var manageCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 	},
+}
+
+type managementOperation func(context.Context, *apiclient.Client) (*apiclient.Response, error)
+
+func runManagementOperation(ctx context.Context, operation managementOperation) (*apiclient.Response, error) {
+	client, err := apiclient.NewFromConfig(config.GetRunningConfig().Client)
+	if err != nil {
+		return nil, err
+	}
+	return operation(ctx, client)
 }
 
 func init() {

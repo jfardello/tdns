@@ -143,7 +143,9 @@ type Server struct {
 	APIKeyFile  string `mapstructure:"api_key_file" yaml:"api_key_file,omitempty"`
 	PProfAddr   string `mapstructure:"pprof_addr" yaml:"pprof_addr,omitempty"`
 	SigningKey  string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
-	signingKey  []byte
+	// SwaggerEnabled exposes the Swagger UI and raw Swagger/OpenAPI documents.
+	SwaggerEnabled bool `mapstructure:"swagger_enabled" yaml:"swagger_enabled,omitempty"`
+	signingKey     []byte
 }
 
 func (s *Server) loadSigningKey() {

@@ -23,7 +23,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				startZenCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/zen-mode/start?",
+			wantPath:   "/api/zen-mode/start",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.ZenModeResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -34,7 +34,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				startBlacklistCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/blacklist/start?",
+			wantPath:   "/api/blacklist/start",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.BlacklistResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -45,7 +45,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				startStubsCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/stub-resolver/start?",
+			wantPath:   "/api/stub-resolver/start",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.StubResolverResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -56,7 +56,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				startStaticCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/static-response/start?",
+			wantPath:   "/api/static-response/start",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.StaticResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -67,7 +67,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				stopStubsCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/stub-resolver/stop?",
+			wantPath:   "/api/stub-resolver/stop",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.StubResolverResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -78,7 +78,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				stoppStaticCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/static-response/stop?",
+			wantPath:   "/api/static-response/stop",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.StaticResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -89,7 +89,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				stopBlacklistCmd.Run(cmd, nil)
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/blacklist/stop?",
+			wantPath:   "/api/blacklist/stop",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.BlacklistResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -102,7 +102,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				}
 			},
 			wantMethod: http.MethodPost,
-			wantPath:   "https://tdns.example/api/dns-log/alias?",
+			wantPath:   "/api/dns-log/alias",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{Kind: apiclient.DNSLogResponseKind, Message: apiclient.MESSAGE_OK}
 			},
@@ -120,7 +120,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				}
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "https://tdns.example/api/dns-log/top/5?since=1w",
+			wantPath:   "/api/dns-log/top/5?since=1w",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{
 					Kind:    apiclient.DNSLogResponseKind,
@@ -144,7 +144,7 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 				}
 			},
 			wantMethod: http.MethodGet,
-			wantPath:   "https://tdns.example/api/dns-log/top/5?client=office&client_mode=host&since=24h&status=blocked",
+			wantPath:   "/api/dns-log/top/5?since=24h&status=blocked&client=office&client_mode=host",
 			handler: func(r *http.Request) apiclient.Response {
 				return apiclient.Response{
 					Kind:    apiclient.DNSLogResponseKind,

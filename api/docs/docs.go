@@ -570,7 +570,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "1w",
                         "description": "Relative age such as 24h or 1w",
                         "name": "since",
                         "in": "query"
@@ -617,7 +616,6 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "example": "1w",
                         "description": "Relative age such as 24h or 1w",
                         "name": "since",
                         "in": "query"

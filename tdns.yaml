@@ -45,6 +45,7 @@ stub_resolver:
 server:
   listen_addr: ":8053"
   api_addr: ":8443"
+  swagger_enabled: false
   pprof_addr: ":6060"
   api_cert_file: fixtures/tdns.crt
   api_key_file:  fixtures/tdns.key

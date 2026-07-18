@@ -1,912 +1,1785 @@
-openapi: 3.0.3
+openapi: 3.0.0
 info:
-  title: TDNS REST API
-  version: "1.0.0"
-  description: |
-    OpenAPI description generated from the currently registered handlers in `api/v1.go`
-    and `api/taggerv1.go`.
-servers:
-  - url: https://localhost:8443
-    description: Default local API endpoint
-security:
-  - bearerAuth: []
-tags:
-  - name: Stub Resolver
-  - name: Zen Mode
-  - name: Blacklist
-  - name: Static Response
-  - name: DNS Log
-  - name: Cache
-  - name: Tagger
-  - name: Metrics
+  contact: {}
+  description: Configure and inspect a running TDNS server.
+  title: TDNS Management API
+  version: "1.0"
 paths:
-  /api/stub-resolver:
-    get:
-      tags: [Stub Resolver]
-      summary: Return the active stub resolver configuration and runtime status
-      operationId: stubStatus
-      responses:
-        '200':
-          description: Stub resolver state returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Stub Resolver]
-      summary: Replace the runtime stub resolvers
-      operationId: stubReplace
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StubReplaceRequest'
-      responses:
-        '200':
-          description: Stub resolvers replaced
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request body or malformed stubs
-          content:
-            text/plain:
-              schema:
-                type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/stub-resolver/{action}:
-    post:
-      tags: [Stub Resolver]
-      summary: Enable or disable the stub resolver middleware
-      operationId: stubToggle
-      parameters:
-        - $ref: '#/components/parameters/Action'
-      responses:
-        '200':
-          description: Stub resolver state returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/blacklist/{action}:
-    post:
-      tags: [Blacklist]
-      summary: Enable or disable blacklist filtering
-      operationId: blacklistToggle
-      parameters:
-        - $ref: '#/components/parameters/Action'
-      responses:
-        '200':
-          description: Blacklist state returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
   /api/blacklist:
     get:
-      tags: [Blacklist]
-      summary: Return the active blacklist configuration and runtime status
+      description: Return blacklist sources, exclusions, and runtime state.
       operationId: blacklistStatus
       responses:
-        '200':
-          description: Blacklist configuration and status
+        "200":
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/blacklist/whitelist:
-    post:
-      tags: [Blacklist]
-      summary: Add runtime-only whitelist suffixes for blacklist bypass
-      operationId: blacklistAddRuntimeWhitelist
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BlacklistWhitelistRequest'
-      responses:
-        '200':
-          description: Updated blacklist configuration and status
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request body or invalid runtime whitelist values
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/static-response/{action}:
-    post:
-      tags: [Static Response]
-      summary: Enable or disable static host responses
-      operationId: staticResponseToggle
-      parameters:
-        - $ref: '#/components/parameters/Action'
-      responses:
-        '200':
-          description: Static response state returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid action value
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/static-response:
-    get:
-      tags: [Static Response]
-      summary: Return the active static-response configuration and runtime status
-      operationId: staticResponseStatus
-      responses:
-        '200':
-          description: Static response status returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Static Response]
-      summary: Replace the runtime static host map
-      operationId: staticResponseReplace
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StaticReplaceRequest'
-      responses:
-        '200':
-          description: Static response runtime hosts replaced
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request body or malformed host entries
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/dns-log/top/{top}:
-    get:
-      tags: [DNS Log]
-      summary: Return the most frequent DNS log entries
-      operationId: dnsLogTop
-      parameters:
-        - name: top
-          in: path
-          required: true
-          description: Maximum number of rows to return
-          schema:
-            type: integer
-            minimum: 1
-        - name: since
-          in: query
-          required: false
-          description: Duration filter such as `24h` or `7d`
-          schema:
-            type: string
-      responses:
-        '200':
-          description: DNS log response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/dns-log/dashboard:
-    get:
-      tags: [DNS Log]
-      summary: Return dashboard query totals and hourly DNS log aggregates
-      operationId: dnsLogDashboard
-      parameters:
-        - name: hours
-          in: query
-          required: false
-          description: Number of trailing hours to summarize, defaults to `24`
-          schema:
-            type: integer
-            minimum: 1
-      responses:
-        '200':
-          description: DNS dashboard response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/dns-log/rotate:
-    get:
-      tags: [DNS Log]
-      summary: Delete DNS log rows older than the provided duration
-      operationId: dnsLogRotate
-      parameters:
-        - name: since
-          in: query
-          required: true
-          description: Duration threshold such as `24h` or `180d`
-          schema:
-            type: string
-      responses:
-        '200':
-          description: DNS log rotation result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/dns-log/alias:
-    post:
-      tags: [DNS Log]
-      summary: Add or update a host alias for a client IP
-      operationId: dnsLogAlias
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DNSLogAliasRequest'
-      responses:
-        '200':
-          description: Alias update result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/zen-mode:
-    get:
-      tags: [Zen Mode]
-      summary: Return the active zen-mode configuration and runtime status
-      operationId: zenModeStatus
-      responses:
-        '200':
-          description: Zen-mode status returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-    post:
-      tags: [Zen Mode]
-      summary: Replace the runtime set of zen-mode domains
-      operationId: zenDomainsReplace
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ZenReplaceRequest'
-      responses:
-        '200':
-          description: Zen-mode domains replaced
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request body or replacement data
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/Response'
-                  - type: string
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/zen-mode/start:
-    post:
-      tags: [Zen Mode]
-      summary: Start a zen-mode session
-      operationId: zenModeStart
-      responses:
-        '200':
-          description: Zen-mode state returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/cache:
-    delete:
-      tags: [Cache]
-      summary: Clear the in-memory DNS cache
-      operationId: deleteCache
-      responses:
-        '200':
-          description: Cache clear result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageOnlyResponse'
-        '500':
-          description: Cache clear failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageOnlyResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/tagger/tags:
-    get:
-      tags: [Tagger]
-      summary: List all tag names
-      operationId: taggerGetTags
-      responses:
-        '200':
-          description: Tag list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-    post:
-      tags: [Tagger]
-      summary: Create a new tag
-      operationId: taggerAddTag
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddTagRequest'
-      responses:
-        '200':
-          description: Tag created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request or tag creation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /api/tagger/tags/{tagName}:
-    get:
-      tags: [Tagger]
-      summary: List members that belong to a tag
-      operationId: taggerTagGetMembers
-      parameters:
-        - $ref: '#/components/parameters/TagName'
-      responses:
-        '200':
-          description: Member list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-    post:
-      tags: [Tagger]
-      summary: Add members to an existing tag
-      operationId: taggerAddMember
-      parameters:
-        - $ref: '#/components/parameters/TagName'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AddMemberRequest'
-      responses:
-        '200':
-          description: Updated member list for the tag
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request or membership update error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-    delete:
-      tags: [Tagger]
-      summary: Delete a tag
-      operationId: taggerDeleteTag
-      parameters:
-        - $ref: '#/components/parameters/TagName'
-      responses:
-        '200':
-          description: Tag deleted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Tag deletion error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /api/tagger/tags/{tagName}/{address}:
-    delete:
-      tags: [Tagger]
-      summary: Remove an address from a tag
-      operationId: taggerDeleteTagMember
-      parameters:
-        - $ref: '#/components/parameters/TagName'
-        - $ref: '#/components/parameters/Address'
-      responses:
-        '200':
-          description: Member removed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Member removal error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /api/tagger/address:
-    post:
-      tags: [Tagger]
-      summary: Create or replace labels for an address
-      operationId: taggerAddressCreate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MemberLabelsRequest'
-      responses:
-        '200':
-          description: Labels assigned to the address
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request or label update error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /api/tagger/address/{address}:
-    put:
-      tags: [Tagger]
-      summary: Replace labels for a specific address
-      operationId: taggerAddressReplace
-      parameters:
-        - $ref: '#/components/parameters/Address'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplaceMemberLabelsRequest'
-      responses:
-        '200':
-          description: Updated labels for the address
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request or label update error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /api/tagger/addr/{tagName}:
-    put:
-      tags: [Tagger]
-      summary: Replace labels for an address, using the legacy path parameter name
-      description: |
-        This endpoint is implemented by the same handler as `/api/tagger/address/{address}`.
-        The path variable is called `tagName` in the route, but it is interpreted as the address.
-      operationId: taggerAddressReplaceLegacy
-      parameters:
-        - $ref: '#/components/parameters/LegacyAddress'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReplaceMemberLabelsRequest'
-      responses:
-        '200':
-          description: Updated labels for the address
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '400':
-          description: Invalid request or label update error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          description: Tagger middleware is disabled
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Response'
-  /metrics:
-    get:
-      tags: [Metrics]
-      security: []
-      summary: Prometheus metrics endpoint
-      operationId: metrics
-      responses:
-        '200':
-          description: Prometheus text exposition format
-          content:
-            text/plain:
               schema:
                 type: string
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  parameters:
-    Action:
-      name: action
-      in: path
-      required: true
-      description: Middleware action
-      schema:
-        type: string
-        enum: [start, stop]
-    TagName:
-      name: tagName
-      in: path
-      required: true
-      schema:
-        type: string
-    Address:
-      name: address
-      in: path
-      required: true
-      schema:
-        type: string
-    LegacyAddress:
-      name: tagName
-      in: path
-      required: true
-      description: Legacy route parameter name used as the address value
-      schema:
-        type: string
-  responses:
-    Unauthorized:
-      description: Missing or invalid bearer token
-      content:
-        text/plain:
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Get blacklist status
+      tags:
+        - blacklist
+  "/api/blacklist/{action}":
+    post:
+      description: Enable or disable blacklist filtering.
+      operationId: blacklistToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
           schema:
             type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Toggle blacklist filtering
+      tags:
+        - blacklist
+  /api/blacklist/persisted/excludes:
+    post:
+      description: Replace blacklist exclusion selectors stored in configuration overrides.
+      operationId: blacklistPersistedExcludesReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.BlacklistExcludesRequest"
+        description: Persisted blacklist exclusions
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace persisted blacklist exclusions
+      tags:
+        - blacklist
+  /api/blacklist/persisted/hosts:
+    post:
+      description: Replace additional blocked hosts stored in configuration overrides.
+      operationId: blacklistPersistedHostsReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.BlacklistHostsRequest"
+        description: Persisted blacklist hosts
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace persisted blacklist hosts
+      tags:
+        - blacklist
+  /api/blacklist/whitelist:
+    post:
+      description: Add domains to the in-memory blacklist whitelist.
+      operationId: blacklistRuntimeWhitelistAdd
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.BlacklistWhitelistRequest"
+        description: Runtime whitelist domains
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Add runtime whitelist domains
+      tags:
+        - blacklist
+  /api/cache:
+    delete:
+      description: Delete all currently cached DNS responses.
+      operationId: cacheClear
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Clear the DNS cache
+      tags:
+        - cache
+    get:
+      description: Return cache configuration and counters.
+      operationId: cacheStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Get cache status
+      tags:
+        - cache
+  "/api/cache/{action}":
+    post:
+      description: Enable or disable the cache and persist the selected state.
+      operationId: cacheToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Toggle the DNS cache
+      tags:
+        - cache
+  /api/cache/excludes:
+    post:
+      description: Replace and persist selectors excluded from caching.
+      operationId: cacheExcludesReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.CacheExcludeRequest"
+        description: Cache exclusion selectors
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace cache exclusions
+      tags:
+        - cache
+  /api/dns-log/alias:
+    post:
+      description: Associate a client IP address with a display name.
+      operationId: dnsLogAliasSet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.DNSLogAliasRequest"
+        description: Client alias
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Set a DNS client alias
+      tags:
+        - dns-log
+  /api/dns-log/clients:
+    get:
+      description: Search observed clients by address or alias.
+      operationId: dnsLogClientsSearch
+      parameters:
+        - description: Address or alias substring
+          in: query
+          name: search
+          schema:
+            type: string
+        - description: Maximum result count
+          in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Search DNS clients
+      tags:
+        - dns-log
+  /api/dns-log/dashboard:
+    get:
+      description: Return summary and hourly query statistics.
+      operationId: dnsLogDashboard
+      parameters:
+        - description: Dashboard window in hours
+          in: query
+          name: hours
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 336
+            default: 24
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Get DNS log dashboard
+      tags:
+        - dns-log
+  /api/dns-log/rotate:
+    get:
+      description: Delete DNS log entries selected by a relative duration.
+      operationId: dnsLogRotate
+      parameters:
+        - description: Relative age such as 24h or 1w
+          in: query
+          name: since
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Rotate DNS log entries
+      tags:
+        - dns-log
+  "/api/dns-log/top/{top}":
+    get:
+      description: Return top domains with optional status and client filters.
+      operationId: dnsLogTop
+      parameters:
+        - description: Maximum result count
+          in: path
+          name: top
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - description: Relative age such as 24h or 1w
+          in: query
+          name: since
+          schema:
+            type: string
+        - description: Query disposition
+          in: query
+          name: status
+          schema:
+            type: string
+            enum:
+              - blocked
+              - allowed
+        - description: Client alias or IP address
+          in: query
+          name: client
+          schema:
+            type: string
+        - description: Client matching mode
+          in: query
+          name: client_mode
+          schema:
+            type: string
+            enum:
+              - host
+              - ip
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Get top queried domains
+      tags:
+        - dns-log
+  /api/static-response:
+    get:
+      description: Return configured, persisted, and runtime static hosts.
+      operationId: staticResponseStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Get static response status
+      tags:
+        - static-response
+    post:
+      description: Replace static hosts held in memory.
+      operationId: staticResponseReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.StaticReplaceRequest"
+        description: Runtime hosts file lines
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace runtime static hosts
+      tags:
+        - static-response
+  "/api/static-response/{action}":
+    post:
+      description: Enable or disable static DNS responses.
+      operationId: staticResponseToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Toggle static responses
+      tags:
+        - static-response
+  /api/static-response/persisted:
+    post:
+      description: Replace static hosts stored in configuration overrides.
+      operationId: staticResponsePersistedReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.StaticReplaceRequest"
+        description: Persisted hosts file lines
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace persisted static hosts
+      tags:
+        - static-response
+  /api/stub-resolver:
+    get:
+      description: Return configured and runtime stub resolver state.
+      operationId: stubResolverStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Get stub resolver status
+      tags:
+        - stub-resolver
+    post:
+      description: Replace the in-memory stub resolver entries.
+      operationId: stubResolverReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.StubReplaceRequest"
+        description: Stub resolver entries
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Replace runtime stub resolvers
+      tags:
+        - stub-resolver
+  "/api/stub-resolver/{action}":
+    post:
+      description: Enable or disable stub resolution.
+      operationId: stubResolverToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+      security:
+        - BearerAuth: []
+      summary: Toggle the stub resolver
+      tags:
+        - stub-resolver
+  "/api/tagger/addr/{tagName}":
+    put:
+      description: Replace all tags assigned to an address through the legacy endpoint.
+      operationId: taggerLegacyAddressReplace
+      parameters:
+        - description: Address encoded in the legacy path parameter
+          in: path
+          name: tagName
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/api.ReplaceMemberLabelsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace address tags using the legacy path
+      tags:
+        - tagger
+  /api/tagger/address:
+    post:
+      description: Set all tags for an address supplied in the request body.
+      operationId: taggerAddressCreate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.MemberLabelsRequest"
+        description: Address and tags
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Create or update an address
+      tags:
+        - tagger
+  "/api/tagger/address/{address}":
+    put:
+      description: Replace all tags assigned to an address.
+      operationId: taggerAddressReplace
+      parameters:
+        - description: IP address or CIDR
+          in: path
+          name: address
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/api.ReplaceMemberLabelsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace address tags
+      tags:
+        - tagger
+  /api/tagger/hosts:
+    get:
+      description: Search hosts observed in the DNS log.
+      operationId: taggerKnownHostsSearch
+      parameters:
+        - description: Address or host substring
+          in: query
+          name: search
+          schema:
+            type: string
+        - description: Maximum result count
+          in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Search known hosts
+      tags:
+        - tagger
+  /api/tagger/tags:
+    get:
+      description: Return all client classification tags.
+      operationId: taggerTagsList
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: List tags
+      tags:
+        - tagger
+    post:
+      description: Create a client classification tag.
+      operationId: taggerTagCreate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.AddTagRequest"
+        description: Tag name
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Create a tag
+      tags:
+        - tagger
+  "/api/tagger/tags/{tagName}":
+    delete:
+      description: Delete a client classification tag.
+      operationId: taggerTagDelete
+      parameters:
+        - description: Tag name
+          in: path
+          name: tagName
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Delete a tag
+      tags:
+        - tagger
+    get:
+      description: Return addresses assigned to a tag.
+      operationId: taggerTagMembersList
+      parameters:
+        - description: Tag name
+          in: path
+          name: tagName
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: List tag members
+      tags:
+        - tagger
+    post:
+      description: Assign one or more addresses to a tag.
+      operationId: taggerTagMembersAdd
+      parameters:
+        - description: Tag name
+          in: path
+          name: tagName
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.AddMemberRequest"
+        description: Member addresses
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Add tag members
+      tags:
+        - tagger
+  "/api/tagger/tags/{tagName}/{address}":
+    delete:
+      description: Remove an address from a tag.
+      operationId: taggerTagMemberDelete
+      parameters:
+        - description: Tag name
+          in: path
+          name: tagName
+          required: true
+          schema:
+            type: string
+        - description: IP address or CIDR
+          in: path
+          name: address
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Remove a tag member
+      tags:
+        - tagger
+  /api/zen-mode:
+    get:
+      description: Return zen mode configuration, runtime state, and timing.
+      operationId: zenModeStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Get zen mode status
+      tags:
+        - zen-mode
+    post:
+      description: Replace the in-memory domains blocked by zen mode.
+      operationId: zenModeDomainsReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.ZenReplaceRequest"
+        description: Zen mode domains
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace runtime zen domains
+      tags:
+        - zen-mode
+  /api/zen-mode/persisted/domains:
+    post:
+      description: Replace zen domains stored in configuration overrides.
+      operationId: zenModePersistedDomainsReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.ZenReplaceRequest"
+        description: Persisted zen mode domains
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace persisted zen domains
+      tags:
+        - zen-mode
+  /api/zen-mode/persisted/excludes:
+    post:
+      description: Replace zen exclusions stored in configuration overrides.
+      operationId: zenModePersistedExcludesReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.ZenExcludesRequest"
+        description: Persisted zen mode exclusions
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Replace persisted zen exclusions
+      tags:
+        - zen-mode
+  /api/zen-mode/start:
+    post:
+      description: Start a zen mode period using the current configuration.
+      operationId: zenModeStart
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+      summary: Start zen mode
+      tags:
+        - zen-mode
+  /metrics:
+    get:
+      description: Return Prometheus metrics.
+      operationId: metricsGet
+      responses:
+        "200":
+          description: Prometheus metrics
+          content:
+            application/json:
+              schema:
+                type: string
+      summary: Metrics
+      tags:
+        - monitoring
+tags:
+  - description: Stub resolver configuration and state.
+    name: stub-resolver
+  - description: Scheduled domain blocking configuration and state.
+    name: zen-mode
+  - description: DNS cache configuration and state.
+    name: cache
+  - description: Blacklist configuration and state.
+    name: blacklist
+  - description: Static DNS response configuration and state.
+    name: static-response
+  - description: DNS query log reports and maintenance.
+    name: dns-log
+  - description: Client address labels and known hosts.
+    name: tagger
+  - description: Service monitoring endpoints.
+    name: monitoring
+servers:
+  - url: /
+components:
+  requestBodies:
+    api.ReplaceMemberLabelsRequest:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/api.ReplaceMemberLabelsRequest"
+      description: Replacement tags
+      required: true
+  securitySchemes:
+    BearerAuth:
+      description: Bearer token using the format "Bearer {token}".
+      in: header
+      name: Authorization
+      type: apiKey
   schemas:
-    Response:
-      type: object
-      required: [kind, message, current_status]
+    api.AddMemberRequest:
       properties:
-        kind:
-          type: string
-        message:
-          type: string
-        current_status:
-          type: string
-          description: Usually `enabled`, `disabled`, `Rotate OK`, or `Enabled`
-        items:
-          type: array
+        members:
           items:
             type: string
-        window_hours:
-          type: integer
-        log_items:
           type: array
+      type: object
+    api.AddTagRequest:
+      properties:
+        name:
+          example: trusted
+          type: string
+      type: object
+    api.BlacklistExcludesRequest:
+      properties:
+        excludes:
           items:
-            $ref: '#/components/schemas/LogDetails'
-        summary:
-          $ref: '#/components/schemas/DashboardSummary'
-        hourly:
+            type: string
           type: array
+      type: object
+    api.BlacklistHostsRequest:
+      properties:
+        hosts:
           items:
-            $ref: '#/components/schemas/DashboardHourlyPoint'
-        blacklist:
-          $ref: '#/components/schemas/BlacklistStatus'
-        zen_mode:
-          $ref: '#/components/schemas/ZenModeStatus'
-        static_response:
-          $ref: '#/components/schemas/StaticResponseStatus'
-        stub_resolver:
-          $ref: '#/components/schemas/StubResolverStatus'
-    MessageOnlyResponse:
+            type: string
+          type: array
       type: object
-      required: [message]
+    api.BlacklistStatus:
       properties:
-        message:
-          type: string
-    LogDetails:
-      type: object
-      properties:
-        domain:
-          type: string
-        counter:
+        blockfile_total_entries:
           type: integer
+        enabled:
+          type: boolean
+        excludes:
+          items:
+            type: string
+          type: array
+        external_file:
+          type: string
+        external_pull_period:
+          type: string
+        external_repo:
+          type: string
+        external_repo_branch:
+          type: string
+        file:
+          type: string
+        persisted_excludes:
+          items:
+            type: string
+          type: array
+        persisted_hosts:
+          items:
+            type: string
+          type: array
+        runtime_whitelist:
+          items:
+            type: string
+          type: array
+      type: object
+    api.BlacklistWhitelistRequest:
+      properties:
+        domains:
+          items:
+            type: string
+          type: array
+      type: object
+    api.CacheExcludeRequest:
+      properties:
+        excludes:
+          items:
+            type: string
+          type: array
+      type: object
+    api.CacheStatus:
+      properties:
+        enabled:
+          type: boolean
+        excludes:
+          items:
+            type: string
+          type: array
+        hits:
+          type: integer
+        misses:
+          type: integer
+        ttl:
+          type: integer
+      type: object
+    api.ClientCandidate:
+      properties:
+        address:
+          example: 192.0.2.10
+          type: string
         host:
+          example: office
           type: string
-    DashboardSummary:
       type: object
+    api.DNSLogAliasRequest:
       properties:
-        total_queries:
+        addr:
+          example: 192.0.2.10
+          type: string
+        name:
+          example: office
+          type: string
+      type: object
+    api.DashboardHourlyPoint:
+      properties:
+        allowed_queries:
           type: integer
         blocked_queries:
           type: integer
-        allowed_queries:
-          type: integer
-        cache_hits:
-          type: integer
-        cache_misses:
-          type: integer
-    DashboardHourlyPoint:
-      type: object
-      properties:
         hour_bucket:
           type: integer
         hour_start:
           type: string
         total_queries:
           type: integer
-        blocked_queries:
-          type: integer
+      type: object
+    api.DashboardSummary:
+      properties:
         allowed_queries:
           type: integer
-    BlacklistStatus:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-        file:
-          type: string
-        external_file:
-          type: string
-        external_repo:
-          type: string
-        external_repo_branch:
-          type: string
-        external_pull_period:
-          type: string
-        excludes:
-          type: array
-          items:
-            type: string
-        runtime_whitelist:
-          type: array
-          items:
-            type: string
-        blockfile_total_entries:
+        blocked_queries:
           type: integer
-    HostEntry:
+        cache_hits:
+          type: integer
+        cache_misses:
+          type: integer
+        total_queries:
+          type: integer
       type: object
+    api.HostEntry:
       properties:
-        domain:
-          type: string
         address:
+          example: 192.0.2.10
           type: string
-    ZenModeStatus:
+        domain:
+          example: example.com
+          type: string
       type: object
+    api.KnownHost:
       properties:
-        enabled:
-          type: boolean
-        file:
+        address:
+          example: 192.0.2.10
           type: string
-        duration_minutes:
+        host:
+          example: office
+          type: string
+      type: object
+    api.LogDetails:
+      properties:
+        counter:
+          example: 42
+          minimum: 0
           type: integer
-        configured_domains:
-          type: array
+        domain:
+          example: example.com.
+          type: string
+        host:
+          example: office
+          type: string
+      type: object
+    api.MemberLabelsRequest:
+      properties:
+        address:
+          example: 192.0.2.10
+          type: string
+        tags:
           items:
             type: string
-        runtime_domains:
           type: array
+      type: object
+    api.ReplaceMemberLabelsRequest:
+      properties:
+        tags:
           items:
             type: string
-        started_at:
+          type: array
+      type: object
+    api.Response:
+      properties:
+        blacklist:
+          $ref: "#/components/schemas/api.BlacklistStatus"
+        cache:
+          $ref: "#/components/schemas/api.CacheStatus"
+        clients:
+          items:
+            $ref: "#/components/schemas/api.ClientCandidate"
+          type: array
+        current_status:
+          example: enabled
           type: string
-        ends_at:
+        hourly:
+          items:
+            $ref: "#/components/schemas/api.DashboardHourlyPoint"
+          type: array
+        items:
+          items:
+            type: string
+          type: array
+        kind:
+          example: api.tdns/cache/response
           type: string
-        remaining_seconds:
+        known_hosts:
+          items:
+            $ref: "#/components/schemas/api.KnownHost"
+          type: array
+        log_items:
+          items:
+            $ref: "#/components/schemas/api.LogDetails"
+          type: array
+        message:
+          example: Status OK
+          type: string
+        static_response:
+          $ref: "#/components/schemas/api.StaticResponseStatus"
+        stub_resolver:
+          $ref: "#/components/schemas/api.StubResolverStatus"
+        summary:
+          $ref: "#/components/schemas/api.DashboardSummary"
+        tag_members:
+          items:
+            $ref: "#/components/schemas/api.TagMember"
+          type: array
+        window_hours:
+          maximum: 336
+          minimum: 1
           type: integer
-    StaticResponseStatus:
+        zen_mode:
+          $ref: "#/components/schemas/api.ZenModeStatus"
       type: object
-      properties:
-        enabled:
-          type: boolean
-        file:
-          type: string
-        configured_hosts:
-          type: array
-          items:
-            $ref: '#/components/schemas/HostEntry'
-        runtime_hosts:
-          type: array
-          items:
-            $ref: '#/components/schemas/HostEntry'
-    StubResolverStatus:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-        configured_stubs:
-          type: array
-          items:
-            type: string
-        runtime_stubs:
-          type: array
-          items:
-            type: string
-    StubReplaceRequest:
-      type: object
-      required: [stubs]
-      properties:
-        stubs:
-          type: array
-          items:
-            type: string
-          description: Entries like `example.com,udp://8.8.8.8,udp://8.8.4.4`
-    ZenReplaceRequest:
-      type: object
-      required: [zen_domains]
-      properties:
-        zen_domains:
-          type: array
-          items:
-            type: string
-    BlacklistWhitelistRequest:
-      type: object
-      required: [domains]
-      properties:
-        domains:
-          type: array
-          items:
-            type: string
-    StaticReplaceRequest:
-      type: object
-      required: [hosts]
+    api.StaticReplaceRequest:
       properties:
         hosts:
-          type: array
           items:
             type: string
-    DNSLogAliasRequest:
-      type: object
-      required: [name, addr]
-      properties:
-        name:
-          type: string
-        addr:
-          type: string
-    AddTagRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-    AddMemberRequest:
-      type: object
-      required: [members]
-      properties:
-        members:
           type: array
+      type: object
+    api.StaticResponseStatus:
+      properties:
+        configured_hosts:
+          items:
+            $ref: "#/components/schemas/api.HostEntry"
+          type: array
+        enabled:
+          type: boolean
+        file:
+          type: string
+        labels:
           items:
             type: string
-    MemberLabelsRequest:
+          type: array
+        persisted_hosts:
+          items:
+            $ref: "#/components/schemas/api.HostEntry"
+          type: array
+        runtime_hosts:
+          items:
+            $ref: "#/components/schemas/api.HostEntry"
+          type: array
       type: object
-      required: [address, tags]
+    api.StubReplaceRequest:
+      properties:
+        stubs:
+          items:
+            type: string
+          type: array
+      type: object
+    api.StubResolverStatus:
+      properties:
+        configured_stubs:
+          items:
+            type: string
+          type: array
+        enabled:
+          type: boolean
+        runtime_stubs:
+          items:
+            type: string
+          type: array
+      type: object
+    api.TagMember:
       properties:
         address:
+          example: 192.0.2.10
           type: string
-        tags:
-          type: array
-          items:
-            type: string
-    ReplaceMemberLabelsRequest:
+        has_host_alias:
+          type: boolean
+        host:
+          example: office
+          type: string
       type: object
-      required: [tags]
+    api.ZenExcludesRequest:
       properties:
-        tags:
-          type: array
+        excludes:
           items:
             type: string
+          type: array
+      type: object
+    api.ZenModeStatus:
+      properties:
+        configured_domains:
+          items:
+            type: string
+          type: array
+        configured_excludes:
+          items:
+            type: string
+          type: array
+        duration_minutes:
+          type: integer
+        enabled:
+          type: boolean
+        ends_at:
+          type: string
+        file:
+          type: string
+        labels:
+          items:
+            type: string
+          type: array
+        persisted_domains:
+          items:
+            type: string
+          type: array
+        persisted_excludes:
+          items:
+            type: string
+          type: array
+        remaining_seconds:
+          type: integer
+        runtime_domains:
+          items:
+            type: string
+          type: array
+        started_at:
+          type: string
+      type: object
+    api.ZenReplaceRequest:
+      properties:
+        zen_domains:
+          items:
+            type: string
+          type: array
+      type: object

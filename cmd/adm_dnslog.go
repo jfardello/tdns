@@ -8,7 +8,6 @@ import (
 	"github.com/jfardello/tdns/log"
 	"github.com/spf13/cobra"
 	"net"
-	"net/url"
 	"os"
 	"text/tabwriter"
 )
@@ -58,7 +57,9 @@ func handleAlias(hostName, ipAddress string) error {
 		Name: hostName,
 		Addr: ipAddress,
 	}
-	resp, err := apiclient.Post(context.Background(), "/api/dns-log/alias", payLoad)
+	resp, err := runManagementOperation(context.Background(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+		return client.DNSLogAliasSet(ctx, payLoad)
+	})
 	if err != nil {
 		return err
 	}
@@ -86,16 +87,16 @@ func init() {
 
 func getTop() error {
 	logger := log.GetLogger("cmd", "getTop")
-	u := fmt.Sprintf("/api/dns-log/top/%d", topLimit)
-	values := url.Values{}
+	params := &apiclient.DNSLogTopParams{}
 	if since != "" {
-		values.Set("since", since)
+		params.Since = &since
 	}
 	if topStatus != "" {
-		values.Set("status", topStatus)
+		status := apiclient.DNSLogTopStatus(topStatus)
+		params.Status = &status
 	}
 	if topClient != "" {
-		values.Set("client", topClient)
+		params.Client = &topClient
 		mode := topClientMode
 		if mode == "" {
 			if net.ParseIP(topClient) != nil {
@@ -104,12 +105,12 @@ func getTop() error {
 				mode = "host"
 			}
 		}
-		values.Set("client_mode", mode)
+		clientMode := apiclient.DNSLogTopClientMode(mode)
+		params.ClientMode = &clientMode
 	}
-	if encoded := values.Encode(); encoded != "" {
-		u = fmt.Sprintf("%s?%s", u, encoded)
-	}
-	resp, err := apiclient.Get(context.Background(), u)
+	resp, err := runManagementOperation(context.Background(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+		return client.DNSLogTop(ctx, topLimit, params)
+	})
 	if err != nil {
 		return err
 	}

@@ -3,11 +3,13 @@ package api
 import (
 	"net/http"
 
+	_ "github.com/jfardello/tdns/api/docs"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/server"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 type v1 struct {
@@ -72,6 +74,16 @@ func NewHandler(dns *server.Server) http.Handler {
 	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerLegacyAddressReplace, protected))
 
 	mux.HandleFunc("GET /metrics", api.Metrics)
+	if conf.Server.SwaggerEnabled {
+		mux.Handle("GET /swagger/", httpSwagger.Handler(
+			httpSwagger.URL("/swagger/doc.json"),
+			httpSwagger.DeepLinking(true),
+		))
+		mux.HandleFunc("GET /swagger/openapi.yaml", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/yaml")
+			_, _ = w.Write(openAPISpec)
+		})
+	}
 	return withCORS(mux, conf.CORS)
 }
 

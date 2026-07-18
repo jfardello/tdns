@@ -701,7 +701,6 @@ paths:
       operationId: dnsLogRotate
       parameters:
       - description: Relative age such as 24h or 1w
-        example: 1w
         in: query
         name: since
         type: string
@@ -732,7 +731,6 @@ paths:
         required: true
         type: integer
       - description: Relative age such as 24h or 1w
-        example: 1w
         in: query
         name: since
         type: string

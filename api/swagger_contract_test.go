@@ -36,6 +36,9 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 	}
 	routes := make([]registeredRoute, 0, len(matches))
 	for _, match := range matches {
+		if strings.HasPrefix(match[2], "/swagger/") {
+			continue
+		}
 		routes = append(routes, registeredRoute{
 			method:  strings.ToLower(match[1]),
 			path:    match[2],

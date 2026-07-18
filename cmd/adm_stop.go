@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -30,7 +31,9 @@ var stopStubsCmd = &cobra.Command{
 	Use:   "stub-resolver",
 	Short: "Stops the stub resolver middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/stub-resolver/stop", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.StubResolverToggle(ctx, "stop")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -43,7 +46,9 @@ var stoppStaticCmd = &cobra.Command{
 	Use:   "static-response",
 	Short: "Stops the static response middleware",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/static-response/stop", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.StaticResponseToggle(ctx, "stop")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}
@@ -56,7 +61,9 @@ var stopBlacklistCmd = &cobra.Command{
 	Use:   "blacklist",
 	Short: "Stops the blacklist middleware.",
 	Run: func(cmd *cobra.Command, args []string) {
-		resp, err := apiclient.Post(cmd.Context(), "/api/blacklist/stop", nil)
+		resp, err := runManagementOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.BlacklistToggle(ctx, "stop")
+		})
 		if err != nil {
 			fmt.Println(err.Error())
 		}

@@ -1,0 +1,9 @@
+extends:
+  - minimal
+
+rules:
+  operation-operationId-unique: error
+  operation-parameters-unique: error
+  path-declaration-must-exist: error
+  path-not-include-query: error
+  security-defined: off

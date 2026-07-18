@@ -16,5 +16,9 @@
     "nuxt-charts": "^2.1.4",
     "tailwindcss": "latest",
     "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.38.0",
+    "swagger2openapi": "7.0.8"
   }
 }

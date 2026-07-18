@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -10,21 +9,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 
 	"github.com/jfardello/tdns/api"
 	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/internal/apiclient/generated"
 )
 
-var httpClientFactory = newClient
-
 const (
-	GET  = "GET"
-	POST = "POST"
-
 	MessageOK                = api.MessageOK
 	MESSAGE_OK               = MessageOK
 	StubResolverResponseKind = api.StubResolverResponseKind
@@ -40,110 +33,59 @@ type Response = api.Response
 type LogDetails = api.LogDetails
 type StubReplaceRequest = api.StubReplaceRequest
 type ZenReplaceRequest = api.ZenReplaceRequest
-type ZenExcludesRequest = api.ZenExcludesRequest
-type BlacklistWhitelistRequest = api.BlacklistWhitelistRequest
-type BlacklistHostsRequest = api.BlacklistHostsRequest
-type BlacklistExcludesRequest = api.BlacklistExcludesRequest
-type StaticReplaceRequest = api.StaticReplaceRequest
-type CacheExcludeRequest = api.CacheExcludeRequest
 type DNSLogAliasRequest = api.DNSLogAliasRequest
+type DNSLogTopParams = generated.DnsLogTopParams
+type DNSLogTopStatus = generated.DnsLogTopParamsStatus
+type DNSLogTopClientMode = generated.DnsLogTopParamsClientMode
 
-func Get(ctx context.Context, url string) (*Response, error) {
-	return Do(ctx, url, GET, nil)
+type HTTPError struct {
+	StatusCode int
+	Body       []byte
 }
 
-func Post(ctx context.Context, url string, data any) (*Response, error) {
-	return Do(ctx, url, POST, data)
+func (e *HTTPError) Error() string {
+	body := strings.TrimSpace(string(e.Body))
+	if body == "" {
+		return fmt.Sprintf("management API returned HTTP %d", e.StatusCode)
+	}
+	return fmt.Sprintf("management API returned HTTP %d: %s", e.StatusCode, body)
 }
 
-func Do(ctx context.Context, urlPath string, method string, data any) (*Response, error) {
-	logger := log.GetLogger("api", "Do")
-	conf := config.GetRunningConfig()
+type Client struct {
+	generated *generated.Client
+}
 
-	splitted := strings.Split(urlPath, "?")
-	urlPath = splitted[0]
-	qs := ""
-	if len(splitted) > 1 {
-		qs = splitted[1]
+func New(baseURL, token string, httpClient *http.Client) (*Client, error) {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
 	}
 
-	addr := conf.Client.Server
-	fullUrl, err := url.JoinPath(addr, urlPath)
-	fullUrl = fmt.Sprintf("%s?%s", fullUrl, qs)
-	logger.Infof("fullUrl: %s", fullUrl)
-	if err != nil {
-		logger.Error(err.Error())
-		return nil, err
-	}
-
-	var byteReader *bytes.Reader
-
-	if data != nil {
-		b, err := toJSON(data)
-		if err != nil {
-			logger.Errorf("Error creating payload %s", err.Error())
-			return nil, err
-		}
-		byteReader = bytes.NewReader(b)
-
-	} else {
-		byteReader = bytes.NewReader([]byte{})
-	}
-
-	r, err := http.NewRequestWithContext(ctx, method, fullUrl, byteReader)
-
-	if err != nil {
-		logger.Errorf("Error creating request %s", err.Error())
-		return nil, err
-	}
-
-	r.Header.Add("Authorization", fmt.Sprintf("Bearer %s", conf.Client.Token))
-	r.Header.Add("Content-Type", "application/json")
-
-	client, err := httpClientFactory()
-	if err != nil {
-		logger.Errorf("Error creating http client %s", err.Error())
-		return nil, err
-	}
-	res, err := client.Do(r)
-
-	if err != nil {
-		logger.Errorf("Error making http request %s", err.Error())
-		return nil, err
-	}
-
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
-
+	generatedClient, err := generated.NewClient(
+		baseURL,
+		generated.WithHTTPClient(httpClient),
+		generated.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			if token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			return nil
+		}),
+	)
 	if err != nil {
 		return nil, err
 	}
+	return &Client{generated: generatedClient}, nil
+}
 
-	if res.StatusCode > http.StatusCreated {
-		return &Response{Message: string(body)}, nil
+func NewFromConfig(conf config.Client) (*Client, error) {
+	httpClient, err := NewHTTPClient(conf.CAcert)
+	if err != nil {
+		return nil, err
 	}
-
-	return parseJSON(body)
+	return New(conf.Server, conf.Token, httpClient)
 }
 
-func parseJSON(s []byte) (*Response, error) {
-
-	resp := &Response{}
-	if err := json.Unmarshal(s, resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
-}
-
-func toJSON(T any) ([]byte, error) {
-	return json.Marshal(T)
-}
-
-func newClient() (*http.Client, error) {
-	c := config.GetRunningConfig()
-
-	caCert, err := os.ReadFile(c.Client.CAcert)
+func NewHTTPClient(caCertFile string) (*http.Client, error) {
+	caCert, err := os.ReadFile(caCertFile)
 	if err != nil {
 		return nil, err
 	}
@@ -152,21 +94,63 @@ func newClient() (*http.Client, error) {
 		return nil, errors.New("unable to parse client CA certificate")
 	}
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: caCertPool,
-			},
-		},
-	}
-
-	return client, nil
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{
+		RootCAs: caCertPool,
+	}}}, nil
 }
 
-func SetClientFactoryForTest(factory func() (*http.Client, error)) func() {
-	prev := httpClientFactory
-	httpClientFactory = factory
-	return func() {
-		httpClientFactory = prev
+func (c *Client) ZenModeStart(ctx context.Context) (*Response, error) {
+	return decode(c.generated.ZenModeStart(ctx))
+}
+
+func (c *Client) BlacklistToggle(ctx context.Context, action string) (*Response, error) {
+	return decode(c.generated.BlacklistToggle(ctx, generated.BlacklistToggleParamsAction(action)))
+}
+
+func (c *Client) StubResolverToggle(ctx context.Context, action string) (*Response, error) {
+	return decode(c.generated.StubResolverToggle(ctx, generated.StubResolverToggleParamsAction(action)))
+}
+
+func (c *Client) StaticResponseToggle(ctx context.Context, action string) (*Response, error) {
+	return decode(c.generated.StaticResponseToggle(ctx, generated.StaticResponseToggleParamsAction(action)))
+}
+
+func (c *Client) StubResolverReplace(ctx context.Context, request StubReplaceRequest) (*Response, error) {
+	body := generated.ApiStubReplaceRequest{Stubs: &request.Stubs}
+	return decode(c.generated.StubResolverReplace(ctx, body))
+}
+
+func (c *Client) ZenModeDomainsReplace(ctx context.Context, request ZenReplaceRequest) (*Response, error) {
+	body := generated.ApiZenReplaceRequest{ZenDomains: &request.ZenDomains}
+	return decode(c.generated.ZenModeDomainsReplace(ctx, body))
+}
+
+func (c *Client) DNSLogAliasSet(ctx context.Context, request DNSLogAliasRequest) (*Response, error) {
+	body := generated.ApiDNSLogAliasRequest{Name: &request.Name, Addr: &request.Addr}
+	return decode(c.generated.DnsLogAliasSet(ctx, body))
+}
+
+func (c *Client) DNSLogTop(ctx context.Context, top int, params *DNSLogTopParams) (*Response, error) {
+	return decode(c.generated.DnsLogTop(ctx, top, params))
+}
+
+func decode(response *http.Response, requestErr error) (*Response, error) {
+	if requestErr != nil {
+		return nil, requestErr
 	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil, &HTTPError{StatusCode: response.StatusCode, Body: body}
+	}
+
+	result := &Response{}
+	if err := json.Unmarshal(body, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

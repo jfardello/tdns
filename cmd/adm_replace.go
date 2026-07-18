@@ -54,7 +54,9 @@ func handleStubs(stubs []string) error {
 		Stubs: stubs,
 	}
 
-	resp, err := apiclient.Post(context.Background(), "/api/stub-resolver", sreq)
+	resp, err := runManagementOperation(context.Background(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+		return client.StubResolverReplace(ctx, sreq)
+	})
 	if err != nil {
 		return err
 	}
@@ -72,7 +74,9 @@ func handleZenDomains(domains []string) error {
 	}
 
 	logger := log.GetLogger("adm", "handleZenDomains")
-	resp, err := apiclient.Post(context.Background(), "/api/zen-mode", sreq)
+	resp, err := runManagementOperation(context.Background(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+		return client.ZenModeDomainsReplace(ctx, sreq)
+	})
 	if err != nil {
 		logger.Error(err)
 		return err
