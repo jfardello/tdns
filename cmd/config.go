@@ -112,7 +112,7 @@ func WriteSampleConfig(fname, cert, key string) {
 	c.Server.APIKeyFile = key
 	c.Client.CAcert = cert
 
-	yamlOut, err := os.Create(path.Join(destination, fname))
+	yamlOut, err := os.OpenFile(path.Join(destination, fname), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		logger.Fatalf("Failed to open %s for writing: %v", path.Join(basepath, fname), err)
 	}
@@ -123,6 +123,9 @@ func WriteSampleConfig(fname, cert, key string) {
 	_, err = yamlOut.Write(out)
 	if err != nil {
 		logger.Fatalf("Error writing yaml config: %v", err)
+	}
+	if err := yamlOut.Close(); err != nil {
+		logger.Fatalf("Error closing yaml config: %v", err)
 	}
 	err = os.WriteFile(path.Join(destination, "hostsfile_list"), []byte("#127.0.0.1 foo.a.net"), 0644)
 	if err != nil {

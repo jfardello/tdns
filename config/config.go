@@ -96,7 +96,7 @@ type BlacklistConfig struct {
 	ExternalRepo       string   `mapstructure:"external_repo" yaml:"external_repo,omitempty"`
 	ExternalRepoBranch string   `mapstructure:"external_repo_branch" yaml:"external_repo_branch,omitempty"`
 	ExternalPullPeriod string   `mapstructure:"external_pull_period" yaml:"external_pull_period,omitempty"`
-	Excludes           []string `mapstructure:"exclude" yaml:"excludes"`
+	Excludes           []string `mapstructure:"excludes" yaml:"excludes"`
 	PersistedExcludes  []string `mapstructure:"-" yaml:"-"`
 	ExtraHosts         []string `mapstructure:"-" yaml:"-"`
 }
@@ -153,8 +153,7 @@ func (s *Server) loadSigningKey() {
 	var err error
 	if s.SigningKey == "" {
 		s.signingKey = *GenKey()
-		sk := base64.StdEncoding.EncodeToString(s.signingKey)
-		logger.Infof("Generated a temporal key for testing purposes (%s), please generate a persistent one.", sk)
+		logger.Warn("Generated a temporary signing key; configure server.signing_key or issued tokens will stop working after restart.")
 		return
 	}
 	s.signingKey, err = base64.StdEncoding.DecodeString(s.SigningKey)

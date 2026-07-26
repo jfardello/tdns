@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,26 +20,22 @@ func Validate(tokenString string, reqScope string) (jwt.MapClaims, error) {
 	logger := log.GetLogger("Api", "jwtValidate")
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Validate the alg
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
 		c := config.GetRunningConfig()
 		return c.Server.GetSigningKey(), nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS512.Alg()}), jwt.WithExpirationRequired())
 	if err != nil {
 
 		logger.Error(err)
 		return nil, err
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		if scope, ok := claims["scope"]; ok {
-			s := scope.(string)
-			if s == reqScope {
-				return claims, nil
-			}
-		}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+	scope, ok := claims["scope"].(string)
+	if ok && scope == reqScope {
+		return claims, nil
 	}
 	return nil, jwt.ErrTokenInvalidClaims
 }

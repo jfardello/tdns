@@ -24,13 +24,12 @@ func Require(handler func(http.ResponseWriter, *http.Request), auth Auth) http.H
 			return
 		}
 		//Get bearer
-		bearer := r.Header.Get("authorization")
-		splitted := strings.Split(bearer, " ")
-		if len(splitted) != 2 {
+		parts := strings.Fields(r.Header.Get("Authorization"))
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		claims, err := Validate(splitted[1], auth.Scope)
+		claims, err := Validate(parts[1], auth.Scope)
 		if err != nil {
 			switch {
 			case errors.Is(err, jwt.ErrTokenExpired):

@@ -1,11 +1,15 @@
 timeout: 1000
-upstream_timeout: 500
-enable_status: true
+upstream_timeout: 300
 verify_tls: true
+enable_api: false
 loglevel: INFO
 upstreams:
   - tls://1.1.1.1:853#cloudflare-dns.com
   - tls://1.0.0.1:853#cloudflare-dns.com
+cache:
+  enabled: true
+  ttl: 5
+  excludes: []
 cors:
   enabled: false
   allowed_origins:
@@ -21,6 +25,7 @@ blacklist:
   file: /tmp/tds-bhole-file
   external_file: /alternates/gambling/hosts
   external_repo: https://github.com/StevenBlack/hosts.git
+  external_repo_branch: master
   external_pull_period: "0 */6 * * *"
   excludes:
     - domain.tld
@@ -32,10 +37,13 @@ zen_mode:
     - www.facebook.com
     - www.instagram.com
     - x.com
+  excludes: []
+  labels: []
+  time: 20
 static_response:
   enabled: true
   file: fixtures/hosts_testfile
-  labels: 
+  labels:
     - nostaic
 stub_resolver:
   enabled: true
@@ -45,18 +53,18 @@ stub_resolver:
 server:
   listen_addr: ":8053"
   api_addr: ":8443"
-  swagger_enabled: false
-  pprof_addr: ":6060"
+  swagger_enabled: true
+  pprof_addr: ""
   api_cert_file: fixtures/tdns.crt
-  api_key_file:  fixtures/tdns.key
-  signing_key: wFLL196Y7zC8jLTDSezh6R8sGq4RqcMV/11P/MQ4u+USoEK2YCnctT7za/dPfeFjnJZJaDeBsyGXngB1657ahw==
+  api_key_file: fixtures/tdns.key
+  signing_key: ""
 client:
-  token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTgwOTYyMDYsInNjb3BlIjoidGRucy5rdWJld2lyZS5uZXQ6cnciLCJzdWIiOiJhZG1pbkB0ZG5zIn0.77fFLykG3N8rBKRQqVRTUaeYzT4GH7SSUXJVtXH4j9SXHqQ34o3oj-QMAdewO_g6hb9IPVJ3GQHptO4KZYhvyA
+  token: ""
   server: https://localhost:8443
   ca_cert: fixtures/tdns.crt
 status:
   enabled: true
-  expose_stats : true
+  expose_stats: true
   expose_uptime: true
 tagger:
   enabled: true

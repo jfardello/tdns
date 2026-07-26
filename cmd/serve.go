@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -290,19 +291,20 @@ func run() {
 
 func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, error) {
 	logger := log.GetLogger("serve", "http-server")
-	apiHandler := httpapi.NewHandler(dnsServer)
-	uiHandlers, err := webui.NewHandlers("")
+	handler, err := newHTTPHandler(dnsServer)
 	if err != nil {
-		return nil, fmt.Errorf("prepare embedded web ui: %w", err)
+		return nil, err
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/api/", apiHandler)
-	mux.Handle("/metrics", apiHandler)
-	mux.Handle("/_nuxt/", uiHandlers.Static)
-	mux.Handle("/", uiHandlers.SPA)
-
-	srv := &http.Server{Addr: c.Server.APIAddr, Handler: mux}
+	srv := &http.Server{
+		Addr:              c.Server.APIAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		TLSConfig:         &tls.Config{MinVersion: tls.VersionTLS12},
+	}
 	go func() {
 		logger.Infof("Starting https server at %s, (crt:%s, keyfile:%s)", c.Server.APIAddr, c.Server.APICertFile, c.Server.APIKeyFile)
 		if err := srv.ListenAndServeTLS(c.Server.APICertFile, c.Server.APIKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -313,6 +315,33 @@ func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, 
 	return srv, nil
 }
 
+func newHTTPHandler(dnsServer *server.Server) (http.Handler, error) {
+	apiHandler := httpapi.NewHandler(dnsServer)
+	uiHandlers, err := webui.NewHandlers("")
+	if err != nil {
+		return nil, fmt.Errorf("prepare embedded web ui: %w", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/", apiHandler)
+	mux.Handle("/metrics", apiHandler)
+	mux.Handle("/swagger/", apiHandler)
+	mux.Handle("/_nuxt/", uiHandlers.Static)
+	mux.Handle("/", uiHandlers.SPA)
+
+	return withSecurityHeaders(mux), nil
+}
+
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func startPProfServer(addr string) *http.Server {
 	logger := log.GetLogger("serve", "pprof")
 	mux := http.NewServeMux()
@@ -321,7 +350,14 @@ func startPProfServer(addr string) *http.Server {
 	mux.HandleFunc("/debug/pprof/profile", netpprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 	go func() {
 		logger.Infof("Starting pprof server at %s", addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

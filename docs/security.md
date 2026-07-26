@@ -1,0 +1,366 @@
+# TDNS Security
+
+## Purpose
+
+This is the living security document for TDNS. It records the current security
+model, deployment assumptions, accepted risks, and decisions that constrain
+implementation. Update it whenever a change affects authentication,
+authorization, exposed listeners, configuration secrets, stored DNS data,
+remote content, dependencies, or release artifacts.
+
+`security-review.md` is the dated review that identified the current findings.
+`security-plan.md` organizes remediation work. This document describes the
+security posture and decisions that are currently in force.
+
+## Maintenance Rules
+
+Every security-relevant change must update the applicable section of this file
+in the same pull request. Changes should record:
+
+- the protected asset or trust boundary being changed
+- the chosen behavior and secure default
+- any compatibility or deployment consequence
+- newly accepted residual risk and its intended review point
+- related configuration, API contract, tests, and operational documentation
+
+Do not copy credentials, production addresses, private keys, bearer tokens,
+browser login codes, session identifiers, or CSRF tokens into this document.
+
+## Protected Assets
+
+TDNS protects:
+
+- DNS queries and responses passing through the resolver
+- management operations that alter resolver behavior or persisted overrides
+- the server signing key and issued bearer credentials
+- future browser login codes and browser sessions
+- TLS private keys and trusted CA material
+- the SQLite database containing DNS activity, aliases, tags, and overrides
+- local and remotely downloaded hosts and blocklist data
+- diagnostic data exposed through metrics, Swagger, pprof, and logs
+- release artifacts and the dependency/generation toolchain used to build them
+
+## Trust Boundaries
+
+### DNS Listener
+
+Clients send clear DNS traffic to the configured UDP listener. TDNS processes
+that traffic through resolver middleware and forwards it to configured UDP,
+TCP, or DNS-over-TLS upstreams. A wildcard listener is not evidence that every
+source is trusted. Application client ACLs and rate limits are planned but are
+not yet implemented, so deployments must currently enforce source restrictions
+with listener binding and network policy.
+
+### Management HTTPS Server
+
+The embedded web UI, management API, metrics, and optional Swagger endpoints
+share the configured HTTPS listener. The server requires TLS 1.2 or newer and
+sets request timeouts and baseline browser security headers. API mutation and
+query routes currently use the same read-write bearer scope.
+
+### CLI and Public Go Client
+
+`tdns adm` and the importable `apiclient` authenticate with an Authorization
+Bearer JWT. Bearer authentication will remain supported when browser cookie
+authentication is introduced. Programmatic clients will not be converted to
+cookie sessions or browser CSRF processing.
+
+### Browser UI
+
+The embedded UI is served from the management API origin. The intended target
+model is same-origin browser authentication. The current UI temporarily stores
+an admin JWT in `localStorage`; this is a known risk pending migration because
+JavaScript running in the origin can read and exfiltrate it.
+
+The approved migration design is:
+
+- a CLI command generates a short-lived, purpose-bound login code
+- the administrator pastes the code into the browser login form
+- the code is redeemed once through the HTTPS API
+- the server creates an opaque server-side session in SQLite
+- the browser receives only a host-bound Secure, HttpOnly, SameSite=Strict
+  session cookie
+- browser mutation requests use session-bound CSRF protection
+- bearer JWT behavior remains unchanged for CLI and Go API clients
+
+The cookie contains an opaque session identifier, not a JWT. This permits
+immediate logout, expiration, and revocation without maintaining a JWT denylist.
+
+### Remote Blocklist Content
+
+Remote repositories, redirects, API responses, and downloaded content are
+untrusted inputs. The current download path does not yet enforce all planned
+time and size bounds or atomic validation. Deployments should use trusted
+repositories until bounded ingestion is implemented.
+
+### Local Storage and Logs
+
+The SQLite database and logs can reveal DNS activity and operational details.
+They must be accessible only to the dedicated service account and authorized
+operators. Retention, backup access, and secure disposal require deployment
+policy. Secrets and authentication credentials must never be logged.
+
+## Current Controls
+
+### Transport and HTTP
+
+- The management API is HTTPS-only.
+- TLS 1.2 is the minimum protocol version.
+- HTTP read-header, read, write, and idle timeouts are configured.
+- Responses include anti-sniffing, anti-framing, referrer, and permissions
+  headers.
+- CORS is disabled by default.
+
+### JWT Authentication
+
+- Only the Bearer authorization scheme is accepted.
+- Only HS512 is accepted for current API bearer tokens.
+- An expiration claim is mandatory.
+- Malformed scope claims are rejected without panicking.
+- Signing keys are generated with cryptographic randomness.
+- Temporary generated signing keys are not printed to logs.
+
+Issuer, audience, token identifier, key rotation, revocation, and distinct
+read-only authorization are planned but not yet implemented.
+
+### Secrets and Configuration
+
+- Generated configuration files use mode `0600`.
+- The repository sample contains no signing key or bearer token.
+- An empty persistent signing key causes a temporary runtime key, which makes
+  independently generated tokens invalid after restart. Production deployments
+  must configure a persistent secret outside source control.
+- Earlier sample credentials must be treated as compromised because removal
+  from the working tree does not remove them from Git history or deployments.
+
+### Diagnostics
+
+- Swagger is opt-in through `server.swagger_enabled`.
+- pprof is disabled in the repository sample.
+- Metrics are currently unauthenticated on the management listener.
+- Enabled Swagger endpoints are currently unauthenticated.
+- A configured pprof listener is unauthenticated plain HTTP and must currently
+  be restricted by binding and network policy.
+
+### Build and Dependencies
+
+- The module and CI use Go 1.26.5.
+- The patched-toolchain `govulncheck` baseline reports no reachable
+  vulnerabilities.
+- API generators are version-pinned and generated-file drift is checked.
+- The frontend dependency audit still has unresolved findings recorded in
+  `security-review.md`; dependency remediation and a CI audit policy remain
+  pending.
+
+## Established Decisions
+
+| Decision | Status | Rationale |
+| --- | --- | --- |
+| Preserve bearer JWT authentication for CLI and public Go clients | Approved | Maintains programmatic API compatibility. |
+| Replace browser JWT storage with an HttpOnly session | Approved | Prevents JavaScript from extracting the reusable session credential. |
+| Store opaque browser sessions server-side in SQLite | Approved | Supports direct expiration, logout, and revocation. |
+| Bootstrap browser sessions with a short-lived CLI-generated code | Approved | Fits the local administration workflow without adding a password database. |
+| Make browser login codes purpose-bound and single-use | Approved | Limits replay and clipboard exposure. |
+| Keep browser cookie authentication same-origin by default | Approved | Avoids unnecessary credentialed CORS exposure. |
+| Retain generated API artifacts in version control | Approved | Builds do not require generators and CI can detect contract drift. |
+| Build releases with Go 1.26.5 or a later patched supported release | Approved | Avoids known reachable standard-library vulnerabilities found with Go 1.26.1. |
+| Default DNS access to loopback and require an explicit CIDR allowlist for other clients | Approved | Prevents a default installation from becoming an open resolver; firewalling remains defense in depth. |
+| Use a two-minute browser login code and a non-persistent 12-hour session | Approved | Limits bootstrap-code replay and avoids retaining the browser session after restart. |
+| Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Approved | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
+| Enforce strict bearer claims by default with opt-in legacy compatibility for one release | Approved | Makes secure validation the default while providing a bounded migration path. |
+| Load signing keys from secret files or environment variables and support active/previous key IDs | Approved | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
+| Purge DNS logs after 30 days by default, with a 180-day maximum | Approved | Minimizes retained browsing data and prevents indefinite retention. |
+| Support a single TDNS instance on a trusted home, LAN, or VPN network | Approved | Internet-facing management deployments are outside the supported security model. |
+| Do not support reverse-proxy deployments | Approved | TDNS does not trust or interpret forwarded identity or origin headers. |
+| Treat explicitly allowlisted DNS client networks as trusted | Approved | DNS ACLs define the client trust boundary; unauthorized sources remain untrusted. |
+| Issue CLI bearer tokens for 30 days by default with a 180-day maximum | Approved | Reduces the previous 500-day default while retaining practical automation lifetimes. |
+| Block CI only for critical security findings | Approved | Lower-severity findings remain visible for triage without blocking every build. |
+| Support native/systemd and container deployments | Approved | Both installation forms must provide equivalent least-privilege and secret-protection controls. |
+
+## Policy Decisions
+
+This section gives implementation detail for approved policy choices. A policy
+whose status is pending must be resolved before its related implementation
+starts.
+
+### DNS Client Policy
+
+TDNS will allow loopback clients by default. Every non-loopback client network
+must be present in an explicit CIDR allowlist. Standard private networks are not
+trusted automatically. Application ACLs are mandatory; listener binding and
+firewall policy remain defense-in-depth controls.
+
+Status: Approved on 2026-07-21.
+
+### Browser Credential Lifetimes
+
+Browser login codes expire after two minutes. Browser sessions have a 12-hour
+absolute lifetime, use non-persistent cookies, and do not have a refresh token.
+Closing the browser removes the cookie even if the absolute lifetime has not
+elapsed. Idle expiration is not required in the initial implementation.
+
+Status: Approved on 2026-07-21.
+
+### Diagnostics and Metrics Exposure
+
+Metrics and pprof will move to a separate listener that defaults to loopback and
+may bind only to an explicitly trusted address. Swagger remains opt-in on the
+management HTTPS listener. Production deployments must keep the diagnostic
+listener behind trusted network controls; a wildcard bind is not a supported
+default.
+
+Status: Approved on 2026-07-21.
+
+### Authorization Compatibility
+
+Strict issuer, audience, time, token-identifier, subject, and scope validation
+is the default when the new token format is introduced. Legacy tokens are
+accepted only when an explicit compatibility option is enabled. That option is
+available for one release and is removed in the following release. Operators
+must mint replacement tokens before disabling compatibility.
+
+Status: Approved on 2026-07-21.
+
+### Signing-Key Storage and Rotation
+
+Production signing keys can be loaded from a restricted secret file or an
+environment variable. Inline YAML remains a compatibility input but is not the
+recommended production source. Tokens identify their signing key. The server
+accepts one active key and one previous key during a bounded rotation overlap;
+new tokens are issued only with the active key. Missing, unreadable, duplicate,
+or invalid key identifiers fail startup.
+
+Status: Approved on 2026-07-21.
+
+### DNS-Log Retention
+
+DNS logs are retained for 30 days by default. Administrators may configure a
+shorter period or increase retention to a maximum of 180 days. Purge cannot be
+disabled. Backups containing DNS-log data must have equivalent access controls
+and must expire no later than the documented backup-retention policy. Database
+and backup disposal must prevent ordinary recovery of retained DNS activity.
+
+Status: Approved on 2026-07-21.
+
+### Supported Deployment Topology
+
+The supported production topology is one TDNS instance deployed inside a
+trusted home, LAN, or VPN network. The DNS and management listeners are not
+intended to be Internet-facing. High availability, multi-instance session
+sharing, and public management exposure are outside the current security model.
+
+Reverse-proxy deployments are not supported. TDNS must not use
+`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, or similar headers to make
+authentication, authorization, CSRF-origin, rate-limit, or client-address
+decisions. Operators may place network infrastructure in front of TDNS, but it
+must preserve direct connection semantics and is outside documented support.
+
+Status: Approved on 2026-07-26.
+
+### Threat Assumptions
+
+The host operating system and authorized administrator are trusted. Root or
+kernel compromise is out of scope. Remote blocklist sources, unauthenticated
+management input, browser input, and sources outside the configured DNS CIDR
+allowlist are untrusted.
+
+DNS clients inside explicitly configured CIDRs are trusted by policy. ACLs
+therefore define a security boundary, not only a routing convenience. Rate and
+concurrency controls should still protect availability from accidental load,
+misconfiguration, and compromised devices, but deliberate attacks from an
+allowlisted client network are not part of the guaranteed threat model.
+
+Status: Approved on 2026-07-26.
+
+### CLI Bearer-Token Lifetime
+
+CLI bearer tokens are valid for 30 days by default. The normal maximum is 180
+days. Issuance beyond that maximum is not supported. Existing longer-lived
+tokens follow the one-release legacy compatibility policy and must be replaced.
+
+Status: Approved on 2026-07-26.
+
+### Security Baseline Gate
+
+Security scans record findings at every severity. CI blocks automatically only
+for findings classified as critical. High, moderate, low, and unclassified
+findings remain visible and require normal triage, but do not fail the security
+gate solely because they exist. Release documentation must not describe a
+non-blocking finding as remediated or absent.
+
+Status: Approved on 2026-07-26.
+
+### Supported Installation Forms
+
+Native/systemd and container deployments are supported. Both forms must run
+TDNS as a dedicated non-root identity, restrict configuration, signing-key,
+certificate-key, database, and log access, and expose only required listeners.
+
+The generated systemd guidance must use a restrictive umask and appropriate
+service hardening. Container guidance must avoid privileged mode and host
+networking by default, drop unnecessary capabilities, mount credentials
+read-only, and prefer port mapping or the minimum required bind capability for
+DNS port 53. Container images and native release artifacts follow the same
+dependency, vulnerability, and version-verification policy.
+
+Status: Approved on 2026-07-26.
+
+## Known Temporary Risks
+
+- The browser JWT remains readable from `localStorage` until the session
+  migration is complete.
+- The DNS listener has no application client ACL or response-rate limiting.
+- Read-only and read-write scopes currently have the same effective value.
+- Metrics and enabled Swagger are unauthenticated.
+- pprof is unauthenticated when configured.
+- Empty CORS origins currently permit any origin when CORS is enabled.
+- Remote blocklist downloads need stricter time, size, redirect, validation,
+  and atomic-replacement controls.
+- Frontend production dependencies have unresolved audit findings.
+- Runtime database, log, backup, and disposal protection relies partly on
+  deployment policy that is not yet fully documented or enforced.
+- The current DNS-log default remains 180 days until the approved 30-day
+  default and mandatory retention validation are implemented.
+
+## Required Verification
+
+Security-relevant changes should run the applicable subset of:
+
+```bash
+./tools/verify.sh
+go test ./...
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+npm --prefix web audit --omit=dev
+npm --prefix web test
+npm --prefix web run typecheck
+```
+
+Release validation must also inspect the built binary's Go version and exercise
+the enabled HTTPS, Swagger, authentication, and shutdown paths.
+
+## Decision Log
+
+| Date | Decision | Consequence |
+| --- | --- | --- |
+| 2026-07-20 | Keep bearer authentication for programmatic clients and use opaque HttpOnly browser sessions. | Browser and API clients use separate authentication transports behind one authorization principal. |
+| 2026-07-20 | Bootstrap browser sessions with short-lived, single-use CLI-generated codes. | TDNS does not need to add browser passwords, but code redemption requires replay protection. |
+| 2026-07-20 | Use same-origin browser cookies by default. | Frontend development should proxy the API instead of enabling broad credentialed CORS. |
+| 2026-07-20 | Require Go 1.26.5. | CI and release builds use the patched toolchain baseline. |
+| 2026-07-21 | Default DNS access to loopback with explicit CIDRs for every other client network. | Application ACLs become mandatory and private networks are not implicitly trusted. |
+| 2026-07-21 | Use two-minute browser login codes and non-persistent 12-hour sessions without refresh tokens. | Browser restart ends the session and expired sessions require a new CLI-generated code. |
+| 2026-07-21 | Move metrics and pprof to a separate trusted listener while keeping Swagger opt-in. | Diagnostics have a distinct network trust boundary and cannot default to a wildcard bind. |
+| 2026-07-21 | Enable strict bearer claims by default and provide explicit legacy compatibility for one release only. | Existing clients receive a bounded migration window rather than indefinite weak validation. |
+| 2026-07-21 | Support file and environment signing-key sources with active and previous key identifiers. | Production secrets can avoid YAML and keys can rotate without an immediate full-token outage. |
+| 2026-07-21 | Default DNS-log retention to 30 days, cap it at 180 days, and prohibit disabling purge. | TDNS cannot retain query history indefinitely through configuration. |
+| 2026-07-26 | Support one TDNS instance on a trusted home, LAN, or VPN network and do not support reverse proxies. | Public management, forwarded-header trust, and multi-instance operation are outside the supported model. |
+| 2026-07-26 | Treat DNS clients in explicitly allowlisted CIDRs as trusted. | Availability controls remain useful, but malicious allowlisted clients are outside the guaranteed threat model. |
+| 2026-07-26 | Default CLI bearer tokens to 30 days and cap them at 180 days. | Automation receives a bounded lifetime substantially shorter than the previous default. |
+| 2026-07-26 | Fail the CI security gate only for critical findings. | Other findings remain reported and triaged without automatically blocking builds. |
+| 2026-07-26 | Support both native/systemd and container installations. | Both deployment forms require equivalent non-root, minimal-capability, restricted-secret, and listener controls. |
+
+## Related Documents
+
+- [Security review](security-review.md)
+- [Security implementation plan](security-plan.md)
+- [Configuration reference](configuration.md)
+- [API contract maintenance](api-contract-maintenance.md)
