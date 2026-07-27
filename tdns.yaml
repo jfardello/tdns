@@ -19,10 +19,10 @@ dns_log:
   enabled: true
   purge: 180d
 database:
-  file: /tmp/tdns.sqlite
+  file: /var/lib/tdns/tdns.sqlite
 blacklist:
   enabled: true
-  file: /tmp/tds-bhole-file
+  file: /var/lib/tdns/bhole_list
   external_file: /alternates/gambling/hosts
   external_repo: https://github.com/StevenBlack/hosts.git
   external_repo_branch: master
@@ -32,7 +32,7 @@ blacklist:
     - facebook.com
 zen_mode:
   enabled: true
-  file: ./fixtures/zen_file
+  file: ""
   domains:
     - www.facebook.com
     - www.instagram.com
@@ -42,7 +42,7 @@ zen_mode:
   time: 20
 static_response:
   enabled: true
-  file: fixtures/hosts_testfile
+  file: /etc/tdns/hostsfile_list
   labels:
     - nostaic
 stub_resolver:
@@ -51,20 +51,20 @@ stub_resolver:
     - google.com,udp://8.8.8.8,udp://8.8.4.4
     - google.es,udp://8.8.8.8,udp://8.8.4.4
 server:
-  listen_addr: ":8053"
-  api_addr: ":8443"
-  swagger_enabled: true
+  listen_addr: "127.0.0.1:8053"
+  api_addr: "127.0.0.1:8443"
+  swagger_enabled: false
   pprof_addr: ""
-  api_cert_file: fixtures/tdns.crt
-  api_key_file: fixtures/tdns.key
+  api_cert_file: /etc/tdns/tdns_cert.pem
+  api_key_file: /etc/tdns/tdns_key.pem
   signing_key: ""
 client:
   token: ""
   server: https://localhost:8443
-  ca_cert: fixtures/tdns.crt
+  ca_cert: /etc/tdns/tdns_cert.pem
 status:
   enabled: true
-  expose_stats: true
-  expose_uptime: true
+  expose_stats: false
+  expose_uptime: false
 tagger:
   enabled: true

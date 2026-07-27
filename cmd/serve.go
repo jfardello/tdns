@@ -45,7 +45,7 @@ var (
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start tls-dns forwarder",
-	Long: `TDNS is a TLS dns forwarder that accepts plain DNS calls locally and forwards 
+	Long: `TDNS is a TLS dns forwarder that accepts plain DNS calls locally and forwards
 	queries to different upstreams based on its routing configuration.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		setPersistentOps()
@@ -132,6 +132,8 @@ func init() {
 }
 
 func run() {
+	setServingUmask()
+
 	logger := log.GetLogger("newServer", "lookup")
 	c := &config.Config{}
 	err := viper.Unmarshal(c)
@@ -164,11 +166,11 @@ func run() {
 	}
 	config.SetRunningConfig(c)
 	fmt.Print(blue + `
-   __      __          
+   __      __
   / /_____/ /___  _____
  / __/ __  / __ \/ ___/
-/ /_/ /_/ / / / (__  ) 
-\__/\__,_/_/ /_/____/  
+/ /_/ /_/ / / / (__  )
+\__/\__,_/_/ /_/____/
 `)
 
 	fmt.Printf("\nVersion   : %s\n", *ver)
@@ -287,6 +289,10 @@ func run() {
 		}
 	}
 	os.Exit(0)
+}
+
+func setServingUmask() {
+	syscall.Umask(0o077)
 }
 
 func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, error) {

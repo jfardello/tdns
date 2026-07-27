@@ -30,6 +30,32 @@ The fallback column below describes `tdns serve` when a key is omitted. The
 complete example file sets explicit values for options where a useful local
 sample differs from the zero-value fallback.
 
+## Generated Configuration
+
+`tdns config` generates a starting YAML file, API certificate and private key,
+bootstrap client token, static hosts file, and, by default, a systemd unit.
+Important deployment options are:
+
+| Flag | Purpose |
+| --- | --- |
+| `--output-dir` | Host or container directory in which files are created. |
+| `--basepath` | Runtime configuration path written into generated YAML and the systemd unit. |
+| `--data-path` | Runtime directory written into `database.file` and mutable feature paths. |
+| `--systemd-unit` | Generates `tdns.service`; set to `false` for container bootstrap. |
+| `--listendns` | DNS listener written into `server.listen_addr`. |
+| `--listenapi` | HTTPS listener written into `server.api_addr`. |
+| `--hosts` | Certificate DNS names or IP subject alternative names. Repeat for every management address. |
+
+The generated YAML and private key use mode `0600`. The YAML contains the
+signing key and a 30-day bootstrap administration token, so it is a credential
+file. Generated listeners default to loopback. Use an explicit trusted LAN or
+VPN address when remote clients need access; do not replace it with a wildcard
+unless equivalent network controls have been reviewed.
+
+See [Native and Systemd Deployment](systemd-deployment.md) and
+[Container Deployment](container-deployment.md) for ownership and mount
+procedures.
+
 ## Top-Level Options
 
 | Key | Fallback | Description |
@@ -122,6 +148,12 @@ as SQLite configuration overrides.
 | `dns_log.purge` | `180d` | Retention age used by the scheduled DNS-log purge. |
 | `tagger.enabled` | `true` | Enables address/host labels used by scoped middleware rules. |
 
+TDNS creates the configured database and applies migrations during
+`tdns serve` startup. SQLite uses WAL mode, so the database directory can also
+contain `tdns.sqlite-wal` and `tdns.sqlite-shm`. Native and container
+deployments must persist and back up the complete directory, not only the main
+database file. The storage must provide reliable local file locking.
+
 ## HTTP Server and CLI Client
 
 ### Server
@@ -207,3 +239,33 @@ The following API changes are runtime-only and disappear after restart:
 Do not edit `config_overrides` manually. Use the management API so validation,
 normalization, in-memory state, and persistent state remain synchronized. A
 configured and writable `database.file` is required for persisted operations.
+
+## Production Hardening Checklist
+
+Before considering an installation production-ready:
+
+- Run TDNS as the dedicated `tdns` account or container UID/GID `65532`; never
+  run the serving process as root.
+- Keep the YAML configuration and API private key readable only by root and the
+  service group, or only by the container runtime identity.
+- Treat `server.signing_key` and `client.token` as credentials. Rotate values
+  copied from old samples or installations.
+- Mount `/etc/tdns` read-only while serving and keep `/var/lib/tdns` as the only
+  persistent writable container mount.
+- Bind DNS and management HTTPS only to loopback or explicit trusted LAN/VPN
+  addresses and enforce matching firewall rules.
+- Do not use container privileged mode or host networking. Drop all
+  capabilities and map host port 53 to container port 8053.
+- Keep `server.swagger_enabled` false and `server.pprof_addr` empty during
+  normal operation.
+- Keep CORS disabled. Frontend development should use only explicitly listed
+  local origins.
+- Protect SQLite data and backups as sensitive DNS history. Use cold backups
+  until an online backup operation is implemented, bound backup retention, and
+  test restoration.
+- Pin native releases by checksum and container releases by immutable digest.
+- Verify logs, DNS resolution, management HTTPS, database migrations, and
+  persisted state after every upgrade.
+
+The current supported topology and accepted security boundaries are defined in
+[Security](security.md).

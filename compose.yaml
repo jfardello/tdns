@@ -1,0 +1,19 @@
+services:
+  tdns:
+    image: ${TDNS_IMAGE:-git.kubewire.net/jfardello/tdns:latest}
+    command: ["serve", "-c", "/etc/tdns/tdns.yaml"]
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    volumes:
+      - ./tdns-config:/etc/tdns:ro
+      - ./tdns-data:/var/lib/tdns
+    ports:
+      - "127.0.0.1:53:8053/udp"
+      - "127.0.0.1:8443:8443/tcp"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

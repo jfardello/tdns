@@ -126,12 +126,33 @@ read-only authorization are planned but not yet implemented.
 ### Secrets and Configuration
 
 - Generated configuration files use mode `0600`.
+- Generated API private keys use mode `0600`; public certificates use mode
+  `0644`.
+- Generated DNS and management listeners default to loopback.
+- Generated bootstrap administration tokens have a 30-day lifetime.
 - The repository sample contains no signing key or bearer token.
 - An empty persistent signing key causes a temporary runtime key, which makes
   independently generated tokens invalid after restart. Production deployments
   must configure a persistent secret outside source control.
 - Earlier sample credentials must be treated as compromised because removal
   from the working tree does not remove them from Git history or deployments.
+
+### Deployment Artifacts
+
+- The generated systemd unit runs as `tdns:tdns`, uses `UMask=0077`, grants
+  only `CAP_NET_BIND_SERVICE`, and restricts writable storage to
+  `/var/lib/tdns`.
+- The production container runs as UID/GID `65532` on a pinned SUSE BCI Nano
+  base and contains no shell or package manager.
+- The container deployment uses read-only configuration, a read-only root
+  filesystem, a dedicated writable data mount, no privileged mode, no host
+  networking, and no Linux capabilities.
+- The serving process applies umask `0077` before creating SQLite, WAL,
+  blocklist, or other runtime files.
+- Release packaging publishes one OCI manifest for `linux/amd64` and
+  `linux/arm64`.
+- Container and native deployment guides define bootstrap, listener, firewall,
+  SQLite WAL, backup, restore, upgrade, and rollback controls.
 
 ### Diagnostics
 
@@ -318,7 +339,7 @@ Status: Approved on 2026-07-26.
   and atomic-replacement controls.
 - Frontend production dependencies have unresolved audit findings.
 - Runtime database, log, backup, and disposal protection relies partly on
-  deployment policy that is not yet fully documented or enforced.
+  application file-mode and retention enforcement tracked by issue `#88`.
 - The current DNS-log default remains 180 days until the approved 30-day
   default and mandatory retention validation are implemented.
 
@@ -363,4 +384,6 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 - [Security review](security-review.md)
 - [Security implementation plan](security-plan.md)
 - [Configuration reference](configuration.md)
+- [Container deployment](container-deployment.md)
+- [Native and systemd deployment](systemd-deployment.md)
 - [API contract maintenance](api-contract-maintenance.md)

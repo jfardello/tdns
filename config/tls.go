@@ -56,7 +56,7 @@ func Generate384Cert(basapath, basename string, valid time.Duration, hosts []str
 	if err != nil {
 		logger.Fatalf("Failed to create certificate: %v", err)
 	}
-	certOut, err := os.Create(path.Join(basapath, basename+"cert.pem"))
+	certOut, err := os.OpenFile(path.Join(basapath, basename+"cert.pem"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		logger.Fatalf("Failed to open cert.pem for writing: %v", err)
 	}

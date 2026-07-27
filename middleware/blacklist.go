@@ -299,7 +299,7 @@ func (bp *BlackList) Download() error {
 			return nil
 		}
 		logger.Info("Downloading remote hosts file.")
-		f, err := os.OpenFile(holeFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		f, err := os.OpenFile(holeFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			logger.Error(err)
 			return err

@@ -24,8 +24,20 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.17.0
+          args: check
+
       - name: Install web and API generation dependencies
         run: npm --prefix web ci
 
       - name: Verify generated files, tests, and web build
         run: ./tools/verify.sh
+
+      - name: Verify Linux release architectures
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /tmp/tdns-amd64 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o /tmp/tdns-arm64 .
