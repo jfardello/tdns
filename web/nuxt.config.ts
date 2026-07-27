@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV === 'development' },
   modules: ['@nuxt/ui', 'nuxt-charts'],
   css: ['~/assets/css/main.css'],
   ssr: false,

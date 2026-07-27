@@ -17,7 +17,7 @@ if [ -n "$drift" ]; then
 	exit 1
 fi
 
+./tools/generate_web.sh
 go test ./...
 npm --prefix web test
 npm --prefix web run typecheck
-./tools/generate_web.sh

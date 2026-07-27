@@ -57,3 +57,27 @@ func TestHTTPHandlerDoesNotServeSwaggerFromSPA(t *testing.T) {
 		t.Fatal("disabled Swagger route fell through to the SPA")
 	}
 }
+
+func TestHTTPHandlerAppliesRestrictiveCSPToWebUI(t *testing.T) {
+	config.SetRunningConfig(&config.Config{})
+	handler, err := newHTTPHandler(nil)
+	if err != nil {
+		t.Fatalf("newHTTPHandler: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	policy := response.Header().Get("Content-Security-Policy")
+	if policy == "" {
+		t.Fatal("web UI response is missing Content-Security-Policy")
+	}
+	for _, prohibited := range []string{"'unsafe-eval'", "script-src 'self' 'unsafe-inline'"} {
+		if strings.Contains(policy, prohibited) {
+			t.Fatalf("web UI policy contains prohibited source %q: %s", prohibited, policy)
+		}
+	}
+	if !strings.Contains(policy, "default-src 'none'") || !strings.Contains(policy, "'sha256-") {
+		t.Fatalf("web UI policy is missing restrictive defaults or generated script hashes: %s", policy)
+	}
+}

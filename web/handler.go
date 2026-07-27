@@ -2,10 +2,14 @@ package webui
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"io/fs"
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -14,6 +18,8 @@ const (
 	DefaultIndexFile    = "index.html"
 	DefaultFallbackFile = "200.html"
 )
+
+var inlineScriptPattern = regexp.MustCompile(`(?is)<script(?:\s[^>]*)?>(.*?)</script>`)
 
 type Handlers struct {
 	FS     fs.FS
@@ -30,12 +36,72 @@ func NewHandlers(fallback string) (*Handlers, error) {
 	}
 
 	static := http.FileServer(http.FS(assetsFS))
+	policy, err := contentSecurityPolicy(assetsFS)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Handlers{
 		FS:     assetsFS,
 		Static: static,
-		SPA:    spaHandler(assetsFS, static, fallback),
+		SPA:    withContentSecurityPolicy(spaHandler(assetsFS, static, fallback), policy),
 	}, nil
+}
+
+func contentSecurityPolicy(assetsFS fs.FS) (string, error) {
+	hashes := make(map[string]struct{})
+	err := fs.WalkDir(assetsFS, ".", func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(name, ".html") {
+			return nil
+		}
+
+		content, err := fs.ReadFile(assetsFS, name)
+		if err != nil {
+			return err
+		}
+		for _, match := range inlineScriptPattern.FindAllSubmatch(content, -1) {
+			if len(match[1]) == 0 {
+				continue
+			}
+			sum := sha256.Sum256(match[1])
+			hashes["'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'"] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	scriptSources := []string{"'self'"}
+	for hash := range hashes {
+		scriptSources = append(scriptSources, hash)
+	}
+	sort.Strings(scriptSources[1:])
+
+	return strings.Join([]string{
+		"default-src 'none'",
+		"base-uri 'none'",
+		"connect-src 'self'",
+		"font-src 'self' data:",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+		"img-src 'self' data:",
+		"manifest-src 'self'",
+		"object-src 'none'",
+		"script-src " + strings.Join(scriptSources, " "),
+		"style-src 'self'",
+		"style-src-attr 'unsafe-inline'",
+	}, "; "), nil
+}
+
+func withContentSecurityPolicy(next http.Handler, policy string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", policy)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func spaHandler(assetsFS fs.FS, static http.Handler, fallback string) http.Handler {

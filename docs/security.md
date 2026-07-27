@@ -72,6 +72,13 @@ model is same-origin browser authentication. The current UI temporarily stores
 an admin JWT in `localStorage`; this is a known risk pending migration because
 JavaScript running in the origin can read and exfiltrate it.
 
+UI document responses enforce a Content Security Policy that defaults to
+blocking all sources, permits same-origin scripts and API connections, and
+allows generated inline Nuxt bootstrap scripts only by their SHA-256 hashes.
+The policy does not allow `unsafe-eval` or general inline script execution.
+Inline style attributes remain allowed for Nuxt UI component rendering; other
+style resources must be same-origin.
+
 The approved migration design is:
 
 - a CLI command generates a short-lived, purpose-bound login code
@@ -169,9 +176,23 @@ read-only authorization are planned but not yet implemented.
 - The patched-toolchain `govulncheck` baseline reports no reachable
   vulnerabilities.
 - API generators are version-pinned and generated-file drift is checked.
-- The frontend dependency audit still has unresolved findings recorded in
-  `security-review.md`; dependency remediation and a CI audit policy remain
-  pending.
+- The web application uses Nuxt 4.5.1 and `@nuxt/ui` 4.10.0. Version ranges
+  have patched minimums instead of floating `latest` dependencies.
+- The `npm` CLI is supplied by the build environment and is not an application
+  dependency.
+- CI audits production web dependencies and blocks critical findings, matching
+  the approved security baseline gate.
+
+The production audit currently reports 12 accepted transitive findings: 11
+high findings are one `brace-expansion` denial-of-service advisory propagated
+through Nitro's archive-generation toolchain, and one low finding affects the
+Windows esbuild development server. TDNS ships only Nuxt's statically generated
+files embedded in the Go binary; it does not ship or execute Nitro, archiver,
+esbuild, Node.js, or these package sources at runtime. These findings are
+therefore classified as build-only and do not provide a path through the
+deployed TDNS service. The project maintainer owns this temporary exception and
+will review it by 2026-08-31 or when the next patched Nuxt/Nitro release becomes
+available, whichever comes first.
 
 ## Established Decisions
 
@@ -337,7 +358,8 @@ Status: Approved on 2026-07-26.
 - Empty CORS origins currently permit any origin when CORS is enabled.
 - Remote blocklist downloads need stricter time, size, redirect, validation,
   and atomic-replacement controls.
-- Frontend production dependencies have unresolved audit findings.
+- Frontend production dependencies retain documented build-only audit
+  exceptions through 2026-08-31.
 - Runtime database, log, backup, and disposal protection relies partly on
   application file-mode and retention enforcement tracked by issue `#88`.
 - The current DNS-log default remains 180 days until the approved 30-day
