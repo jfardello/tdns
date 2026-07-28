@@ -47,9 +47,16 @@ TDNS protects:
 Clients send clear DNS traffic to the configured UDP listener. TDNS processes
 that traffic through resolver middleware and forwards it to configured UDP,
 TCP, or DNS-over-TLS upstreams. A wildcard listener is not evidence that every
-source is trusted. Application client ACLs and rate limits are planned but are
-not yet implemented, so deployments must currently enforce source restrictions
-with listener binding and network policy.
+source is trusted. Loopback is allowed implicitly; every other client must
+belong to an explicit `dns_access.allowed_client_cidrs` prefix. Private,
+link-local, container, and VPN networks are not trusted automatically.
+
+Unauthorized and per-client rate-limited UDP requests are dropped before
+tagging, cache access, DNS logging, or upstream work. A global response budget
+limits emitted UDP replies. Stub and default upstream concurrency is bounded;
+authorized requests rejected by saturation receive `SERVFAIL` only while the
+response budget has capacity. Listener binding and firewall rules remain
+defense in depth.
 
 ### Management HTTPS Server
 
@@ -117,6 +124,16 @@ policy. Secrets and authentication credentials must never be logged.
 - Responses include anti-sniffing, anti-framing, referrer, and permissions
   headers.
 - CORS is disabled by default.
+
+### DNS Admission Controls
+
+- IPv4 and IPv6 loopback clients are allowed by default.
+- Every non-loopback client network requires an explicit CIDR allowlist entry.
+- Per-client token buckets have bounded, idle-expiring state.
+- A global token bucket limits UDP responses.
+- Concurrent stub and default upstream work is bounded.
+- ACL, rate, and saturation metrics use only fixed reason labels and never
+  contain client addresses, CIDRs, or query names.
 
 ### JWT Authentication
 
@@ -351,7 +368,6 @@ Status: Approved on 2026-07-26.
 
 - The browser JWT remains readable from `localStorage` until the session
   migration is complete.
-- The DNS listener has no application client ACL or response-rate limiting.
 - Read-only and read-write scopes currently have the same effective value.
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.

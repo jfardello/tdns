@@ -3,13 +3,14 @@ package server
 import (
 	"context"
 	"errors"
+	"net"
+	"sort"
+
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/resolver"
 	"github.com/miekg/dns"
-	"net"
-	"sort"
 )
 
 type Server struct {
@@ -17,7 +18,10 @@ type Server struct {
 	middlewareIndex *MiddlewareIndex
 	Config          config.Config
 	defaultUpstream resolver.Mux
+	upstreamSlots   chan struct{}
 }
+
+var ErrUpstreamSaturated = errors.New("maximum concurrent upstream work reached")
 
 type MiddlewareIndex struct {
 	preRouting  []string
@@ -117,11 +121,12 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 	req := new(middleware.Message)
 	req.SetCtx(ctx)
 	req.SetMsg(requestMsg)
+	var err error
 
 	for _, p := range pi.preRouting {
 		name, _ := s.Middlewares[p].Info()
 		logger.Debug("Calling pre-routing middleware ", name)
-		req, err := s.Middlewares[p].Run(req)
+		req, err = s.Middlewares[p].Run(req)
 		if err != nil {
 			continue
 		}
@@ -129,22 +134,38 @@ func (s *Server) process(ctx context.Context, requestMsg *dns.Msg) (*dns.Msg, er
 			break
 		}
 	}
-	// If we didn't resolve at pre-routing time, then try resolving middlewares.
-	req, err := s.tryResolve(req, pi)
-	if err != nil {
-		return nil, err
-	}
-
-	// No response from resolving middlewares, just resolve with the default upstream.
 	if !req.IsResolved() {
-		_m, err := s.resolve(req.Answer())
+		if !s.acquireUpstreamSlot() {
+			upstreamSaturation.Inc()
+			return nil, ErrUpstreamSaturated
+		}
+		upstreamSlotHeld := true
+		defer func() {
+			if upstreamSlotHeld {
+				s.releaseUpstreamSlot()
+			}
+		}()
+
+		// If we didn't resolve at pre-routing time, then try resolving middlewares.
+		req, err = s.tryResolve(req, pi)
 		if err != nil {
-			logger := log.GetLogger("Server", "process")
-			logger.Error(err)
 			return nil, err
 		}
-		req.SetMsg(_m)
-		req.Resolved(true)
+
+		// No response from resolving middlewares, just resolve with the default upstream.
+		if !req.IsResolved() {
+			_m, err := s.resolve(ctx, req.Answer())
+			if err != nil {
+				logger := log.GetLogger("Server", "process")
+				logger.Error(err)
+				return nil, err
+			}
+			req.SetMsg(_m)
+			req.Resolved(true)
+		}
+
+		s.releaseUpstreamSlot()
+		upstreamSlotHeld = false
 	}
 
 	for _, p := range pi.postRouting {
@@ -219,11 +240,11 @@ func (s *Server) CacheReplaceExcludes(excludes []string) []string {
 	return append([]string(nil), c.Cache.Excludes...)
 }
 
-func (s *Server) resolve(m *dns.Msg) (*dns.Msg, error) {
+func (s *Server) resolve(ctx context.Context, m *dns.Msg) (*dns.Msg, error) {
 	logger := log.GetLogger("Server", "resolve")
 	logger.Debugf("Asking uppstream %s for %s", s.defaultUpstream.Upstreams[0].Address, m.Question[0].Name)
 
-	response, _, err := s.defaultUpstream.Resolve(m)
+	response, _, err := s.defaultUpstream.ResolveContext(ctx, m)
 
 	if err != nil {
 		logger.Error(err)
@@ -232,13 +253,33 @@ func (s *Server) resolve(m *dns.Msg) (*dns.Msg, error) {
 	return response, nil
 }
 
-func NewServer(options ...func(*Server)) *Server {
-
-	s := &Server{
-
-		Config:      *config.GetRunningConfig(),
-		Middlewares: make(map[string]middleware.Middleware),
+func (s *Server) acquireUpstreamSlot() bool {
+	select {
+	case s.upstreamSlots <- struct{}{}:
+		upstreamInflight.Inc()
+		return true
+	default:
+		return false
 	}
+}
+
+func (s *Server) releaseUpstreamSlot() {
+	<-s.upstreamSlots
+	upstreamInflight.Dec()
+}
+
+func NewServer(options ...func(*Server)) *Server {
+	c := *config.GetRunningConfig()
+	maxConcurrent := c.DNSAccess.MaxConcurrentUpstreams
+	if maxConcurrent <= 0 {
+		maxConcurrent = 128
+	}
+	s := &Server{
+		Config:        c,
+		Middlewares:   make(map[string]middleware.Middleware),
+		upstreamSlots: make(chan struct{}, maxConcurrent),
+	}
+	upstreamLimit.Set(float64(maxConcurrent))
 	for _, o := range options {
 		o(s)
 	}

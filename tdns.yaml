@@ -20,6 +20,15 @@ dns_log:
   purge: 180d
 database:
   file: /var/lib/tdns/tdns.sqlite
+dns_access:
+  allowed_client_cidrs: []
+  client_queries_per_second: 100
+  client_burst: 200
+  global_responses_per_second: 1000
+  global_response_burst: 2000
+  max_concurrent_upstreams: 128
+  max_tracked_clients: 4096
+  client_idle_timeout: 10m
 blacklist:
   enabled: true
   file: /var/lib/tdns/bhole_list

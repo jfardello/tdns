@@ -82,6 +82,10 @@ additional `--hosts` values. Bootstrap creates:
 Review `tdns.yaml` before starting the server. The signing key and client token
 are secrets. Inline YAML signing keys remain the only persistent source until
 the secret-file and environment sources tracked by issue `#83` are implemented.
+The generated DNS ACL is loopback-only. Before publishing DNS outside the
+container, add the actual client or trusted network prefixes to
+`dns_access.allowed_client_cidrs`. Container bridge networks are not trusted
+implicitly.
 
 After bootstrap, do not mount `/etc/tdns` read-write into the serving container.
 
@@ -110,7 +114,8 @@ docker run -d \
 Do not use privileged mode or host networking. Mapping host port 53 to
 unprivileged container port 8053 avoids `CAP_NET_BIND_SERVICE`. Keep the
 management port on loopback unless remote administration is required from an
-explicitly trusted network.
+explicitly trusted network. Host-side port mapping and firewall rules do not
+replace `dns_access.allowed_client_cidrs`.
 
 The repository's [`compose.yaml`](../compose.yaml) provides the same restrictive
 defaults and binds both listeners to loopback. Change only the host-side
@@ -187,6 +192,15 @@ Test the listeners from outside the container:
 ```bash
 dig @127.0.0.1 example.com
 curl --cacert ./tdns-config/tdns_cert.pem https://127.0.0.1:8443/
+```
+
+Run the DNS check from both an explicitly allowed client and a client outside
+the allowlist. The allowed query must receive a response and the denied query
+must time out:
+
+```bash
+./tools/check-dns-exposure.sh allowed 192.168.1.53 53
+./tools/check-dns-exposure.sh denied 192.168.1.53 53
 ```
 
 The production image has no shell, `curl`, `ls`, or package manager. Diagnose it

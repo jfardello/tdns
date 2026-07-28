@@ -1,9 +1,11 @@
 package resolver
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"net/url"
 	"time"
 
@@ -21,6 +23,10 @@ const (
 
 type Exchanger interface {
 	Exchange(*dns.Msg, string) (*dns.Msg, time.Duration, error)
+}
+
+type ContextExchanger interface {
+	ExchangeContext(context.Context, *dns.Msg, string) (*dns.Msg, time.Duration, error)
 }
 
 type Upstream struct {
@@ -70,30 +76,39 @@ type Mux struct {
 }
 
 func (c *Mux) Resolve(m *dns.Msg) (r *dns.Msg, rtt time.Duration, err error) {
+	return c.ResolveContext(context.Background(), m)
+}
 
+func (c *Mux) ResolveContext(ctx context.Context, m *dns.Msg) (r *dns.Msg, rtt time.Duration, err error) {
 	logger := log.GetLogger("ClientMux", "resolve")
-
-	select {
-
-	case <-time.After(c.globalTimeout):
-		return nil, c.globalTimeout, errors.New("reached global mux time-out")
-	default:
-
-		for _, u := range c.Upstreams {
-
-			logger.Debugf("Quering %s about %s", u.Address, m.Question[0].Name)
-			r, rtt, err := u.Client.Exchange(m, u.Address)
-			if r != nil && r.Rcode != dns.RcodeSuccess {
-				logger.Errorf("Can't get an answer for question %s from upstream %s", m.Question[0].Name, u.Address)
-				if r.Rcode == dns.RcodeServerFailure {
-					continue
-				}
-
-			}
-			return r, rtt, err
-		}
-		return nil, 0, errors.New("no response")
+	if c.globalTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.globalTimeout)
+		defer cancel()
 	}
+
+	for _, u := range c.Upstreams {
+		if err := ctx.Err(); err != nil {
+			return nil, c.globalTimeout, fmt.Errorf("reached global mux timeout: %w", err)
+		}
+		logger.Debugf("Quering %s about %s", u.Address, m.Question[0].Name)
+		if exchanger, ok := u.Client.(ContextExchanger); ok {
+			r, rtt, err = exchanger.ExchangeContext(ctx, m, u.Address)
+		} else {
+			r, rtt, err = u.Client.Exchange(m, u.Address)
+		}
+		if err != nil && ctx.Err() != nil {
+			return nil, c.globalTimeout, fmt.Errorf("reached global mux timeout: %w", ctx.Err())
+		}
+		if r != nil && r.Rcode != dns.RcodeSuccess {
+			logger.Errorf("Can't get an answer for question %s from upstream %s", m.Question[0].Name, u.Address)
+			if r.Rcode == dns.RcodeServerFailure {
+				continue
+			}
+		}
+		return r, rtt, err
+	}
+	return nil, 0, errors.New("no response")
 }
 
 type UpstreamOption func(*Upstream)

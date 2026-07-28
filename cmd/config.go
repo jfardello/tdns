@@ -228,6 +228,16 @@ func newConf() *config.Config {
 		Database: config.DatabaseConf{
 			File: path.Join(dataPath, "tdns.sqlite"),
 		},
+		DNSAccess: config.DNSAccessConf{
+			AllowedClientCIDRs:       []string{},
+			ClientQueriesPerSecond:   100,
+			ClientBurst:              200,
+			GlobalResponsesPerSecond: 1000,
+			GlobalResponseBurst:      2000,
+			MaxConcurrentUpstreams:   128,
+			MaxTrackedClients:        4096,
+			ClientIdleTimeout:        "10m",
+		},
 		DNSLog: config.DNSLogConf{
 			Enabled: true,
 			Purge:   "180d",

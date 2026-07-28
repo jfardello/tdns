@@ -33,8 +33,10 @@ sudo tdns config \
 ```
 
 For LAN DNS service, replace the DNS listener with the host's specific trusted
-LAN address and include every management hostname or IP in `--hosts`. Avoid
-wildcard listeners.
+LAN address, add every DNS client network to
+`dns_access.allowed_client_cidrs`, and include every management hostname or IP
+in `--hosts`. Avoid wildcard listeners. Private and link-local networks are
+denied unless explicitly configured.
 
 The generated YAML contains a signing key and bootstrap client token. Restrict
 the configuration and API private key to root and the service group:
@@ -97,11 +99,19 @@ Enforce the same boundary in the host or network firewall:
 - allow UDP DNS port 53 only from explicitly trusted client CIDRs
 - allow management TCP port 8443 only from administrator addresses
 - deny unsolicited Internet traffic to both listeners
+- keep firewall rules aligned with `dns_access.allowed_client_cidrs`
 - do not treat firewall rules as a replacement for the application DNS ACL
-  tracked by issue `#82`
 
 TDNS does not support reverse-proxy deployments and does not use forwarded
 headers as a security boundary.
+
+From an allowed client, verify that DNS succeeds. From a host outside every
+configured prefix, verify that the query times out:
+
+```bash
+./tools/check-dns-exposure.sh allowed 192.168.1.53 53
+./tools/check-dns-exposure.sh denied 192.168.1.53 53
+```
 
 ## SQLite And Runtime Data
 

@@ -71,6 +71,39 @@ Upstreams use `protocol://address:port#tls-name`. Supported protocols are
 `udp`, `tcp`, and `tls`. The optional `tls-name` is checked against the server
 certificate for TLS upstreams.
 
+## DNS Client Access And Load Limits
+
+DNS access is denied unless the socket peer address is loopback or belongs to
+an explicitly configured prefix. Private, link-local, container bridge, and VPN
+networks are not trusted automatically.
+
+| Key | Fallback | Description |
+| --- | --- | --- |
+| `dns_access.allowed_client_cidrs` | `[]` | Additional trusted IPv4 or IPv6 client prefixes. Loopback is always allowed. |
+| `dns_access.client_queries_per_second` | `100` | Sustained token-bucket query rate for each normalized client IP. |
+| `dns_access.client_burst` | `200` | Maximum per-client query burst. |
+| `dns_access.global_responses_per_second` | `1000` | Sustained UDP response rate across all clients. |
+| `dns_access.global_response_burst` | `2000` | Maximum global UDP response burst. |
+| `dns_access.max_concurrent_upstreams` | `128` | Maximum requests concurrently using stub or default upstream resolvers. |
+| `dns_access.max_tracked_clients` | `4096` | Maximum client limiter entries retained in memory. Old entries are evicted. |
+| `dns_access.client_idle_timeout` | `10m` | Idle period before a client limiter entry is removed. Maximum `24h`. |
+
+For example, a LAN deployment that serves only `192.168.50.0/24` and the VPN
+prefix `fd00:50::/64` uses:
+
+```yaml
+dns_access:
+  allowed_client_cidrs:
+    - 192.168.50.0/24
+    - fd00:50::/64
+```
+
+Malformed or duplicate prefixes, disabled limits, excessive values, and invalid
+idle durations fail startup. ACL and per-client rate rejection occur before
+tagging, cache access, DNS logging, or upstream resolution. Rejected UDP
+requests are silently dropped. An authorized request rejected by upstream
+saturation receives `SERVFAIL` only when global response budget remains.
+
 ## DNS Features
 
 ### Cache

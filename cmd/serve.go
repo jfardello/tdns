@@ -9,13 +9,13 @@ import (
 	netpprof "net/http/pprof"
 	"os"
 	"os/signal"
-	"regexp"
 	"syscall"
 	"time"
 
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/db"
+	"github.com/jfardello/tdns/internal/dnsserver"
 	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/log"
@@ -124,6 +124,14 @@ func init() {
 	viper.SetDefault("cors.enabled", false)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.purge", "180d")
+	viper.SetDefault("dns_access.allowed_client_cidrs", []string{})
+	viper.SetDefault("dns_access.client_queries_per_second", 100)
+	viper.SetDefault("dns_access.client_burst", 200)
+	viper.SetDefault("dns_access.global_responses_per_second", 1000)
+	viper.SetDefault("dns_access.global_response_burst", 2000)
+	viper.SetDefault("dns_access.max_concurrent_upstreams", 128)
+	viper.SetDefault("dns_access.max_tracked_clients", 4096)
+	viper.SetDefault("dns_access.client_idle_timeout", "10m")
 	viper.SetDefault("tagger.enabled", true)
 	viper.SetDefault("cache.enabled", true)
 
@@ -141,6 +149,10 @@ func run() {
 		logger.Fatal(err)
 	}
 	log.Configure(c.LogLevel, verbose)
+	dnsPolicy, err := dnsserver.NewPolicy(c.DNSAccess)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	if c.Database.File != "" {
 		dbPath, err := db.Bootstrap(context.Background(), c.Database.File)
 		if err != nil {
@@ -161,6 +173,10 @@ func run() {
 			logger.Fatal(err)
 		}
 		if err := overrides.Apply(c, rows); err != nil {
+			logger.Fatal(err)
+		}
+		dnsPolicy, err = dnsserver.NewPolicy(c.DNSAccess)
+		if err != nil {
 			logger.Fatal(err)
 		}
 	}
@@ -201,37 +217,7 @@ func run() {
 		logger.Fatal(err)
 	}
 
-	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
-		switch r.Opcode {
-		case dns.OpcodeQuery:
-			m, err := newServer.Handler(r, w.RemoteAddr())
-			if err != nil {
-				logger.Errorf("Failed lookup for %s with error: %s\n", r, err.Error())
-				//dns.HandleFailed(w, r)
-				m := new(dns.Msg)
-				m.SetRcode(r, dns.RcodeServerFailure)
-				// does not matter if this WriteMsg call fails
-				_ = w.WriteMsg(m)
-				logger.Error(err)
-				return
-			}
-			if len(m.Answer) > 0 {
-				pattern := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
-				ipAddress := pattern.FindAllString(m.Answer[0].String(), -1)
-
-				if len(ipAddress) > 0 {
-					logger.Debugf("Lookup for %s with ip %s\n", m.Answer[0].Header().Name, ipAddress[0])
-				} else {
-					logger.Debugf("Lookup for %s with response %s\n", m.Answer[0].Header().Name, m.Answer[0])
-				}
-			}
-			m.SetReply(r)
-			err = w.WriteMsg(m)
-			if err != nil {
-				logger.Error(err)
-			}
-		}
-	})
+	dnsHandler := dnsserver.NewHandler(dnsPolicy, newServer)
 
 	if len(sched.TaskRegistry) > 0 {
 		scheduler := gocron.NewScheduler(time.UTC)
@@ -245,7 +231,7 @@ func run() {
 		scheduler.StartAsync()
 	}
 
-	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp"}
+	srv := &dns.Server{Addr: c.Server.ListenAddr, Net: "udp", Handler: dnsHandler}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 	go func() {

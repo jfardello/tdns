@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"context"
 	"crypto/tls"
 	"strings"
 	"testing"
@@ -19,6 +20,19 @@ type FakeClient struct {
 
 func (f *FakeClient) Exchange(m *dns.Msg, _ string) (*dns.Msg, time.Duration, error) {
 	time.Sleep(f.Wait)
+	return f.response(m)
+}
+
+func (f *FakeClient) ExchangeContext(ctx context.Context, m *dns.Msg, _ string) (*dns.Msg, time.Duration, error) {
+	select {
+	case <-time.After(f.Wait):
+		return f.response(m)
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	}
+}
+
+func (f *FakeClient) response(m *dns.Msg) (*dns.Msg, time.Duration, error) {
 	response := new(dns.Msg)
 	domain := m.Question[0].Name
 	var rr dns.RR
@@ -30,11 +44,9 @@ func (f *FakeClient) Exchange(m *dns.Msg, _ string) (*dns.Msg, time.Duration, er
 	if f.Fail {
 		response.Rcode = dns.RcodeServerFailure
 		return response, 100, nil
-
 	}
 	response.Answer = append(response.Answer, rr)
 	return response, 100, nil
-
 }
 
 type FStore map[string]string
@@ -243,4 +255,24 @@ func TestClientMuxSRVFail(t *testing.T) {
 		})
 	}
 
+}
+
+func TestClientMuxGlobalTimeoutBoundsExchange(t *testing.T) {
+	mux := &Mux{
+		Upstreams: []*Upstream{{
+			Address: "127.0.0.1:53",
+			Client:  GetFakeClient(FStore{}, 250*time.Millisecond, false),
+		}},
+		globalTimeout: 20 * time.Millisecond,
+	}
+	message := new(dns.Msg)
+	message.SetQuestion("example.com.", dns.TypeA)
+
+	started := time.Now()
+	if _, _, err := mux.Resolve(message); err == nil {
+		t.Fatal("Resolve succeeded after the global timeout")
+	}
+	if elapsed := time.Since(started); elapsed > 150*time.Millisecond {
+		t.Fatalf("global timeout returned after %s, want a bounded exchange", elapsed)
+	}
 }

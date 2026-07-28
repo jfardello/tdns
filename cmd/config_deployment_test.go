@@ -84,6 +84,14 @@ func TestGeneratedConfigUsesSelectedDeploymentPaths(t *testing.T) {
 	if generated.Status.ExposeStats || generated.Status.ExposeUptime {
 		t.Fatal("generated configuration exposes status details")
 	}
+	if len(generated.DNSAccess.AllowedClientCIDRs) != 0 {
+		t.Fatalf("generated DNS allowlist = %v, want loopback-only default", generated.DNSAccess.AllowedClientCIDRs)
+	}
+	if generated.DNSAccess.ClientQueriesPerSecond != 100 ||
+		generated.DNSAccess.GlobalResponsesPerSecond != 1000 ||
+		generated.DNSAccess.MaxConcurrentUpstreams != 128 {
+		t.Fatalf("generated DNS access defaults are incomplete: %#v", generated.DNSAccess)
+	}
 }
 
 func TestWriteSampleConfigProtectsCredentialsAndUsesThirtyDayToken(t *testing.T) {

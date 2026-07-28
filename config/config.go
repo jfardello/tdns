@@ -58,6 +58,7 @@ type Config struct {
 	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
 	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
 	Database        DatabaseConf       `mapstructure:"database" yaml:"database,omitempty"`
+	DNSAccess       DNSAccessConf      `mapstructure:"dns_access" yaml:"dns_access"`
 	DNSLog          DNSLogConf         `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
 	Tagger          TaggerConf         `mapstructure:"tagger" yaml:"tagger,omitempty"`
 	Status          StatusConf         `mapstructure:"status" yaml:"status,omitempty"`
@@ -68,6 +69,17 @@ type Config struct {
 
 type DatabaseConf struct {
 	File string `mapstructure:"file" yaml:"file,omitempty"`
+}
+
+type DNSAccessConf struct {
+	AllowedClientCIDRs       []string `mapstructure:"allowed_client_cidrs" yaml:"allowed_client_cidrs"`
+	ClientQueriesPerSecond   int      `mapstructure:"client_queries_per_second" yaml:"client_queries_per_second"`
+	ClientBurst              int      `mapstructure:"client_burst" yaml:"client_burst"`
+	GlobalResponsesPerSecond int      `mapstructure:"global_responses_per_second" yaml:"global_responses_per_second"`
+	GlobalResponseBurst      int      `mapstructure:"global_response_burst" yaml:"global_response_burst"`
+	MaxConcurrentUpstreams   int      `mapstructure:"max_concurrent_upstreams" yaml:"max_concurrent_upstreams"`
+	MaxTrackedClients        int      `mapstructure:"max_tracked_clients" yaml:"max_tracked_clients"`
+	ClientIdleTimeout        string   `mapstructure:"client_idle_timeout" yaml:"client_idle_timeout"`
 }
 
 type CORSConf struct {

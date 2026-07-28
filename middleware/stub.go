@@ -49,7 +49,7 @@ func (sr *StubResolver) Run(mess *Message) (*Message, error) {
 			match, _ := regexp.MatchString(`^.*\Q`+k+`\E\.`, domain)
 			if match {
 				logger.Debugf("Resove %s via server %s", domain, mux.Upstreams[0].Address)
-				response, _, err := mux.Resolve(m)
+				response, _, err := mux.ResolveContext(mess.Context(), m)
 				if err != nil {
 					return mess, err
 				}
