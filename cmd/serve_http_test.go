@@ -12,7 +12,7 @@ import (
 func TestHTTPHandlerRoutesSwaggerThroughAPIHandler(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{})
-		handler, err := newHTTPHandler(nil)
+		handler, err := newHTTPHandler(nil, nil)
 		if err != nil {
 			t.Fatalf("newHTTPHandler: %v", err)
 		}
@@ -26,7 +26,7 @@ func TestHTTPHandlerRoutesSwaggerThroughAPIHandler(t *testing.T) {
 
 	t.Run("enabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{Server: config.Server{SwaggerEnabled: true}})
-		handler, err := newHTTPHandler(nil)
+		handler, err := newHTTPHandler(nil, nil)
 		if err != nil {
 			t.Fatalf("newHTTPHandler: %v", err)
 		}
@@ -46,7 +46,7 @@ func TestHTTPHandlerRoutesSwaggerThroughAPIHandler(t *testing.T) {
 
 func TestHTTPHandlerDoesNotServeSwaggerFromSPA(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
-	handler, err := newHTTPHandler(nil)
+	handler, err := newHTTPHandler(nil, nil)
 	if err != nil {
 		t.Fatalf("newHTTPHandler: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestHTTPHandlerDoesNotServeSwaggerFromSPA(t *testing.T) {
 
 func TestHTTPHandlerAppliesRestrictiveCSPToWebUI(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
-	handler, err := newHTTPHandler(nil)
+	handler, err := newHTTPHandler(nil, nil)
 	if err != nil {
 		t.Fatalf("newHTTPHandler: %v", err)
 	}

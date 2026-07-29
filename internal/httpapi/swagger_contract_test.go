@@ -23,7 +23,7 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 		t.Fatalf("read handler.go: %v", err)
 	}
 
-	routePattern := regexp.MustCompile(`mux\.HandleFunc\("([A-Z]+) ([^"]+)", ([^\n]+)\)`)
+	routePattern := regexp.MustCompile(`registerRoute\(mux, "([A-Z]+) ([^"]+)", ([^\n]+)\)`)
 	matches := routePattern.FindAllStringSubmatch(string(handlerSource), -1)
 	if len(matches) == 0 {
 		t.Fatal("no registered routes found in handler.go")
@@ -36,15 +36,13 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 	}
 	routes := make([]registeredRoute, 0, len(matches))
 	for _, match := range matches {
-		if strings.HasPrefix(match[2], "/swagger/") {
-			continue
-		}
 		routes = append(routes, registeredRoute{
 			method:  strings.ToLower(match[1]),
 			path:    match[2],
-			secured: strings.HasPrefix(match[3], "Require("),
+			secured: true,
 		})
 	}
+	routes = append(routes, registeredRoute{method: "get", path: "/metrics", secured: false})
 
 	generated, err := os.ReadFile("../../api/docs/swagger.json")
 	if err != nil {

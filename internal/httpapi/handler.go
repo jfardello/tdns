@@ -6,6 +6,7 @@ import (
 	contractapi "github.com/jfardello/tdns/api"
 	_ "github.com/jfardello/tdns/api/docs"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/server"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,50 +30,51 @@ func (api *v1) Metrics(w http.ResponseWriter, r *http.Request) {
 	promhttp.Handler().ServeHTTP(w, r)
 }
 
-func NewHandler(dns *server.Server) http.Handler {
+func NewHandler(dns *server.Server, authManager *auth.Manager) http.Handler {
 	conf := config.GetRunningConfig()
-	protected := Auth{IsRequired: true, Scope: RWSCOPE}
+	readOnly := Requirement{IsRequired: true, Scope: auth.ScopeRead}
+	readWrite := Requirement{IsRequired: true, Scope: auth.ScopeWrite}
 	api := v1{server: dns}
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /api/stub-resolver", Require(api.StubReplace, protected))
-	mux.HandleFunc("GET /api/stub-resolver", Require(api.StubStatus, protected))
-	mux.HandleFunc("POST /api/zen-mode/persisted/domains", Require(api.ZenPersistedDomainsReplace, protected))
-	mux.HandleFunc("POST /api/zen-mode/persisted/excludes", Require(api.ZenPersistedExcludesReplace, protected))
-	mux.HandleFunc("POST /api/zen-mode", Require(api.ZenDomainsReplace, protected))
-	mux.HandleFunc("GET /api/zen-mode", Require(api.ZenModeStatus, protected))
-	mux.HandleFunc("POST /api/stub-resolver/{action}", Require(api.StubToggle, protected))
-	mux.HandleFunc("GET /api/cache", Require(api.CacheStatus, protected))
-	mux.HandleFunc("POST /api/cache/excludes", Require(api.CacheReplaceExcludes, protected))
-	mux.HandleFunc("POST /api/cache/{action}", Require(api.CacheToggle, protected))
-	mux.HandleFunc("GET /api/blacklist", Require(api.BlacklistStatus, protected))
-	mux.HandleFunc("POST /api/blacklist/persisted/hosts", Require(api.BlacklistReplacePersistedHosts, protected))
-	mux.HandleFunc("POST /api/blacklist/persisted/excludes", Require(api.BlacklistReplacePersistedExcludes, protected))
-	mux.HandleFunc("POST /api/blacklist/{action}", Require(api.BlacklistToggle, protected))
-	mux.HandleFunc("POST /api/blacklist/whitelist", Require(api.BlacklistAddRuntimeWhitelist, protected))
-	mux.HandleFunc("GET /api/static-response", Require(api.StaticResponseStatus, protected))
-	mux.HandleFunc("POST /api/static-response/persisted", Require(api.StaticResponseReplacePersisted, protected))
-	mux.HandleFunc("POST /api/static-response", Require(api.StaticResponseReplace, protected))
-	mux.HandleFunc("POST /api/static-response/{action}", Require(api.StaticResponseToggle, protected))
-	mux.HandleFunc("GET /api/dns-log/dashboard", Require(api.DNSLogDashboard, protected))
-	mux.HandleFunc("GET /api/dns-log/clients", Require(api.DNSLogClients, protected))
-	mux.HandleFunc("GET /api/dns-log/top/{top}", Require(api.DNSLogTop, protected))
-	mux.HandleFunc("GET /api/dns-log/rotate", Require(api.DNSLogRotate, protected))
-	mux.HandleFunc("POST /api/dns-log/alias", Require(api.DNSLogAlias, protected))
-	mux.HandleFunc("POST /api/zen-mode/start", Require(api.ZenModeStart, protected))
-	mux.HandleFunc("DELETE /api/cache", Require(api.DeleteCache, protected))
+	registerRoute(mux, "POST /api/stub-resolver", api.StubReplace, readWrite, "stub_replace", authManager)
+	registerRoute(mux, "GET /api/stub-resolver", api.StubStatus, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/zen-mode/persisted/domains", api.ZenPersistedDomainsReplace, readWrite, "zen_persisted_domains_replace", authManager)
+	registerRoute(mux, "POST /api/zen-mode/persisted/excludes", api.ZenPersistedExcludesReplace, readWrite, "zen_persisted_excludes_replace", authManager)
+	registerRoute(mux, "POST /api/zen-mode", api.ZenDomainsReplace, readWrite, "zen_domains_replace", authManager)
+	registerRoute(mux, "GET /api/zen-mode", api.ZenModeStatus, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/stub-resolver/{action}", api.StubToggle, readWrite, "stub_toggle", authManager)
+	registerRoute(mux, "GET /api/cache", api.CacheStatus, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/cache/excludes", api.CacheReplaceExcludes, readWrite, "cache_excludes_replace", authManager)
+	registerRoute(mux, "POST /api/cache/{action}", api.CacheToggle, readWrite, "cache_toggle", authManager)
+	registerRoute(mux, "GET /api/blacklist", api.BlacklistStatus, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/blacklist/persisted/hosts", api.BlacklistReplacePersistedHosts, readWrite, "blacklist_persisted_hosts_replace", authManager)
+	registerRoute(mux, "POST /api/blacklist/persisted/excludes", api.BlacklistReplacePersistedExcludes, readWrite, "blacklist_persisted_excludes_replace", authManager)
+	registerRoute(mux, "POST /api/blacklist/{action}", api.BlacklistToggle, readWrite, "blacklist_toggle", authManager)
+	registerRoute(mux, "POST /api/blacklist/whitelist", api.BlacklistAddRuntimeWhitelist, readWrite, "blacklist_whitelist_add", authManager)
+	registerRoute(mux, "GET /api/static-response", api.StaticResponseStatus, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/static-response/persisted", api.StaticResponseReplacePersisted, readWrite, "static_response_persisted_replace", authManager)
+	registerRoute(mux, "POST /api/static-response", api.StaticResponseReplace, readWrite, "static_response_replace", authManager)
+	registerRoute(mux, "POST /api/static-response/{action}", api.StaticResponseToggle, readWrite, "static_response_toggle", authManager)
+	registerRoute(mux, "GET /api/dns-log/dashboard", api.DNSLogDashboard, readOnly, "", authManager)
+	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager)
+	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager)
+	registerRoute(mux, "GET /api/dns-log/rotate", api.DNSLogRotate, readWrite, "dns_log_rotate", authManager)
+	registerRoute(mux, "POST /api/dns-log/alias", api.DNSLogAlias, readWrite, "dns_log_alias", authManager)
+	registerRoute(mux, "POST /api/zen-mode/start", api.ZenModeStart, readWrite, "zen_mode_start", authManager)
+	registerRoute(mux, "DELETE /api/cache", api.DeleteCache, readWrite, "cache_delete", authManager)
 
-	mux.HandleFunc("POST /api/tagger/tags", Require(api.TaggerAddTag, protected))
-	mux.HandleFunc("GET /api/tagger/tags", Require(api.TaggerGetTags, protected))
-	mux.HandleFunc("DELETE /api/tagger/tags/{tagName}", Require(api.TaggerDeleteTag, protected))
+	registerRoute(mux, "POST /api/tagger/tags", api.TaggerAddTag, readWrite, "tag_add", authManager)
+	registerRoute(mux, "GET /api/tagger/tags", api.TaggerGetTags, readOnly, "", authManager)
+	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}", api.TaggerDeleteTag, readWrite, "tag_delete", authManager)
 
-	mux.HandleFunc("GET /api/tagger/hosts", Require(api.TaggerKnownHosts, protected))
-	mux.HandleFunc("GET /api/tagger/tags/{tagName}", Require(api.TaggerTagGetMembers, protected))
-	mux.HandleFunc("POST /api/tagger/tags/{tagName}", Require(api.TaggerAddMember, protected))
-	mux.HandleFunc("DELETE /api/tagger/tags/{tagName}/{address}", Require(api.TaggerDeleteTagMember, protected))
-	mux.HandleFunc("POST /api/tagger/address", Require(api.TaggerAddressCreate, protected))
-	mux.HandleFunc("PUT /api/tagger/address/{address}", Require(api.TaggerAddressReplace, protected))
-	mux.HandleFunc("PUT /api/tagger/addr/{tagName}", Require(api.TaggerLegacyAddressReplace, protected))
+	registerRoute(mux, "GET /api/tagger/hosts", api.TaggerKnownHosts, readOnly, "", authManager)
+	registerRoute(mux, "GET /api/tagger/tags/{tagName}", api.TaggerTagGetMembers, readOnly, "", authManager)
+	registerRoute(mux, "POST /api/tagger/tags/{tagName}", api.TaggerAddMember, readWrite, "tag_member_add", authManager)
+	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}/{address}", api.TaggerDeleteTagMember, readWrite, "tag_member_delete", authManager)
+	registerRoute(mux, "POST /api/tagger/address", api.TaggerAddressCreate, readWrite, "tagger_address_create", authManager)
+	registerRoute(mux, "PUT /api/tagger/address/{address}", api.TaggerAddressReplace, readWrite, "tagger_address_replace", authManager)
+	registerRoute(mux, "PUT /api/tagger/addr/{tagName}", api.TaggerLegacyAddressReplace, readWrite, "tagger_legacy_address_replace", authManager)
 
 	mux.HandleFunc("GET /metrics", api.Metrics)
 	if conf.Server.SwaggerEnabled {
@@ -86,6 +88,20 @@ func NewHandler(dns *server.Server) http.Handler {
 		})
 	}
 	return withCORS(mux, conf.CORS)
+}
+
+func registerRoute(
+	mux *http.ServeMux,
+	pattern string,
+	handler http.HandlerFunc,
+	requirement Requirement,
+	auditAction string,
+	manager *auth.Manager,
+) {
+	if auditAction != "" {
+		handler = AuditMutation(auditAction, handler)
+	}
+	mux.HandleFunc(pattern, Require(handler, requirement, manager))
 }
 
 func withCORS(handler http.Handler, conf config.CORSConf) http.Handler {

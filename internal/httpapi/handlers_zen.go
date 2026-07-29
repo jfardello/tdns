@@ -21,6 +21,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode [post]
@@ -81,6 +82,7 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/persisted/domains [post]
@@ -154,6 +156,7 @@ func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/persisted/excludes [post]
@@ -226,6 +229,7 @@ func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Reques
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode/start [post]
 func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
@@ -261,6 +265,7 @@ func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/zen-mode [get]
 func (api *v1) ZenModeStatus(w http.ResponseWriter, r *http.Request) {

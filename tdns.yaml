@@ -29,6 +29,20 @@ dns_access:
   max_concurrent_upstreams: 128
   max_tracked_clients: 4096
   client_idle_timeout: 10m
+auth:
+  issuer: tdns
+  bearer_audience: tdns-management-api
+  active_key:
+    id: ""
+    environment: TDNS_AUTH_ACTIVE_KEY
+    file: ""
+    value: ""
+  previous_key:
+    id: ""
+    environment: TDNS_AUTH_PREVIOUS_KEY
+    file: ""
+    value: ""
+  previous_key_accept_until: ""
 blacklist:
   enabled: true
   file: /var/lib/tdns/bhole_list

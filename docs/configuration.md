@@ -189,6 +189,51 @@ database file. The storage must provide reliable local file locking.
 
 ## HTTP Server and CLI Client
 
+### Authentication
+
+| Key | Fallback | Description |
+| --- | --- | --- |
+| `auth.issuer` | `tdns` | Required `iss` claim for management bearer tokens. |
+| `auth.bearer_audience` | `tdns-management-api` | Required management bearer-token audience. |
+| `auth.active_key.id` | `ephemeral` when no key is configured | Identifier written to the JWT `kid` header. A persistent key requires an explicit identifier. |
+| `auth.active_key.environment` | `TDNS_AUTH_ACTIVE_KEY` | Environment variable containing the base64-encoded active HS512 key. |
+| `auth.active_key.file` | empty | Restricted regular file containing the base64-encoded active key. |
+| `auth.active_key.value` | empty | Inline base64-encoded active key. Retained for compatibility, but not recommended for production. |
+| `auth.previous_key.id` | empty | Identifier of the previous verification-only key. |
+| `auth.previous_key.environment` | `TDNS_AUTH_PREVIOUS_KEY` | Environment variable containing the previous base64-encoded key. |
+| `auth.previous_key.file` | empty | Restricted regular file containing the previous key. |
+| `auth.previous_key.value` | empty | Inline previous key. |
+| `auth.previous_key_accept_until` | empty | Required RFC3339 cutoff when a previous key is configured. |
+
+For each key slot, TDNS uses the first available source in this order:
+environment variable, key file, inline `value`. The deprecated
+`server.signing_key` value is the final active-key fallback. Key files must be
+regular files that permit at most owner access and optional group read access;
+every decoded HS512 key must contain at least 64 bytes.
+
+TDNS validates the complete key set before opening listeners. Active and
+previous identifiers must be different and contain at most 64 letters, digits,
+dots, underscores, or hyphens. The previous key is rejected at and after
+`auth.previous_key_accept_until`. It can validate existing tokens before that
+instant, but only the active key issues new tokens.
+
+When no persistent active key is configured, `tdns serve` creates a temporary
+process key for local startup. Tokens cannot survive restart, and offline
+`tdns adm token` issuance is refused.
+
+To rotate a persistent key without immediately invalidating every current
+strict-format token:
+
+1. Move the current active identifier and key source to `previous_key`.
+2. Set `previous_key_accept_until` to the absolute RFC3339 end of the overlap.
+3. Install a newly generated key under a new `active_key.id`.
+4. Restart TDNS and reissue credentials. New tokens use only the new active key.
+5. Remove the previous key configuration after the cutoff.
+
+The cutoff must be chosen deliberately. It should be no later than the
+expiration of the credentials being migrated, and the old key file must remain
+protected until it is removed.
+
 ### Server
 
 | Key | Fallback | Description |
@@ -198,7 +243,7 @@ database file. The storage must provide reliable local file locking.
 | `server.api_cert_file` | empty | HTTPS certificate file. |
 | `server.api_key_file` | empty | HTTPS private-key file. |
 | `server.pprof_addr` | empty | Optional unauthenticated pprof HTTP listener; empty disables it. Restrict this listener to trusted interfaces. |
-| `server.signing_key` | generated temporary key | Base64-encoded HMAC key used to validate and issue management JWTs. Configure a persistent secret for stable tokens. |
+| `server.signing_key` | empty | Deprecated inline active-key fallback for installations migrating from `v0.1.6` or older. Prefer `auth.active_key`. |
 | `server.swagger_enabled` | `false` | Exposes Swagger UI and raw Swagger/OpenAPI documents under `/swagger/`. |
 
 ### CORS
@@ -215,6 +260,10 @@ database file. The storage must provide reliable local file locking.
 | `client.server` | empty | Base HTTPS URL used by `tdns adm`, such as `https://tdns.example.com:8443`. |
 | `client.ca_cert` | empty | CA or self-signed certificate trusted by the management client. |
 | `client.token` | empty | Bearer token sent by `tdns adm`. Treat it as a secret. |
+
+`tdns adm token` issues read-write tokens by default. Use `--scope read-only`
+for reporting and inspection clients. Tokens default to 30 days and are limited
+to 180 days unless the administrator explicitly supplies `--allow-long-lived`.
 
 ## CLI Overrides
 
@@ -281,8 +330,9 @@ Before considering an installation production-ready:
   run the serving process as root.
 - Keep the YAML configuration and API private key readable only by root and the
   service group, or only by the container runtime identity.
-- Treat `server.signing_key` and `client.token` as credentials. Rotate values
-  copied from old samples or installations.
+- Treat authentication key files, inline key values, environment keys, and
+  `client.token` as credentials. Rotate values copied from old samples or
+  installations.
 - Mount `/etc/tdns` read-only while serving and keep `/var/lib/tdns` as the only
   persistent writable container mount.
 - Bind DNS and management HTTPS only to loopback or explicit trusted LAN/VPN

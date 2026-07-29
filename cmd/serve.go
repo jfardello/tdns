@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/internal/dnsserver"
 	"github.com/jfardello/tdns/internal/httpapi"
@@ -132,6 +133,10 @@ func init() {
 	viper.SetDefault("dns_access.max_concurrent_upstreams", 128)
 	viper.SetDefault("dns_access.max_tracked_clients", 4096)
 	viper.SetDefault("dns_access.client_idle_timeout", "10m")
+	viper.SetDefault("auth.issuer", auth.DefaultIssuer)
+	viper.SetDefault("auth.bearer_audience", auth.DefaultBearerAudience)
+	viper.SetDefault("auth.active_key.environment", "TDNS_AUTH_ACTIVE_KEY")
+	viper.SetDefault("auth.previous_key.environment", "TDNS_AUTH_PREVIOUS_KEY")
 	viper.SetDefault("tagger.enabled", true)
 	viper.SetDefault("cache.enabled", true)
 
@@ -180,6 +185,10 @@ func run() {
 			logger.Fatal(err)
 		}
 	}
+	authManager, err := auth.NewManager(c.Auth, c.Server.SigningKey, auth.Options{AllowEphemeral: true})
+	if err != nil {
+		logger.Fatal(err)
+	}
 	config.SetRunningConfig(c)
 	fmt.Print(blue + `
    __      __
@@ -212,7 +221,7 @@ func run() {
 		server.WithDNSLog(),
 		server.WithTagger(),
 	)
-	httpServer, err := startHTTPServer(c, newServer)
+	httpServer, err := startHTTPServer(c, newServer, authManager)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -281,9 +290,9 @@ func setServingUmask() {
 	syscall.Umask(0o077)
 }
 
-func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, error) {
+func startHTTPServer(c *config.Config, dnsServer *server.Server, authManager *auth.Manager) (*http.Server, error) {
 	logger := log.GetLogger("serve", "http-server")
-	handler, err := newHTTPHandler(dnsServer)
+	handler, err := newHTTPHandler(dnsServer, authManager)
 	if err != nil {
 		return nil, err
 	}
@@ -307,8 +316,8 @@ func startHTTPServer(c *config.Config, dnsServer *server.Server) (*http.Server, 
 	return srv, nil
 }
 
-func newHTTPHandler(dnsServer *server.Server) (http.Handler, error) {
-	apiHandler := httpapi.NewHandler(dnsServer)
+func newHTTPHandler(dnsServer *server.Server, authManager *auth.Manager) (http.Handler, error) {
+	apiHandler := httpapi.NewHandler(dnsServer, authManager)
 	uiHandlers, err := webui.NewHandlers("")
 	if err != nil {
 		return nil, fmt.Errorf("prepare embedded web ui: %w", err)

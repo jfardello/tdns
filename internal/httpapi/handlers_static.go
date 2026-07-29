@@ -19,6 +19,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response/{action} [post]
@@ -76,6 +77,7 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response [get]
 func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +120,7 @@ func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response [post]
@@ -195,6 +198,7 @@ func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/static-response/persisted [post]

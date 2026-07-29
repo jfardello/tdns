@@ -3947,6 +3947,8 @@ type BlacklistStatusResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -3959,6 +3961,11 @@ func (r BlacklistStatusResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r BlacklistStatusResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BlacklistStatusResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4004,6 +4011,8 @@ type BlacklistPersistedExcludesReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4021,6 +4030,11 @@ func (r BlacklistPersistedExcludesReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r BlacklistPersistedExcludesReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BlacklistPersistedExcludesReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4066,6 +4080,8 @@ type BlacklistPersistedHostsReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4083,6 +4099,11 @@ func (r BlacklistPersistedHostsReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r BlacklistPersistedHostsReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BlacklistPersistedHostsReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4128,6 +4149,8 @@ type BlacklistRuntimeWhitelistAddResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4145,6 +4168,11 @@ func (r BlacklistRuntimeWhitelistAddResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r BlacklistRuntimeWhitelistAddResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BlacklistRuntimeWhitelistAddResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4190,6 +4218,8 @@ type BlacklistToggleResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4207,6 +4237,11 @@ func (r BlacklistToggleResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r BlacklistToggleResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BlacklistToggleResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4250,6 +4285,8 @@ type CacheClearResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4260,6 +4297,11 @@ func (r CacheClearResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r CacheClearResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CacheClearResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4298,6 +4340,8 @@ type CacheStatusResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4308,6 +4352,11 @@ func (r CacheStatusResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r CacheStatusResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CacheStatusResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4348,6 +4397,8 @@ type CacheExcludesReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4365,6 +4416,11 @@ func (r CacheExcludesReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r CacheExcludesReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CacheExcludesReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4410,6 +4466,8 @@ type CacheToggleResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4427,6 +4485,11 @@ func (r CacheToggleResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r CacheToggleResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CacheToggleResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4470,6 +4533,8 @@ type DnsLogAliasSetResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4480,6 +4545,11 @@ func (r DnsLogAliasSetResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DnsLogAliasSetResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogAliasSetResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4518,6 +4588,8 @@ type DnsLogClientsSearchResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4528,6 +4600,11 @@ func (r DnsLogClientsSearchResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DnsLogClientsSearchResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogClientsSearchResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4566,6 +4643,8 @@ type DnsLogDashboardResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4576,6 +4655,11 @@ func (r DnsLogDashboardResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DnsLogDashboardResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogDashboardResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4614,6 +4698,8 @@ type DnsLogRotateResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4624,6 +4710,11 @@ func (r DnsLogRotateResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DnsLogRotateResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogRotateResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4662,6 +4753,8 @@ type DnsLogTopResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4672,6 +4765,11 @@ func (r DnsLogTopResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r DnsLogTopResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogTopResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -4710,6 +4808,8 @@ type StaticResponseStatusResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4722,6 +4822,11 @@ func (r StaticResponseStatusResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StaticResponseStatusResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StaticResponseStatusResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4767,6 +4872,8 @@ type StaticResponseReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4784,6 +4891,11 @@ func (r StaticResponseReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StaticResponseReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StaticResponseReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4829,6 +4941,8 @@ type StaticResponsePersistedReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4846,6 +4960,11 @@ func (r StaticResponsePersistedReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StaticResponsePersistedReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StaticResponsePersistedReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4891,6 +5010,8 @@ type StaticResponseToggleResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -4908,6 +5029,11 @@ func (r StaticResponseToggleResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StaticResponseToggleResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StaticResponseToggleResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -4951,6 +5077,8 @@ type StubResolverStatusResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -4961,6 +5089,11 @@ func (r StubResolverStatusResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StubResolverStatusResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StubResolverStatusResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -5001,6 +5134,8 @@ type StubResolverReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5016,6 +5151,11 @@ func (r StubResolverReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StubResolverReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StubResolverReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -5056,6 +5196,8 @@ type StubResolverToggleResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5071,6 +5213,11 @@ func (r StubResolverToggleResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StubResolverToggleResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r StubResolverToggleResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -5111,6 +5258,8 @@ type TaggerLegacyAddressReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5130,6 +5279,11 @@ func (r TaggerLegacyAddressReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerLegacyAddressReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerLegacyAddressReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5180,6 +5334,8 @@ type TaggerAddressCreateResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5199,6 +5355,11 @@ func (r TaggerAddressCreateResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerAddressCreateResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerAddressCreateResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5249,6 +5410,8 @@ type TaggerAddressReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5268,6 +5431,11 @@ func (r TaggerAddressReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerAddressReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerAddressReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5318,6 +5486,8 @@ type TaggerKnownHostsSearchResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5337,6 +5507,11 @@ func (r TaggerKnownHostsSearchResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerKnownHostsSearchResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerKnownHostsSearchResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5385,6 +5560,8 @@ type TaggerTagsListResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5399,6 +5576,11 @@ func (r TaggerTagsListResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagsListResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagsListResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5449,6 +5631,8 @@ type TaggerTagCreateResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ApiResponse
 }
@@ -5466,6 +5650,11 @@ func (r TaggerTagCreateResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagCreateResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagCreateResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -5511,6 +5700,8 @@ type TaggerTagDeleteResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ApiResponse
 }
@@ -5528,6 +5719,11 @@ func (r TaggerTagDeleteResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagDeleteResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagDeleteResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -5571,6 +5767,8 @@ type TaggerTagMembersListResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5585,6 +5783,11 @@ func (r TaggerTagMembersListResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagMembersListResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagMembersListResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5635,6 +5838,8 @@ type TaggerTagMembersAddResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -5654,6 +5859,11 @@ func (r TaggerTagMembersAddResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagMembersAddResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagMembersAddResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5704,6 +5914,8 @@ type TaggerTagMemberDeleteResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ApiResponse
 }
@@ -5721,6 +5933,11 @@ func (r TaggerTagMemberDeleteResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r TaggerTagMemberDeleteResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r TaggerTagMemberDeleteResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -5764,6 +5981,8 @@ type ZenModeStatusResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -5776,6 +5995,11 @@ func (r ZenModeStatusResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r ZenModeStatusResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ZenModeStatusResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5821,6 +6045,8 @@ type ZenModeDomainsReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -5838,6 +6064,11 @@ func (r ZenModeDomainsReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r ZenModeDomainsReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ZenModeDomainsReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5883,6 +6114,8 @@ type ZenModePersistedDomainsReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -5900,6 +6133,11 @@ func (r ZenModePersistedDomainsReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r ZenModePersistedDomainsReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ZenModePersistedDomainsReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -5945,6 +6183,8 @@ type ZenModePersistedExcludesReplaceResponse struct {
 	JSON400 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -5962,6 +6202,11 @@ func (r ZenModePersistedExcludesReplaceResponse) GetJSON400() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r ZenModePersistedExcludesReplaceResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ZenModePersistedExcludesReplaceResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -6005,6 +6250,8 @@ type ZenModeStartResponse struct {
 	JSON200 *ApiResponse
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
 }
@@ -6017,6 +6264,11 @@ func (r ZenModeStartResponse) GetJSON200() *ApiResponse {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r ZenModeStartResponse) GetJSON401() *string {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ZenModeStartResponse) GetJSON403() *string {
+	return r.JSON403
 }
 
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
@@ -6917,6 +7169,13 @@ func ParseBlacklistStatusResponse(rsp *http.Response) (*BlacklistStatusResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -6963,6 +7222,13 @@ func ParseBlacklistPersistedExcludesReplaceResponse(rsp *http.Response) (*Blackl
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7011,6 +7277,13 @@ func ParseBlacklistPersistedHostsReplaceResponse(rsp *http.Response) (*Blacklist
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7057,6 +7330,13 @@ func ParseBlacklistRuntimeWhitelistAddResponse(rsp *http.Response) (*BlacklistRu
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7105,6 +7385,13 @@ func ParseBlacklistToggleResponse(rsp *http.Response) (*BlacklistToggleResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7145,6 +7432,13 @@ func ParseCacheClearResponse(rsp *http.Response) (*CacheClearResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7177,6 +7471,13 @@ func ParseCacheStatusResponse(rsp *http.Response) (*CacheStatusResponse, error) 
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 
@@ -7217,6 +7518,13 @@ func ParseCacheExcludesReplaceResponse(rsp *http.Response) (*CacheExcludesReplac
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7265,6 +7573,13 @@ func ParseCacheToggleResponse(rsp *http.Response) (*CacheToggleResponse, error) 
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7305,6 +7620,13 @@ func ParseDnsLogAliasSetResponse(rsp *http.Response) (*DnsLogAliasSetResponse, e
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7337,6 +7659,13 @@ func ParseDnsLogClientsSearchResponse(rsp *http.Response) (*DnsLogClientsSearchR
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 
@@ -7371,6 +7700,13 @@ func ParseDnsLogDashboardResponse(rsp *http.Response) (*DnsLogDashboardResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7403,6 +7739,13 @@ func ParseDnsLogRotateResponse(rsp *http.Response) (*DnsLogRotateResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 
@@ -7437,6 +7780,13 @@ func ParseDnsLogTopResponse(rsp *http.Response) (*DnsLogTopResponse, error) {
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7469,6 +7819,13 @@ func ParseStaticResponseStatusResponse(rsp *http.Response) (*StaticResponseStatu
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7517,6 +7874,13 @@ func ParseStaticResponseReplaceResponse(rsp *http.Response) (*StaticResponseRepl
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7563,6 +7927,13 @@ func ParseStaticResponsePersistedReplaceResponse(rsp *http.Response) (*StaticRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7611,6 +7982,13 @@ func ParseStaticResponseToggleResponse(rsp *http.Response) (*StaticResponseToggl
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7650,6 +8028,13 @@ func ParseStubResolverStatusResponse(rsp *http.Response) (*StubResolverStatusRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 
@@ -7691,6 +8076,13 @@ func ParseStubResolverReplaceResponse(rsp *http.Response) (*StubResolverReplaceR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7731,6 +8123,13 @@ func ParseStubResolverToggleResponse(rsp *http.Response) (*StubResolverToggleRes
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	}
 
 	return response, nil
@@ -7770,6 +8169,13 @@ func ParseTaggerLegacyAddressReplaceResponse(rsp *http.Response) (*TaggerLegacyA
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7825,6 +8231,13 @@ func ParseTaggerAddressCreateResponse(rsp *http.Response) (*TaggerAddressCreateR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7878,6 +8291,13 @@ func ParseTaggerAddressReplaceResponse(rsp *http.Response) (*TaggerAddressReplac
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -7933,6 +8353,13 @@ func ParseTaggerKnownHostsSearchResponse(rsp *http.Response) (*TaggerKnownHostsS
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7979,6 +8406,13 @@ func ParseTaggerTagsListResponse(rsp *http.Response) (*TaggerTagsListResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -8034,6 +8468,13 @@ func ParseTaggerTagCreateResponse(rsp *http.Response) (*TaggerTagCreateResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8081,6 +8522,13 @@ func ParseTaggerTagDeleteResponse(rsp *http.Response) (*TaggerTagDeleteResponse,
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8120,6 +8568,13 @@ func ParseTaggerTagMembersListResponse(rsp *http.Response) (*TaggerTagMembersLis
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -8175,6 +8630,13 @@ func ParseTaggerTagMembersAddResponse(rsp *http.Response) (*TaggerTagMembersAddR
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8229,6 +8691,13 @@ func ParseTaggerTagMemberDeleteResponse(rsp *http.Response) (*TaggerTagMemberDel
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8268,6 +8737,13 @@ func ParseZenModeStatusResponse(rsp *http.Response) (*ZenModeStatusResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -8316,6 +8792,13 @@ func ParseZenModeDomainsReplaceResponse(rsp *http.Response) (*ZenModeDomainsRepl
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8362,6 +8845,13 @@ func ParseZenModePersistedDomainsReplaceResponse(rsp *http.Response) (*ZenModePe
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
@@ -8410,6 +8900,13 @@ func ParseZenModePersistedExcludesReplaceResponse(rsp *http.Response) (*ZenModeP
 		}
 		response.JSON401 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8449,6 +8946,13 @@ func ParseZenModeStartResponse(rsp *http.Response) (*ZenModeStartResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ApiResponse

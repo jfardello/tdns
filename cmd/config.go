@@ -4,7 +4,9 @@ Copyright © 2024 NAME HERE <jmfardello@gmail.com>
 package cmd
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"os"
@@ -18,7 +20,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/internal/httpapi"
+	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/log"
 )
 
@@ -151,10 +153,21 @@ func WriteSampleConfig(fname, cert, key string) {
 	logger := log.GetLogger("config", "WriteSampleConfig")
 	c := newConf()
 	k := config.GenKey()
-	c.Server.SigningKey = base64.StdEncoding.EncodeToString(*k)
+	c.Auth.ActiveKey.ID = generatedKeyID()
+	c.Auth.ActiveKey.Value = base64.StdEncoding.EncodeToString(*k)
 
 	config.SetRunningConfig(c)
-	t, err := httpapi.IssueToken(defaultBootstrapTokenTTLDays, "admin")
+	issuanceConfig := c.Auth
+	issuanceConfig.ActiveKey.Environment = ""
+	authManager, err := auth.NewManager(issuanceConfig, "", auth.Options{})
+	if err != nil {
+		logger.Fatalf("Error loading generated signing key:%v", err)
+	}
+	t, err := authManager.IssueBearer(
+		"admin",
+		auth.ScopeWrite,
+		defaultBootstrapTokenTTLDays*24*time.Hour,
+	)
 	if err != nil {
 		logger.Fatalf("Error generating token:%v", err)
 	}
@@ -238,6 +251,16 @@ func newConf() *config.Config {
 			MaxTrackedClients:        4096,
 			ClientIdleTimeout:        "10m",
 		},
+		Auth: config.AuthConf{
+			Issuer:         auth.DefaultIssuer,
+			BearerAudience: auth.DefaultBearerAudience,
+			ActiveKey: config.SigningKeyConf{
+				Environment: "TDNS_AUTH_ACTIVE_KEY",
+			},
+			PreviousKey: config.SigningKeyConf{
+				Environment: "TDNS_AUTH_PREVIOUS_KEY",
+			},
+		},
 		DNSLog: config.DNSLogConf{
 			Enabled: true,
 			Purge:   "180d",
@@ -290,4 +313,12 @@ func createUnit(tdnspath, cfgName, unitpath string) {
 	if err := unitOut.Close(); err != nil {
 		logger.Fatalf("Error closing unit file: %v", err)
 	}
+}
+
+func generatedKeyID() string {
+	value := make([]byte, 8)
+	if _, err := rand.Read(value); err != nil {
+		panic(fmt.Errorf("generate signing key identifier: %w", err))
+	}
+	return "key-" + hex.EncodeToString(value)
 }

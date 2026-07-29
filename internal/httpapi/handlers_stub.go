@@ -20,6 +20,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Router			/api/stub-resolver/{action} [post]
 func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,7 @@ func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/stub-resolver [get]
 func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["stub-resolver"].(*middleware.StubResolver)
@@ -78,6 +80,7 @@ func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Router			/api/stub-resolver [post]
 func (api *v1) StubReplace(w http.ResponseWriter, r *http.Request) {

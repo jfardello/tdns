@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/auth"
 	"gopkg.in/yaml.v3"
 )
 
@@ -128,8 +129,11 @@ func TestWriteSampleConfigProtectsCredentialsAndUsesThirtyDayToken(t *testing.T)
 	if err := yaml.Unmarshal(contents, &generated); err != nil {
 		t.Fatalf("parse generated config: %v", err)
 	}
-	if generated.Server.SigningKey == "" {
+	if generated.Auth.ActiveKey.Value == "" {
 		t.Fatal("generated config does not contain a persistent signing key")
+	}
+	if generated.Auth.ActiveKey.ID == "" {
+		t.Fatal("generated config does not contain an active signing key identifier")
 	}
 
 	token, _, err := new(jwt.Parser).ParseUnverified(generated.Client.Token, jwt.MapClaims{})
@@ -148,6 +152,17 @@ func TestWriteSampleConfigProtectsCredentialsAndUsesThirtyDayToken(t *testing.T)
 	wantMax := time.Now().Add(30*24*time.Hour + time.Minute)
 	if expiresAt.Before(wantMin) || expiresAt.After(wantMax) {
 		t.Fatalf("token expiration = %s, want approximately 30 days", expiresAt)
+	}
+	if token.Header["kid"] != generated.Auth.ActiveKey.ID {
+		t.Fatalf("token key ID = %q, want %q", token.Header["kid"], generated.Auth.ActiveKey.ID)
+	}
+	for _, claim := range []string{"iss", "aud", "iat", "nbf", "exp", "jti", "sub", "scope", "purpose"} {
+		if _, exists := claims[claim]; !exists {
+			t.Errorf("generated token is missing %q", claim)
+		}
+	}
+	if claims["scope"] != auth.ScopeWrite {
+		t.Errorf("generated token scope = %q, want %q", claims["scope"], auth.ScopeWrite)
 	}
 }
 

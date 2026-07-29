@@ -75,13 +75,17 @@ additional `--hosts` values. Bootstrap creates:
 - `/etc/tdns/tdns.yaml` with mode `0600`
 - a self-signed API certificate
 - an API private key with mode `0600`
-- a random signing key stored in the restricted YAML file
+- a random active signing key and key identifier stored in the restricted YAML
+  file
 - a 30-day bootstrap administration token in `client.token`
 - a sample static hosts file
 
 Review `tdns.yaml` before starting the server. The signing key and client token
-are secrets. Inline YAML signing keys remain the only persistent source until
-the secret-file and environment sources tracked by issue `#83` are implemented.
+are secrets. For production, move `auth.active_key.value` to a read-only secret
+file mounted inside the container and set `auth.active_key.file` to that path,
+or inject `TDNS_AUTH_ACTIVE_KEY` through the container runtime. The environment
+source takes precedence over the file, and the file takes precedence over the
+inline value.
 The generated DNS ACL is loopback-only. Before publishing DNS outside the
 container, add the actual client or trusted network prefixes to
 `dns_access.allowed_client_cidrs`. Container bridge networks are not trusted

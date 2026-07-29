@@ -67,6 +67,12 @@ enter the complete `Bearer <token>` value in the authorization dialog. Keep the
 Swagger endpoints disabled on installations where interactive API discovery is
 not required.
 
+Management bearer tokens have either `tdns.kubewire.net:ro` or
+`tdns.kubewire.net:rw` scope. Read-write tokens may call every protected route;
+read-only tokens are limited to query and status operations. Generated clients
+continue to send the token through the `Authorization` header and receive
+`403 Forbidden` when an authenticated token lacks the required scope.
+
 ## Client Boundaries
 
 The importable Go client is `github.com/jfardello/tdns/apiclient`. Its generated

@@ -62,8 +62,9 @@ defense in depth.
 
 The embedded web UI, management API, metrics, and optional Swagger endpoints
 share the configured HTTPS listener. The server requires TLS 1.2 or newer and
-sets request timeouts and baseline browser security headers. API mutation and
-query routes currently use the same read-write bearer scope.
+sets request timeouts and baseline browser security headers. API query routes
+accept read-only or read-write bearer tokens; mutation routes require
+read-write scope.
 
 ### CLI and Public Go Client
 
@@ -138,14 +139,21 @@ policy. Secrets and authentication credentials must never be logged.
 ### JWT Authentication
 
 - Only the Bearer authorization scheme is accepted.
-- Only HS512 is accepted for current API bearer tokens.
-- An expiration claim is mandatory.
-- Malformed scope claims are rejected without panicking.
+- Only HS512 is accepted for API bearer tokens.
+- Issuer, management audience, issued-at, not-before, expiration, token
+  identifier, subject, scope, purpose, and signing-key identifier are required.
+- Read-only and read-write scopes have distinct values; read-write credentials
+  satisfy read-only routes, while read-only credentials receive `403` on
+  mutation routes.
+- Bearer tokens are purpose-bound and cannot be substituted for future browser
+  login codes or sessions.
+- The active key issues tokens. One explicitly bounded previous key may verify
+  tokens until its configured RFC3339 cutoff.
 - Signing keys are generated with cryptographic randomness.
 - Temporary generated signing keys are not printed to logs.
-
-Issuer, audience, token identifier, key rotation, revocation, and distinct
-read-only authorization are planned but not yet implemented.
+- Authentication failure, authorization denial, token issuance, and management
+  mutations produce structured audit events without credentials or key
+  material.
 
 ### Secrets and Configuration
 
@@ -226,13 +234,13 @@ available, whichever comes first.
 | Default DNS access to loopback and require an explicit CIDR allowlist for other clients | Approved | Prevents a default installation from becoming an open resolver; firewalling remains defense in depth. |
 | Use a two-minute browser login code and a non-persistent 12-hour session | Approved | Limits bootstrap-code replay and avoids retaining the browser session after restart. |
 | Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Approved | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
-| Enforce strict bearer claims by default with opt-in legacy compatibility for one release | Approved | Makes secure validation the default while providing a bounded migration path. |
-| Load signing keys from secret files or environment variables and support active/previous key IDs | Approved | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
+| Enforce strict bearer claims without legacy-token compatibility | Implemented | Upgrades from `v0.1.6` or older require credential regeneration instead of retaining weak validation. |
+| Load signing keys from secret files or environment variables and support active/previous key IDs | Implemented | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
 | Purge DNS logs after 30 days by default, with a 180-day maximum | Approved | Minimizes retained browsing data and prevents indefinite retention. |
 | Support a single TDNS instance on a trusted home, LAN, or VPN network | Approved | Internet-facing management deployments are outside the supported security model. |
 | Do not support reverse-proxy deployments | Approved | TDNS does not trust or interpret forwarded identity or origin headers. |
 | Treat explicitly allowlisted DNS client networks as trusted | Approved | DNS ACLs define the client trust boundary; unauthorized sources remain untrusted. |
-| Issue CLI bearer tokens for 30 days by default with a 180-day maximum | Approved | Reduces the previous 500-day default while retaining practical automation lifetimes. |
+| Issue CLI bearer tokens for 30 days by default with a 180-day normal maximum | Implemented | Reduces the previous 500-day default while retaining an explicit administrative override. |
 | Block CI only for critical security findings | Approved | Lower-severity findings remain visible for triage without blocking every build. |
 | Support native/systemd and container deployments | Approved | Both installation forms must provide equivalent least-privilege and secret-protection controls. |
 
@@ -272,13 +280,13 @@ Status: Approved on 2026-07-21.
 
 ### Authorization Compatibility
 
-Strict issuer, audience, time, token-identifier, subject, and scope validation
-is the default when the new token format is introduced. Legacy tokens are
-accepted only when an explicit compatibility option is enabled. That option is
-available for one release and is removed in the following release. Operators
-must mint replacement tokens before disabling compatibility.
+Strict issuer, audience, time, token-identifier, subject, purpose, scope, and
+key-identifier validation is mandatory. TDNS does not provide a legacy-token
+compatibility mode. Operators upgrading from `v0.1.6` or older must configure
+an identified active key and reissue every bearer credential before restarting
+the upgraded service.
 
-Status: Approved on 2026-07-21.
+Status: Implemented on 2026-07-29.
 
 ### Signing-Key Storage and Rotation
 
@@ -289,7 +297,7 @@ accepts one active key and one previous key during a bounded rotation overlap;
 new tokens are issued only with the active key. Missing, unreadable, duplicate,
 or invalid key identifiers fail startup.
 
-Status: Approved on 2026-07-21.
+Status: Implemented on 2026-07-29.
 
 ### DNS-Log Retention
 
@@ -334,10 +342,11 @@ Status: Approved on 2026-07-26.
 ### CLI Bearer-Token Lifetime
 
 CLI bearer tokens are valid for 30 days by default. The normal maximum is 180
-days. Issuance beyond that maximum is not supported. Existing longer-lived
-tokens follow the one-release legacy compatibility policy and must be replaced.
+days. Issuance beyond that maximum requires the explicit
+`--allow-long-lived` administrative override. Tokens issued by `v0.1.6` or
+older must be replaced because they do not satisfy strict validation.
 
-Status: Approved on 2026-07-26.
+Status: Implemented on 2026-07-29.
 
 ### Security Baseline Gate
 
@@ -368,7 +377,6 @@ Status: Approved on 2026-07-26.
 
 - The browser JWT remains readable from `localStorage` until the session
   migration is complete.
-- Read-only and read-write scopes currently have the same effective value.
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.
 - Empty CORS origins currently permit any origin when CORS is enabled.
@@ -408,7 +416,7 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 | 2026-07-21 | Default DNS access to loopback with explicit CIDRs for every other client network. | Application ACLs become mandatory and private networks are not implicitly trusted. |
 | 2026-07-21 | Use two-minute browser login codes and non-persistent 12-hour sessions without refresh tokens. | Browser restart ends the session and expired sessions require a new CLI-generated code. |
 | 2026-07-21 | Move metrics and pprof to a separate trusted listener while keeping Swagger opt-in. | Diagnostics have a distinct network trust boundary and cannot default to a wildcard bind. |
-| 2026-07-21 | Enable strict bearer claims by default and provide explicit legacy compatibility for one release only. | Existing clients receive a bounded migration window rather than indefinite weak validation. |
+| 2026-07-29 | Require strict bearer claims without a legacy-token compatibility mode. | Installations upgrading from `v0.1.6` or older regenerate signing keys and bearer credentials. |
 | 2026-07-21 | Support file and environment signing-key sources with active and previous key identifiers. | Production secrets can avoid YAML and keys can rotate without an immediate full-token outage. |
 | 2026-07-21 | Default DNS-log retention to 30 days, cap it at 180 days, and prohibit disabling purge. | TDNS cannot retain query history indefinitely through configuration. |
 | 2026-07-26 | Support one TDNS instance on a trusted home, LAN, or VPN network and do not support reverse proxies. | Public management, forwarded-header trust, and multi-instance operation are outside the supported model. |

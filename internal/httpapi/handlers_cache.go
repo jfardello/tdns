@@ -20,6 +20,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/cache [delete]
 func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 	l := log.GetLogger("serve", "api-server")
@@ -54,6 +55,7 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/cache [get]
 func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 	status := middleware.GetCache().StatusView()
@@ -75,6 +77,7 @@ func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/cache/{action} [post]
@@ -132,6 +135,7 @@ func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/cache/excludes [post]

@@ -56,6 +56,7 @@ func writeTaggerDataResponse(w http.ResponseWriter, status int, message string, 
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		503	{object}	api.Response
 //	@Router			/api/tagger/tags [post]
@@ -87,6 +88,7 @@ func (api *v1) TaggerAddTag(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
 //	@Router			/api/tagger/tags [get]
@@ -116,6 +118,7 @@ func (api *v1) TaggerGetTags(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
@@ -155,6 +158,7 @@ func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
 //	@Router			/api/tagger/tags/{tagName} [get]
@@ -185,6 +189,7 @@ func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
@@ -227,6 +232,7 @@ func (api *v1) TaggerKnownHosts(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		503	{object}	api.Response
 //	@Router			/api/tagger/tags/{tagName}/{address} [delete]
@@ -256,6 +262,7 @@ func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
@@ -295,6 +302,7 @@ func (api *v1) TaggerAddressCreate(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
@@ -314,6 +322,7 @@ func (api *v1) TaggerAddressReplace(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Failure		503	{object}	api.Response
@@ -356,6 +365,7 @@ func (api *v1) taggerAddressReplace(w http.ResponseWriter, r *http.Request, addr
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		503	{object}	api.Response
 //	@Router			/api/tagger/tags/{tagName} [delete]

@@ -19,6 +19,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/{action} [post]
@@ -68,6 +69,7 @@ func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist [get]
 func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +103,7 @@ func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/whitelist [post]
@@ -156,6 +159,7 @@ func (api *v1) BlacklistAddRuntimeWhitelist(w http.ResponseWriter, r *http.Reque
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/persisted/hosts [post]
@@ -237,6 +241,7 @@ func (api *v1) BlacklistReplacePersistedHosts(w http.ResponseWriter, r *http.Req
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		400	{object}	api.Response
 //	@Failure		500	{object}	api.Response
 //	@Router			/api/blacklist/persisted/excludes [post]

@@ -18,6 +18,7 @@ import (
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/dns-log/alias [post]
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
@@ -60,6 +61,7 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/dns-log/rotate [get]
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
@@ -98,6 +100,7 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/dns-log/top/{top} [get]
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
@@ -144,6 +147,7 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/dns-log/clients [get]
 func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
@@ -192,6 +196,7 @@ func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
 //	@Security		BearerAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
 //	@Router			/api/dns-log/dashboard [get]
 func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)

@@ -13,7 +13,7 @@ import (
 func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{})
-		handler := NewHandler(nil)
+		handler := NewHandler(nil, testAuthManager(t))
 		for _, path := range []string{"/swagger/index.html", "/swagger/doc.json", "/swagger/openapi.yaml"} {
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
@@ -25,7 +25,7 @@ func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 
 	t.Run("enabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{Server: config.Server{SwaggerEnabled: true}})
-		handler := NewHandler(nil)
+		handler := NewHandler(nil, testAuthManager(t))
 
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
@@ -51,7 +51,7 @@ func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 
 func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
-	handler := NewHandler(nil)
+	handler := NewHandler(nil, testAuthManager(t))
 
 	routes := []struct {
 		method string

@@ -38,8 +38,9 @@ LAN address, add every DNS client network to
 in `--hosts`. Avoid wildcard listeners. Private and link-local networks are
 denied unless explicitly configured.
 
-The generated YAML contains a signing key and bootstrap client token. Restrict
-the configuration and API private key to root and the service group:
+The generated YAML contains an active signing key, its identifier, and a
+bootstrap client token. Restrict the configuration and API private key to root
+and the service group:
 
 ```bash
 sudo chown root:tdns /etc/tdns/tdns.yaml /etc/tdns/tdns_key.pem
@@ -54,6 +55,13 @@ Adjust the filenames when a different `--basename` is used. Existing
 installations that copied signing keys or tokens from repository samples must
 rotate them; removing a value from the current repository does not revoke old
 credentials.
+
+For production, move the generated `auth.active_key.value` into a separate
+base64 key file owned by `root:tdns` with mode `0640`, set
+`auth.active_key.file` to that path, and clear the inline value. A stricter
+`0400` file owned by the service account is also supported. Environment loading
+through `TDNS_AUTH_ACTIVE_KEY` has higher precedence when systemd credentials
+or another secret injector supplies the value.
 
 ## Install The Service
 

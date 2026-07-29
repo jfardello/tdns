@@ -2,11 +2,8 @@ package config
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"net"
 	"sync"
-
-	"github.com/jfardello/tdns/log"
 )
 
 var CtxKey = "values"
@@ -26,7 +23,6 @@ func GetRunningConfig() *Config {
 	if conf == nil {
 		panic("Uninitialized config")
 	}
-	conf.Server.loadSigningKey()
 	return conf
 }
 
@@ -59,6 +55,7 @@ type Config struct {
 	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
 	Database        DatabaseConf       `mapstructure:"database" yaml:"database,omitempty"`
 	DNSAccess       DNSAccessConf      `mapstructure:"dns_access" yaml:"dns_access"`
+	Auth            AuthConf           `mapstructure:"auth" yaml:"auth"`
 	DNSLog          DNSLogConf         `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
 	Tagger          TaggerConf         `mapstructure:"tagger" yaml:"tagger,omitempty"`
 	Status          StatusConf         `mapstructure:"status" yaml:"status,omitempty"`
@@ -80,6 +77,21 @@ type DNSAccessConf struct {
 	MaxConcurrentUpstreams   int      `mapstructure:"max_concurrent_upstreams" yaml:"max_concurrent_upstreams"`
 	MaxTrackedClients        int      `mapstructure:"max_tracked_clients" yaml:"max_tracked_clients"`
 	ClientIdleTimeout        string   `mapstructure:"client_idle_timeout" yaml:"client_idle_timeout"`
+}
+
+type AuthConf struct {
+	Issuer                 string         `mapstructure:"issuer" yaml:"issuer"`
+	BearerAudience         string         `mapstructure:"bearer_audience" yaml:"bearer_audience"`
+	ActiveKey              SigningKeyConf `mapstructure:"active_key" yaml:"active_key"`
+	PreviousKey            SigningKeyConf `mapstructure:"previous_key" yaml:"previous_key"`
+	PreviousKeyAcceptUntil string         `mapstructure:"previous_key_accept_until" yaml:"previous_key_accept_until"`
+}
+
+type SigningKeyConf struct {
+	ID          string `mapstructure:"id" yaml:"id"`
+	Environment string `mapstructure:"environment" yaml:"environment"`
+	File        string `mapstructure:"file" yaml:"file"`
+	Value       string `mapstructure:"value" yaml:"value"`
 }
 
 type CORSConf struct {
@@ -157,30 +169,6 @@ type Server struct {
 	SigningKey  string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 	// SwaggerEnabled exposes the Swagger UI and raw Swagger/OpenAPI documents.
 	SwaggerEnabled bool `mapstructure:"swagger_enabled" yaml:"swagger_enabled,omitempty"`
-	signingKey     []byte
-}
-
-func (s *Server) loadSigningKey() {
-	logger := log.GetLogger("config", "loadSigningKey")
-	var err error
-	if s.SigningKey == "" {
-		s.signingKey = *GenKey()
-		logger.Warn("Generated a temporary signing key; configure server.signing_key or issued tokens will stop working after restart.")
-		return
-	}
-	s.signingKey, err = base64.StdEncoding.DecodeString(s.SigningKey)
-	if err != nil {
-		logger.Fatalf("Cannot load key:, %s", err.Error())
-	}
-
-}
-
-func (s *Server) GetSigningKey() []byte {
-	if len(s.signingKey) == 0 {
-		s.loadSigningKey()
-	}
-	return s.signingKey
-
 }
 
 func GenKey() *[]byte {
