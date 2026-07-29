@@ -20,6 +20,7 @@ const (
 	TargetDNSLog Target = "dnslog"
 	TargetTagger Target = "tagger"
 	TargetConfig Target = "config"
+	TargetAuth   Target = "auth"
 )
 
 //go:embed migrations/**/*.sql

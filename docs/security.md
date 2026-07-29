@@ -147,6 +147,15 @@ policy. Secrets and authentication credentials must never be logged.
   mutation routes.
 - Bearer tokens are purpose-bound and cannot be substituted for future browser
   login codes or sessions.
+- Browser login codes use a purpose-specific derived signing key, a distinct
+  audience, a two-minute maximum lifetime, and zero validation leeway.
+- Redeeming a validated browser code atomically records its hashed identifier
+  and creates one opaque 12-hour session. Concurrent replay creates no
+  additional session.
+- SQLite stores only hashes of browser session identifiers, CSRF tokens, and
+  consumed code identifiers. Raw credentials are returned only to the caller.
+- Expired browser sessions and consumed-code records are purged in bounded
+  batches at startup and every 15 minutes.
 - The active key issues tokens. One explicitly bounded previous key may verify
   tokens until its configured RFC3339 cutoff.
 - Signing keys are generated with cryptographic randomness.
@@ -266,7 +275,11 @@ absolute lifetime, use non-persistent cookies, and do not have a refresh token.
 Closing the browser removes the cookie even if the absolute lifetime has not
 elapsed. Idle expiration is not required in the initial implementation.
 
-Status: Approved on 2026-07-21.
+The persistence primitives are implemented. Cookie issuance, login-code
+exchange over HTTPS, logout, origin checks, and CSRF enforcement remain part of
+the browser HTTP integration work.
+
+Status: Partially implemented on 2026-07-29.
 
 ### Diagnostics and Metrics Exposure
 
@@ -375,8 +388,8 @@ Status: Approved on 2026-07-26.
 
 ## Known Temporary Risks
 
-- The browser JWT remains readable from `localStorage` until the session
-  migration is complete.
+- The browser JWT remains readable from `localStorage` until the implemented
+  session primitives are connected to the HTTP API and web client.
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.
 - Empty CORS origins currently permit any origin when CORS is enabled.

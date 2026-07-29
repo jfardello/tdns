@@ -41,11 +41,13 @@ type Options struct {
 }
 
 type Principal struct {
-	Subject string
-	Scope   string
-	TokenID string
-	KeyID   string
-	Purpose string
+	Subject   string
+	Scope     string
+	TokenID   string
+	KeyID     string
+	Purpose   string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
 }
 
 type Claims struct {
@@ -66,6 +68,7 @@ type Manager struct {
 	verificationKeys map[string][]byte
 	previousAccept   time.Time
 	previousID       string
+	persistent       bool
 	now              func() time.Time
 }
 
@@ -107,6 +110,7 @@ func NewManager(conf config.AuthConf, legacyInline string, options Options) (*Ma
 		bearerAudience:   audience,
 		active:           active,
 		verificationKeys: map[string][]byte{active.id: active.value},
+		persistent:       source != "generated",
 		now:              time.Now,
 	}
 	keyLogger := log.GetLogger("auth", "key-load").WithFields(logrus.Fields{
@@ -252,11 +256,13 @@ func (m *Manager) ValidateBearer(tokenString, requiredScope string) (Principal, 
 	}
 	keyID, _ := token.Header["kid"].(string)
 	principal := Principal{
-		Subject: claims.Subject,
-		Scope:   claims.Scope,
-		TokenID: claims.ID,
-		KeyID:   keyID,
-		Purpose: claims.Purpose,
+		Subject:   claims.Subject,
+		Scope:     claims.Scope,
+		TokenID:   claims.ID,
+		KeyID:     keyID,
+		Purpose:   claims.Purpose,
+		IssuedAt:  claims.IssuedAt.Time,
+		ExpiresAt: claims.ExpiresAt.Time,
 	}
 	if !ScopeAllows(principal.Scope, requiredScope) {
 		return principal, ErrInsufficientScope

@@ -12,6 +12,10 @@ import (
 	"github.com/jfardello/tdns/config"
 )
 
+func encodeTestKey(key []byte) string {
+	return base64.StdEncoding.EncodeToString(key)
+}
+
 var (
 	testActiveKey   = []byte("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	testPreviousKey = []byte("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")

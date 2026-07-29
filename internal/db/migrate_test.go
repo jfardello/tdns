@@ -80,6 +80,24 @@ func TestRunMigrationsConfig(t *testing.T) {
 	}
 }
 
+func TestRunMigrationsAuth(t *testing.T) {
+	dbPath := newTempDBPath(t)
+
+	if err := RunMigrations(context.Background(), dbPath, TargetAuth); err != nil {
+		t.Fatalf("RunMigrations auth: %v", err)
+	}
+
+	conn := openDB(t, dbPath)
+	defer conn.Close()
+
+	for _, table := range []string{"schema_migrations", "browser_sessions", "consumed_browser_codes"} {
+		var name string
+		if err := conn.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
+			t.Fatalf("expected table %s: %v", table, err)
+		}
+	}
+}
+
 func TestRunMigrationsIsIdempotent(t *testing.T) {
 	dbPath := newTempDBPath(t)
 

@@ -142,7 +142,9 @@ The mounted data directory only needs to exist and be writable by UID `65532`.
 TDNS enables SQLite WAL mode. Mount the complete `/var/lib/tdns` directory, not
 only `tdns.sqlite`, because `tdns.sqlite-wal` and `tdns.sqlite-shm` are created
 beside the database. The database contains configuration overrides, DNS query
-logs, aliases, and tagger state and must be treated as sensitive.
+logs, aliases, tagger state, hashed browser-session and CSRF credentials,
+authorization context, and consumed browser-code identifiers. It and its
+backups must be treated as authentication data.
 The serving process applies umask `0077`, so newly created runtime files are
 restricted to the container identity.
 

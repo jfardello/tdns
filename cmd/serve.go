@@ -15,6 +15,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/auth"
+	"github.com/jfardello/tdns/internal/browserauth"
 	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/internal/dnsserver"
 	"github.com/jfardello/tdns/internal/httpapi"
@@ -24,6 +25,7 @@ import (
 	"github.com/jfardello/tdns/server"
 	webui "github.com/jfardello/tdns/web"
 	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -158,6 +160,7 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	var browserStore *browserauth.Store
 	if c.Database.File != "" {
 		dbPath, err := db.Bootstrap(context.Background(), c.Database.File)
 		if err != nil {
@@ -178,6 +181,17 @@ func run() {
 			logger.Fatal(err)
 		}
 		if err := overrides.Apply(c, rows); err != nil {
+			logger.Fatal(err)
+		}
+		browserStore, err = browserauth.Open(context.Background(), dbPath)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		if _, _, err := browserStore.PurgeExpired(
+			context.Background(),
+			time.Now(),
+			browserauth.DefaultPurgeLimit,
+		); err != nil {
 			logger.Fatal(err)
 		}
 		dnsPolicy, err = dnsserver.NewPolicy(c.DNSAccess)
@@ -228,12 +242,35 @@ func run() {
 
 	dnsHandler := dnsserver.NewHandler(dnsPolicy, newServer)
 
-	if len(sched.TaskRegistry) > 0 {
-		scheduler := gocron.NewScheduler(time.UTC)
+	var scheduler *gocron.Scheduler
+	if len(sched.TaskRegistry) > 0 || browserStore != nil {
+		scheduler = gocron.NewScheduler(time.UTC)
 		for _, task := range sched.TaskRegistry {
 			_, err = sched.AddCron(scheduler, task.Expr, task.Fn)
 			if err != nil {
 				//ToDo: check all the Fatal calls that could be Error
+				logger.Fatal(err)
+			}
+		}
+		if browserStore != nil {
+			_, err = scheduler.Every(15).Minutes().SingletonMode().Do(func() {
+				sessions, codes, purgeErr := browserStore.PurgeExpired(
+					context.Background(),
+					time.Now(),
+					browserauth.DefaultPurgeLimit,
+				)
+				if purgeErr != nil {
+					logger.WithError(purgeErr).Error("Failed to purge expired browser authentication records.")
+					return
+				}
+				if sessions > 0 || codes > 0 {
+					logger.WithFields(logrus.Fields{
+						"browser_codes": codes,
+						"sessions":      sessions,
+					}).Info("Purged expired browser authentication records.")
+				}
+			})
+			if err != nil {
 				logger.Fatal(err)
 			}
 		}
@@ -270,6 +307,14 @@ func run() {
 			logger.Error(err)
 		}
 		cancel()
+	}
+	if scheduler != nil {
+		scheduler.Stop()
+	}
+	if browserStore != nil {
+		if err := browserStore.Close(); err != nil {
+			logger.Error(err)
+		}
 	}
 	if p, ok := newServer.Middlewares["tagger"]; ok {
 		if closer, ok := p.(interface{ Close() error }); ok {

@@ -185,7 +185,10 @@ TDNS creates the configured database and applies migrations during
 `tdns serve` startup. SQLite uses WAL mode, so the database directory can also
 contain `tdns.sqlite-wal` and `tdns.sqlite-shm`. Native and container
 deployments must persist and back up the complete directory, not only the main
-database file. The storage must provide reliable local file locking.
+database file. The database also stores hashed browser-session credentials,
+authorization context, and consumed browser-code identifiers. Treat it and its
+backups as authentication data. The storage must provide reliable local file
+locking.
 
 ## HTTP Server and CLI Client
 
@@ -219,7 +222,22 @@ instant, but only the active key issues new tokens.
 
 When no persistent active key is configured, `tdns serve` creates a temporary
 process key for local startup. Tokens cannot survive restart, and offline
-`tdns adm token` issuance is refused.
+`tdns adm token` and `tdns adm browser-code` issuance is refused.
+
+Generate a browser login code from a host that has access to the persistent
+active signing key:
+
+```bash
+tdns --config /etc/tdns/tdns.yaml adm browser-code \
+  --sub admin@tdns \
+  --scope read-write
+```
+
+The command prints only the code to standard output. Codes expire after two
+minutes by default, can be shortened with `--ttl`, and cannot be extended past
+two minutes. Each code is purpose-bound to browser session exchange and can be
+redeemed only once. The browser exchange endpoint is documented separately
+when that HTTP workflow is enabled.
 
 To rotate a persistent key without immediately invalidating every current
 strict-format token:
