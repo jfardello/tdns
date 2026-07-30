@@ -28,6 +28,7 @@ fi
 "$NODE_BIN/swagger2openapi" api/docs/swagger.yaml \
 	--outfile api/openapi.yaml \
 	--yaml
+node tools/normalize_openapi.mjs api/openapi.yaml
 "$NODE_BIN/redocly" lint api/openapi.yaml --config redocly.yaml
 
 "$NODE_BIN/openapi-typescript" api/openapi.yaml \

@@ -19,6 +19,7 @@ import (
 //	@ID				zenModeDomainsReplace
 //	@Param			request	body	api.ZenReplaceRequest	true	"Zen mode domains"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -80,6 +81,7 @@ func (api *v1) ZenDomainsReplace(w http.ResponseWriter, r *http.Request) {
 //	@ID				zenModePersistedDomainsReplace
 //	@Param			request	body	api.ZenReplaceRequest	true	"Persisted zen mode domains"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -154,6 +156,7 @@ func (api *v1) ZenPersistedDomainsReplace(w http.ResponseWriter, r *http.Request
 //	@ID				zenModePersistedExcludesReplace
 //	@Param			request	body	api.ZenExcludesRequest	true	"Persisted zen mode exclusions"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -227,6 +230,7 @@ func (api *v1) ZenPersistedExcludesReplace(w http.ResponseWriter, r *http.Reques
 //	@Tags			zen-mode
 //	@ID				zenModeStart
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -263,6 +267,7 @@ func (api *v1) ZenModeStart(w http.ResponseWriter, r *http.Request) {
 //	@Tags			zen-mode
 //	@ID				zenModeStatus
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

@@ -29,4 +29,8 @@
 //	@in							header
 //	@name						Authorization
 //	@description				Bearer token using the format "Bearer {token}".
+//	@securityDefinitions.apikey	CookieAuth
+//	@in							header
+//	@name						Cookie
+//	@description				Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session cookie.
 package api

@@ -100,10 +100,13 @@ For frontend development against a separately running TDNS server:
 
 ```bash
 cd web
-TDNS_API_URL=https://localhost:8443 npm run dev
+TDNS_API_PROXY_TARGET=https://localhost:8443 npm run dev
 ```
 
-If you do that, enable `cors.enabled` in `tdns.yaml` and set `cors.allowed_origins` to your Nuxt dev origin such as `http://localhost:3000`.
+The Nuxt development server proxies `/api` while preserving the browser-facing
+host, so cookie authentication and origin validation remain same-origin. The
+target certificate must be trusted by the development host. Do not enable CORS
+for this workflow.
 
 Common admin usage:
 

@@ -75,10 +75,12 @@ are not subject to browser CSRF processing.
 
 ### Browser UI
 
-The embedded UI is served from the management API origin. The intended target
-model is same-origin browser authentication. The current UI temporarily stores
-an admin JWT in `localStorage`; this is a known risk pending migration because
-JavaScript running in the origin can read and exfiltrate it.
+The embedded UI is served from the management API origin and uses same-origin
+browser session authentication. It does not store a bearer token, session
+identifier, or CSRF token in browser storage. During startup it deletes the
+legacy `tdns_jwt_token` local-storage entry, then restores authentication state
+through the session endpoint. Session metadata and CSRF tokens exist only in
+memory.
 
 UI document responses enforce a Content Security Policy that defaults to
 blocking all sources, permits same-origin scripts and API connections, and
@@ -87,7 +89,7 @@ The policy does not allow `unsafe-eval` or general inline script execution.
 Inline style attributes remain allowed for Nuxt UI component rendering; other
 style resources must be same-origin.
 
-The implemented server-side migration design is:
+The implemented browser authentication flow is:
 
 - a CLI command generates a short-lived, purpose-bound login code
 - the administrator pastes the code into the browser login form
@@ -103,7 +105,9 @@ immediate logout, expiration, and revocation without maintaining a JWT denylist.
 The exchange, session-status, and logout routes are JSON-only and return
 `Cache-Control: no-store`. Exchange attempts have bounded source-address and
 global rate limits. TDNS uses the direct peer address and does not trust
-forwarding headers.
+forwarding headers. Browser API requests include same-origin credentials, and
+unsafe requests attach the current session-bound CSRF token. A management API
+`401` clears in-memory authentication state and returns the user to login.
 
 ### Remote Blocklist Content
 
@@ -285,11 +289,10 @@ absolute lifetime, use non-persistent cookies, and do not have a refresh token.
 Closing the browser removes the cookie even if the absolute lifetime has not
 elapsed. Idle expiration is not required in the initial implementation.
 
-The persistence and server HTTP integration are implemented. The embedded web
-UI still requires its separate migration from browser-stored bearer tokens to
-these endpoints.
+The persistence, server HTTP integration, and embedded web UI migration are
+implemented.
 
-Status: Server implementation completed on 2026-07-30.
+Status: Implemented on 2026-07-30.
 
 ### Diagnostics and Metrics Exposure
 
@@ -398,8 +401,6 @@ Status: Approved on 2026-07-26.
 
 ## Known Temporary Risks
 
-- The browser JWT remains readable from `localStorage` until the implemented
-  session primitives are connected to the HTTP API and web client.
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.
 - Remote blocklist downloads need stricter time, size, redirect, validation,
@@ -435,6 +436,7 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 | 2026-07-20 | Bootstrap browser sessions with short-lived, single-use CLI-generated codes. | TDNS does not need to add browser passwords, but code redemption requires replay protection. |
 | 2026-07-20 | Use same-origin browser cookies by default. | Frontend development should proxy the API instead of enabling broad credentialed CORS. |
 | 2026-07-30 | Reject ambiguous credentials and require CSRF plus same-origin evidence for cookie-authenticated mutations. | Invalid bearer credentials cannot fall back to cookies, while bearer clients remain outside browser CSRF processing. |
+| 2026-07-30 | Keep browser session state and CSRF tokens in memory and restore them through the session endpoint. | Browser storage contains no reusable TDNS credential, and reloads obtain a fresh bounded CSRF token. |
 | 2026-07-20 | Require Go 1.26.5. | CI and release builds use the patched toolchain baseline. |
 | 2026-07-21 | Default DNS access to loopback with explicit CIDRs for every other client network. | Application ACLs become mandatory and private networks are not implicitly trusted. |
 | 2026-07-21 | Use two-minute browser login codes and non-persistent 12-hour sessions without refresh tokens. | Browser restart ends the session and expired sessions require a new CLI-generated code. |

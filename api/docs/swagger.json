@@ -133,6 +133,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return blacklist sources, exclusions, and runtime state.",
@@ -174,6 +177,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace blacklist exclusion selectors stored in configuration overrides.",
@@ -232,6 +238,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace additional blocked hosts stored in configuration overrides.",
@@ -290,6 +299,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Add domains to the in-memory blacklist whitelist.",
@@ -348,6 +360,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Enable or disable blacklist filtering.",
@@ -408,6 +423,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return cache configuration and counters.",
@@ -441,6 +459,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Delete all currently cached DNS responses.",
@@ -476,6 +497,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace and persist selectors excluded from caching.",
@@ -534,6 +558,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Enable or disable the cache and persist the selected state.",
@@ -594,6 +621,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Associate a client IP address with a display name.",
@@ -640,6 +670,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Search observed clients by address or alias.",
@@ -692,6 +725,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return summary and hourly query statistics.",
@@ -738,6 +774,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Delete DNS log entries selected by a relative duration.",
@@ -781,6 +820,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return top domains with optional status and client filters.",
@@ -859,6 +901,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return configured, persisted, and runtime static hosts.",
@@ -898,6 +943,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace static hosts held in memory.",
@@ -956,6 +1004,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace static hosts stored in configuration overrides.",
@@ -1014,6 +1065,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Enable or disable static DNS responses.",
@@ -1074,6 +1128,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return configured and runtime stub resolver state.",
@@ -1107,6 +1164,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace the in-memory stub resolver entries.",
@@ -1159,6 +1219,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Enable or disable stub resolution.",
@@ -1213,6 +1276,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace all tags assigned to an address through the legacy endpoint.",
@@ -1284,6 +1350,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Set all tags for an address supplied in the request body.",
@@ -1348,6 +1417,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace all tags assigned to an address.",
@@ -1419,6 +1491,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Search hosts observed in the DNS log.",
@@ -1488,6 +1563,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return all client classification tags.",
@@ -1533,6 +1611,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Create a client classification tag.",
@@ -1591,6 +1672,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return addresses assigned to a tag.",
@@ -1645,6 +1729,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Assign one or more addresses to a tag.",
@@ -1714,6 +1801,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Delete a client classification tag.",
@@ -1770,6 +1860,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Remove an address from a tag.",
@@ -1833,6 +1926,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Return zen mode configuration, runtime state, and timing.",
@@ -1872,6 +1968,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace the in-memory domains blocked by zen mode.",
@@ -1930,6 +2029,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace zen domains stored in configuration overrides.",
@@ -1988,6 +2090,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Replace zen exclusions stored in configuration overrides.",
@@ -2046,6 +2151,9 @@
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
                     }
                 ],
                 "description": "Start a zen mode period using the current configuration.",
@@ -2665,6 +2773,12 @@
             "description": "Bearer token using the format \"Bearer {token}\".",
             "type": "apiKey",
             "name": "Authorization",
+            "in": "header"
+        },
+        "CookieAuth": {
+            "description": "Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session cookie.",
+            "type": "apiKey",
+            "name": "Cookie",
             "in": "header"
         }
     },

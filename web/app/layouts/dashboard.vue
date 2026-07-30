@@ -1,9 +1,10 @@
 <script setup lang="ts">
 const route = useRoute()
-const { clearToken } = useAuth()
+const { logout } = useAuth()
 const { navigationGroups } = useDashboardNavigation()
 const toast = useToast()
 const { blacklist, initialized, refreshing, toggleLoading, refresh, setEnabled } = useBlacklist()
+const logoutLoading = ref(false)
 
 const currentSection = computed(() => {
   const items = navigationGroups.value.flat().filter(item => item.type !== 'label')
@@ -14,9 +15,24 @@ const blacklistLegend = computed(() => (
   blacklist.value.enabled ? 'Blacklist Active' : 'Blocking Paused'
 ))
 
-function handleLogout() {
-  clearToken()
-  navigateTo('/login')
+async function handleLogout() {
+  if (logoutLoading.value) {
+    return
+  }
+
+  logoutLoading.value = true
+  const loggedOut = await logout()
+  logoutLoading.value = false
+  if (!loggedOut) {
+    toast.add({
+      title: 'Unable to sign out',
+      description: 'The server session is still active',
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+    return
+  }
+  await navigateTo('/login')
 }
 
 async function handleBlacklistToggle(nextEnabled: boolean) {
@@ -120,6 +136,8 @@ onMounted(() => {
             color="neutral"
             variant="ghost"
             :block="!collapsed"
+            :loading="logoutLoading"
+            :disabled="logoutLoading"
             @click="handleLogout"
           />
         </div>

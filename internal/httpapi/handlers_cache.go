@@ -18,6 +18,7 @@ import (
 //	@Tags			cache
 //	@ID				cacheClear
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -53,6 +54,7 @@ func (api *v1) DeleteCache(w http.ResponseWriter, r *http.Request) {
 //	@Tags			cache
 //	@ID				cacheStatus
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -75,6 +77,7 @@ func (api *v1) CacheStatus(w http.ResponseWriter, r *http.Request) {
 //	@ID				cacheToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -133,6 +136,7 @@ func (api *v1) CacheToggle(w http.ResponseWriter, r *http.Request) {
 //	@ID				cacheExcludesReplace
 //	@Param			request	body	api.CacheExcludeRequest	true	"Cache exclusion selectors"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

@@ -17,6 +17,7 @@ import (
 //	@ID				blacklistToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -67,6 +68,7 @@ func (api *v1) BlacklistToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			blacklist
 //	@ID				blacklistStatus
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -101,6 +103,7 @@ func (api *v1) BlacklistStatus(w http.ResponseWriter, r *http.Request) {
 //	@ID				blacklistRuntimeWhitelistAdd
 //	@Param			request	body	api.BlacklistWhitelistRequest	true	"Runtime whitelist domains"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -157,6 +160,7 @@ func (api *v1) BlacklistAddRuntimeWhitelist(w http.ResponseWriter, r *http.Reque
 //	@ID				blacklistPersistedHostsReplace
 //	@Param			request	body	api.BlacklistHostsRequest	true	"Persisted blacklist hosts"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -239,6 +243,7 @@ func (api *v1) BlacklistReplacePersistedHosts(w http.ResponseWriter, r *http.Req
 //	@ID				blacklistPersistedExcludesReplace
 //	@Param			request	body	api.BlacklistExcludesRequest	true	"Persisted blacklist exclusions"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

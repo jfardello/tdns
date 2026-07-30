@@ -2,7 +2,7 @@ import createClient, { type Client } from 'openapi-fetch'
 import type { paths } from '../generated/api'
 
 interface ApiCallbacks {
-  getToken: () => string | null
+  getCSRFToken: () => string | null
   onUnauthorized: () => void | Promise<void>
   onError: (message: string) => void
 }
@@ -18,34 +18,59 @@ export interface ManagementApiClient {
   execute: <T>(request: Promise<ApiResult<T>>) => Promise<T | null>
 }
 
+const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+export function isUnsafeMethod(method: string): boolean {
+  return unsafeMethods.has(method.toUpperCase())
+}
+
 function errorMessage(error: unknown, response?: Response): string {
   if (typeof error === 'string' && error.trim()) {
     return error
   }
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as { message?: unknown }).message
-    if (typeof message === 'string' && message.trim()) {
-      return message
+  if (error && typeof error === 'object') {
+    const candidate = error as { error?: unknown, message?: unknown }
+    if (typeof candidate.error === 'string' && candidate.error.trim()) {
+      return candidate.error
+    }
+    if (typeof candidate.message === 'string' && candidate.message.trim()) {
+      return candidate.message
     }
   }
   return response?.statusText || 'An error occurred'
 }
 
+export function normalizeSameOriginBaseUrl(baseUrl: string, browserOrigin?: string): string {
+  const normalized = baseUrl.trim().replace(/\/$/, '')
+  if (!normalized || !browserOrigin) {
+    return normalized
+  }
+
+  const resolved = new URL(normalized, browserOrigin)
+  if (resolved.origin !== browserOrigin) {
+    throw new Error('The browser management API must use the same origin as the web UI')
+  }
+  return resolved.pathname === '/' ? '' : resolved.pathname.replace(/\/$/, '')
+}
+
 export function createManagementApiClient(
   baseUrl: string,
   callbacks: ApiCallbacks,
-  fetchFn?: (input: Request) => Promise<Response>
+  fetchFn?: (input: Request) => Promise<Response>,
+  browserOrigin: string | undefined = typeof window === 'undefined' ? undefined : window.location.origin
 ): ManagementApiClient {
   const client = createClient<paths>({
-    baseUrl: baseUrl.replace(/\/$/, ''),
+    baseUrl: normalizeSameOriginBaseUrl(baseUrl, browserOrigin),
+    credentials: 'same-origin',
     fetch: fetchFn
   })
 
   client.use({
     onRequest({ request }) {
-      const token = callbacks.getToken()
-      if (token) {
-        request.headers.set('Authorization', `Bearer ${token}`)
+      request.headers.delete('Authorization')
+      const csrfToken = callbacks.getCSRFToken()
+      if (csrfToken && isUnsafeMethod(request.method)) {
+        request.headers.set('X-CSRF-Token', csrfToken)
       }
       return request
     }

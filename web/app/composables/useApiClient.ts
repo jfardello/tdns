@@ -2,18 +2,20 @@ import { createManagementApiClient } from '~/lib/apiClient'
 
 export function useApiClient() {
   const config = useRuntimeConfig()
-  const { token, clearToken } = useAuth()
+  const { csrfToken, expireSession } = useAuth()
   const toast = useToast()
 
   return createManagementApiClient(config.public.apiBaseUrl, {
-    getToken: () => token.value,
+    getCSRFToken: () => csrfToken.value,
     async onUnauthorized() {
-      clearToken()
+      if (!expireSession()) {
+        return
+      }
       toast.add({
         title: 'Session expired',
-        description: 'Please login again',
+        description: 'Sign in with a new browser code',
         color: 'error',
-        icon: 'i-lucide-alert-circle'
+        icon: 'i-lucide-circle-alert'
       })
       await navigateTo('/login')
     },
@@ -22,7 +24,7 @@ export function useApiClient() {
         title: 'API Error',
         description,
         color: 'error',
-        icon: 'i-lucide-alert-circle'
+        icon: 'i-lucide-circle-alert'
       })
     }
   })

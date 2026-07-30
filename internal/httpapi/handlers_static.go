@@ -17,6 +17,7 @@ import (
 //	@ID				staticResponseToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -75,6 +76,7 @@ func (api *v1) StaticResponseToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			static-response
 //	@ID				staticResponseStatus
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -118,6 +120,7 @@ func (api *v1) StaticResponseStatus(w http.ResponseWriter, r *http.Request) {
 //	@ID				staticResponseReplace
 //	@Param			request	body	api.StaticReplaceRequest	true	"Runtime hosts file lines"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -196,6 +199,7 @@ func (api *v1) StaticResponseReplace(w http.ResponseWriter, r *http.Request) {
 //	@ID				staticResponsePersistedReplace
 //	@Param			request	body	api.StaticReplaceRequest	true	"Persisted hosts file lines"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

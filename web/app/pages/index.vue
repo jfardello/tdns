@@ -1,16 +1,14 @@
 <script setup lang="ts">
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, restoreSession } = useAuth()
 
-// Redirect based on auth state
-if (isAuthenticated.value) {
-  navigateTo('/dashboard')
-} else {
-  navigateTo('/login')
-}
+onMounted(async () => {
+  await restoreSession()
+  await navigateTo(isAuthenticated.value ? '/dashboard' : '/login')
+})
 </script>
 
 <template>
   <div class="min-h-screen flex items-center justify-center">
-    <UIcon name="i-lucide-loader-2" class="size-8 animate-spin text-primary" />
+    <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary" />
   </div>
 </template>

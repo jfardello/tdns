@@ -54,6 +54,7 @@ func writeTaggerDataResponse(w http.ResponseWriter, status int, message string, 
 //	@ID				taggerTagCreate
 //	@Param			request	body	api.AddTagRequest	true	"Tag name"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -86,6 +87,7 @@ func (api *v1) TaggerAddTag(w http.ResponseWriter, r *http.Request) {
 //	@Tags			tagger
 //	@ID				taggerTagsList
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -116,6 +118,7 @@ func (api *v1) TaggerGetTags(w http.ResponseWriter, r *http.Request) {
 //	@Param			tagName	path	string					true	"Tag name"
 //	@Param			request	body	api.AddMemberRequest	true	"Member addresses"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -156,6 +159,7 @@ func (api *v1) TaggerAddMember(w http.ResponseWriter, r *http.Request) {
 //	@ID				taggerTagMembersList
 //	@Param			tagName	path	string	true	"Tag name"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -187,6 +191,7 @@ func (api *v1) TaggerTagGetMembers(w http.ResponseWriter, r *http.Request) {
 //	@Param			search	query	string	false	"Address or host substring"
 //	@Param			limit	query	int		false	"Maximum result count"	default(20)	minimum(1)
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -230,6 +235,7 @@ func (api *v1) TaggerKnownHosts(w http.ResponseWriter, r *http.Request) {
 //	@Param			tagName	path	string	true	"Tag name"
 //	@Param			address	path	string	true	"IP address or CIDR"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -260,6 +266,7 @@ func (api *v1) TaggerDeleteTagMember(w http.ResponseWriter, r *http.Request) {
 //	@ID				taggerAddressCreate
 //	@Param			request	body	api.MemberLabelsRequest	true	"Address and tags"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -300,6 +307,7 @@ func (api *v1) TaggerAddressCreate(w http.ResponseWriter, r *http.Request) {
 //	@Param			address	path	string							true	"IP address or CIDR"
 //	@Param			request	body	api.ReplaceMemberLabelsRequest	true	"Replacement tags"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -320,6 +328,7 @@ func (api *v1) TaggerAddressReplace(w http.ResponseWriter, r *http.Request) {
 //	@Param			tagName	path	string							true	"Address encoded in the legacy path parameter"
 //	@Param			request	body	api.ReplaceMemberLabelsRequest	true	"Replacement tags"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -363,6 +372,7 @@ func (api *v1) taggerAddressReplace(w http.ResponseWriter, r *http.Request, addr
 //	@ID				taggerTagDelete
 //	@Param			tagName	path	string	true	"Tag name"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

@@ -6,15 +6,31 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 type swaggerDocument struct {
-	Paths map[string]map[string]swaggerOperation `json:"paths"`
+	Paths               map[string]map[string]swaggerOperation `json:"paths" yaml:"paths"`
+	SecurityDefinitions map[string]securityScheme              `json:"securityDefinitions" yaml:"securityDefinitions"`
 }
 
 type swaggerOperation struct {
-	OperationID string                       `json:"operationId"`
-	Security    []map[string]json.RawMessage `json:"security"`
+	OperationID string           `json:"operationId" yaml:"operationId"`
+	Security    []map[string]any `json:"security" yaml:"security"`
+}
+
+type securityScheme struct {
+	Type string `json:"type" yaml:"type"`
+	In   string `json:"in" yaml:"in"`
+	Name string `json:"name" yaml:"name"`
+}
+
+type openAPIDocument struct {
+	Paths      map[string]map[string]swaggerOperation `yaml:"paths"`
+	Components struct {
+		SecuritySchemes map[string]securityScheme `yaml:"securitySchemes"`
+	} `yaml:"components"`
 }
 
 func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
@@ -57,6 +73,9 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 	if err := json.Unmarshal(generated, &document); err != nil {
 		t.Fatalf("decode generated Swagger: %v", err)
 	}
+	if scheme := document.SecurityDefinitions["CookieAuth"]; scheme.Type != "apiKey" || scheme.In != "header" || scheme.Name != "Cookie" {
+		t.Fatalf("Swagger CookieAuth = %#v", scheme)
+	}
 
 	generatedCount := 0
 	operationIDs := map[string]string{}
@@ -87,16 +106,60 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 			continue
 		}
 
-		hasBearer := false
-		for _, requirement := range operation.Security {
-			if _, exists := requirement["BearerAuth"]; exists {
-				hasBearer = true
-				break
-			}
+		assertSecurityAlternatives(t, "Swagger", route, operation)
+	}
+
+	openAPISource, err := os.ReadFile("../../api/openapi.yaml")
+	if err != nil {
+		t.Fatalf("read generated OpenAPI: %v", err)
+	}
+	var openAPI openAPIDocument
+	if err := yaml.Unmarshal(openAPISource, &openAPI); err != nil {
+		t.Fatalf("decode generated OpenAPI: %v", err)
+	}
+	if scheme := openAPI.Components.SecuritySchemes["CookieAuth"]; scheme.Type != "apiKey" || scheme.In != "cookie" || scheme.Name != "__Host-tdns-session" {
+		t.Fatalf("OpenAPI CookieAuth = %#v", scheme)
+	}
+	for _, route := range routes {
+		operation, exists := openAPI.Paths[route.path][route.method]
+		if !exists {
+			t.Errorf("OpenAPI is missing %s %s", route.method, route.path)
+			continue
 		}
-		if hasBearer != route.secured {
-			t.Errorf("%s %s BearerAuth = %t, want %t", route.method, route.path, hasBearer, route.secured)
+		assertSecurityAlternatives(t, "OpenAPI", route, operation)
+	}
+}
+
+func assertSecurityAlternatives(t *testing.T, contract string, route struct {
+	method  string
+	path    string
+	secured bool
+}, operation swaggerOperation) {
+	t.Helper()
+
+	hasBearer := false
+	hasCookie := false
+	for _, requirement := range operation.Security {
+		if len(requirement) != 1 {
+			t.Errorf("%s %s %s combines security schemes instead of defining alternatives", contract, route.method, route.path)
 		}
+		if _, exists := requirement["BearerAuth"]; exists {
+			hasBearer = true
+		}
+		if _, exists := requirement["CookieAuth"]; exists {
+			hasCookie = true
+		}
+	}
+	if hasBearer != route.secured || hasCookie != route.secured {
+		t.Errorf(
+			"%s %s %s security BearerAuth=%t CookieAuth=%t, secured=%t",
+			contract,
+			route.method,
+			route.path,
+			hasBearer,
+			hasCookie,
+			route.secured,
+		)
 	}
 }
 

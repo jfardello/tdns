@@ -473,6 +473,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get blacklist status
       tags:
       - blacklist
@@ -512,6 +513,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Toggle blacklist filtering
       tags:
       - blacklist
@@ -549,6 +551,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace persisted blacklist exclusions
       tags:
       - blacklist
@@ -586,6 +589,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace persisted blacklist hosts
       tags:
       - blacklist
@@ -623,6 +627,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Add runtime whitelist domains
       tags:
       - blacklist
@@ -645,6 +650,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Clear the DNS cache
       tags:
       - cache
@@ -666,6 +672,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get cache status
       tags:
       - cache
@@ -705,6 +712,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Toggle the DNS cache
       tags:
       - cache
@@ -742,6 +750,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace cache exclusions
       tags:
       - cache
@@ -771,6 +780,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Set a DNS client alias
       tags:
       - dns-log
@@ -805,6 +815,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Search DNS clients
       tags:
       - dns-log
@@ -835,6 +846,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get DNS log dashboard
       tags:
       - dns-log
@@ -862,6 +874,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Rotate DNS log entries
       tags:
       - dns-log
@@ -914,6 +927,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get top queried domains
       tags:
       - dns-log
@@ -940,6 +954,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get static response status
       tags:
       - static-response
@@ -976,6 +991,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace runtime static hosts
       tags:
       - static-response
@@ -1015,6 +1031,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Toggle static responses
       tags:
       - static-response
@@ -1052,6 +1069,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace persisted static hosts
       tags:
       - static-response
@@ -1074,6 +1092,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get stub resolver status
       tags:
       - stub-resolver
@@ -1106,6 +1125,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace runtime stub resolvers
       tags:
       - stub-resolver
@@ -1141,6 +1161,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Toggle the stub resolver
       tags:
       - stub-resolver
@@ -1187,6 +1208,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace address tags using the legacy path
       tags:
       - tagger
@@ -1228,6 +1250,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Create or update an address
       tags:
       - tagger
@@ -1274,6 +1297,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace address tags
       tags:
       - tagger
@@ -1319,6 +1343,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Search known hosts
       tags:
       - tagger
@@ -1349,6 +1374,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: List tags
       tags:
       - tagger
@@ -1385,6 +1411,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Create a tag
       tags:
       - tagger
@@ -1421,6 +1448,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Delete a tag
       tags:
       - tagger
@@ -1456,6 +1484,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: List tag members
       tags:
       - tagger
@@ -1501,6 +1530,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Add tag members
       tags:
       - tagger
@@ -1542,6 +1572,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Remove a tag member
       tags:
       - tagger
@@ -1568,6 +1599,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Get zen mode status
       tags:
       - zen-mode
@@ -1604,6 +1636,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace runtime zen domains
       tags:
       - zen-mode
@@ -1641,6 +1674,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace persisted zen domains
       tags:
       - zen-mode
@@ -1678,6 +1712,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Replace persisted zen exclusions
       tags:
       - zen-mode
@@ -1704,6 +1739,7 @@ paths:
             $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
+      - CookieAuth: []
       summary: Start zen mode
       tags:
       - zen-mode
@@ -1729,6 +1765,12 @@ securityDefinitions:
     description: Bearer token using the format "Bearer {token}".
     in: header
     name: Authorization
+    type: apiKey
+  CookieAuth:
+    description: Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session
+      cookie.
+    in: header
+    name: Cookie
     type: apiKey
 swagger: "2.0"
 tags:

@@ -18,6 +18,7 @@ import (
 //	@ID				stubResolverToggle
 //	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -55,6 +56,7 @@ func (api *v1) StubToggle(w http.ResponseWriter, r *http.Request) {
 //	@Tags			stub-resolver
 //	@ID				stubResolverStatus
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
@@ -78,6 +80,7 @@ func (api *v1) StubStatus(w http.ResponseWriter, r *http.Request) {
 //	@ID				stubResolverReplace
 //	@Param			request	body	api.StubReplaceRequest	true	"Stub resolver entries"
 //	@Security		BearerAuth
+//	@Security		CookieAuth
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"

@@ -252,8 +252,22 @@ an opaque identifier rather than a JWT. The server enforces a 12-hour absolute
 lifetime. Cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` requests
 must send the CSRF token in `X-CSRF-Token` and pass same-origin validation.
 Bearer-authenticated clients continue to use `Authorization` and do not use
-browser CSRF processing. The embedded web UI adopts these endpoints in the
-separate browser-client migration.
+browser CSRF processing. The embedded web UI uses these endpoints directly. It
+stores session metadata and the CSRF token only in memory; the opaque session
+identifier remains inaccessible in the HttpOnly cookie. A browser reload calls
+`GET /api/auth/session` to restore state and issue a fresh bounded CSRF token.
+The UI removes the legacy `tdns_jwt_token` local-storage entry during startup.
+
+The browser UI and management API must share an origin. Production uses the
+embedded UI. For Nuxt development, proxy `/api` through the development server:
+
+```bash
+cd web
+TDNS_API_PROXY_TARGET=https://localhost:8443 npm run dev
+```
+
+The target certificate must be trusted by the development host. Cookie-based
+development does not use `cors.enabled` or `cors.allowed_origins`.
 
 To rotate a persistent key without immediately invalidating every current
 strict-format token:
