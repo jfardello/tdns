@@ -235,7 +235,7 @@ func run() {
 		server.WithDNSLog(),
 		server.WithTagger(),
 	)
-	httpServer, err := startHTTPServer(c, newServer, authManager)
+	httpServer, err := startHTTPServer(c, newServer, authManager, browserStore)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -335,9 +335,14 @@ func setServingUmask() {
 	syscall.Umask(0o077)
 }
 
-func startHTTPServer(c *config.Config, dnsServer *server.Server, authManager *auth.Manager) (*http.Server, error) {
+func startHTTPServer(
+	c *config.Config,
+	dnsServer *server.Server,
+	authManager *auth.Manager,
+	browserStore *browserauth.Store,
+) (*http.Server, error) {
 	logger := log.GetLogger("serve", "http-server")
-	handler, err := newHTTPHandler(dnsServer, authManager)
+	handler, err := newHTTPHandler(dnsServer, authManager, browserStore)
 	if err != nil {
 		return nil, err
 	}
@@ -361,8 +366,15 @@ func startHTTPServer(c *config.Config, dnsServer *server.Server, authManager *au
 	return srv, nil
 }
 
-func newHTTPHandler(dnsServer *server.Server, authManager *auth.Manager) (http.Handler, error) {
-	apiHandler := httpapi.NewHandler(dnsServer, authManager)
+func newHTTPHandler(
+	dnsServer *server.Server,
+	authManager *auth.Manager,
+	browserStore *browserauth.Store,
+) (http.Handler, error) {
+	apiHandler, err := httpapi.NewHandler(dnsServer, authManager, browserStore)
+	if err != nil {
+		return nil, err
+	}
 	uiHandlers, err := webui.NewHandlers("")
 	if err != nil {
 		return nil, fmt.Errorf("prepare embedded web ui: %w", err)

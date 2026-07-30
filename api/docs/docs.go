@@ -21,6 +21,116 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/auth/exchange": {
+            "post": {
+                "description": "Consume a single-use browser login code and create a browser session.",
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "Exchange browser login code",
+                "operationId": "browserCodeExchange",
+                "parameters": [
+                    {
+                        "description": "Browser login code",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BrowserCodeExchangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.BrowserSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "description": "Revoke and clear the active browser session.",
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "Log out browser session",
+                "operationId": "browserSessionLogout",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/session": {
+            "get": {
+                "description": "Return the active browser session and issue a CSRF token.",
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "Get browser session",
+                "operationId": "browserSessionGet",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.BrowserSessionResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/blacklist": {
             "get": {
                 "security": [
@@ -627,7 +737,7 @@ const docTemplate = `{
             }
         },
         "/api/dns-log/rotate": {
-            "get": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -2098,6 +2208,32 @@ const docTemplate = `{
                 }
             }
         },
+        "api.BrowserCodeExchangeRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.BrowserSessionResponse": {
+            "type": "object",
+            "properties": {
+                "csrf_token": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
         "api.CacheExcludeRequest": {
             "type": "object",
             "properties": {
@@ -2195,6 +2331,14 @@ const docTemplate = `{
                 },
                 "total_queries": {
                     "type": "integer"
+                }
+            }
+        },
+        "api.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
                 }
             }
         },
@@ -2559,6 +2703,10 @@ const docTemplate = `{
         {
             "description": "Service monitoring endpoints.",
             "name": "monitoring"
+        },
+        {
+            "description": "Browser authentication session endpoints.",
+            "name": "authentication"
         }
     ]
 }`

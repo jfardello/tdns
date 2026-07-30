@@ -63,15 +63,15 @@ defense in depth.
 The embedded web UI, management API, metrics, and optional Swagger endpoints
 share the configured HTTPS listener. The server requires TLS 1.2 or newer and
 sets request timeouts and baseline browser security headers. API query routes
-accept read-only or read-write bearer tokens; mutation routes require
-read-write scope.
+accept read-only or read-write bearer tokens or browser sessions; mutation
+routes require read-write scope.
 
 ### CLI and Public Go Client
 
 `tdns adm` and the importable `apiclient` authenticate with an Authorization
-Bearer JWT. Bearer authentication will remain supported when browser cookie
-authentication is introduced. Programmatic clients will not be converted to
-cookie sessions or browser CSRF processing.
+Bearer JWT. Bearer authentication remains supported alongside browser cookie
+authentication. Programmatic clients are not converted to cookie sessions and
+are not subject to browser CSRF processing.
 
 ### Browser UI
 
@@ -87,7 +87,7 @@ The policy does not allow `unsafe-eval` or general inline script execution.
 Inline style attributes remain allowed for Nuxt UI component rendering; other
 style resources must be same-origin.
 
-The approved migration design is:
+The implemented server-side migration design is:
 
 - a CLI command generates a short-lived, purpose-bound login code
 - the administrator pastes the code into the browser login form
@@ -100,6 +100,10 @@ The approved migration design is:
 
 The cookie contains an opaque session identifier, not a JWT. This permits
 immediate logout, expiration, and revocation without maintaining a JWT denylist.
+The exchange, session-status, and logout routes are JSON-only and return
+`Cache-Control: no-store`. Exchange attempts have bounded source-address and
+global rate limits. TDNS uses the direct peer address and does not trust
+forwarding headers.
 
 ### Remote Blocklist Content
 
@@ -138,7 +142,8 @@ policy. Secrets and authentication credentials must never be logged.
 
 ### JWT Authentication
 
-- Only the Bearer authorization scheme is accepted.
+- Management routes accept either a Bearer authorization header or the
+  `__Host-tdns-session` cookie, never both.
 - Only HS512 is accepted for API bearer tokens.
 - Issuer, management audience, issued-at, not-before, expiration, token
   identifier, subject, scope, purpose, and signing-key identifier are required.
@@ -154,6 +159,11 @@ policy. Secrets and authentication credentials must never be logged.
   additional session.
 - SQLite stores only hashes of browser session identifiers, CSRF tokens, and
   consumed code identifiers. Raw credentials are returned only to the caller.
+- The session cookie is non-persistent and uses `Path=/`, `Secure`, `HttpOnly`,
+  and `SameSite=Strict` without a `Domain` attribute.
+- Cookie-authenticated unsafe requests require a matching `X-CSRF-Token` and
+  same-origin fetch metadata or strict HTTPS Origin/Referer validation.
+- Invalid Authorization headers never fall back to a valid session cookie.
 - Expired browser sessions and consumed-code records are purged in bounded
   batches at startup and every 15 minutes.
 - The active key issues tokens. One explicitly bounded previous key may verify
@@ -275,11 +285,11 @@ absolute lifetime, use non-persistent cookies, and do not have a refresh token.
 Closing the browser removes the cookie even if the absolute lifetime has not
 elapsed. Idle expiration is not required in the initial implementation.
 
-The persistence primitives are implemented. Cookie issuance, login-code
-exchange over HTTPS, logout, origin checks, and CSRF enforcement remain part of
-the browser HTTP integration work.
+The persistence and server HTTP integration are implemented. The embedded web
+UI still requires its separate migration from browser-stored bearer tokens to
+these endpoints.
 
-Status: Partially implemented on 2026-07-29.
+Status: Server implementation completed on 2026-07-30.
 
 ### Diagnostics and Metrics Exposure
 
@@ -392,7 +402,6 @@ Status: Approved on 2026-07-26.
   session primitives are connected to the HTTP API and web client.
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.
-- Empty CORS origins currently permit any origin when CORS is enabled.
 - Remote blocklist downloads need stricter time, size, redirect, validation,
   and atomic-replacement controls.
 - Frontend production dependencies retain documented build-only audit
@@ -425,6 +434,7 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 | 2026-07-20 | Keep bearer authentication for programmatic clients and use opaque HttpOnly browser sessions. | Browser and API clients use separate authentication transports behind one authorization principal. |
 | 2026-07-20 | Bootstrap browser sessions with short-lived, single-use CLI-generated codes. | TDNS does not need to add browser passwords, but code redemption requires replay protection. |
 | 2026-07-20 | Use same-origin browser cookies by default. | Frontend development should proxy the API instead of enabling broad credentialed CORS. |
+| 2026-07-30 | Reject ambiguous credentials and require CSRF plus same-origin evidence for cookie-authenticated mutations. | Invalid bearer credentials cannot fall back to cookies, while bearer clients remain outside browser CSRF processing. |
 | 2026-07-20 | Require Go 1.26.5. | CI and release builds use the patched toolchain baseline. |
 | 2026-07-21 | Default DNS access to loopback with explicit CIDRs for every other client network. | Application ACLs become mandatory and private networks are not implicitly trusted. |
 | 2026-07-21 | Use two-minute browser login codes and non-persistent 12-hour sessions without refresh tokens. | Browser restart ends the session and expired sessions require a new CLI-generated code. |

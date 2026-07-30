@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -165,6 +166,19 @@ type ApiBlacklistWhitelistRequest struct {
 	Domains *[]string `json:"domains,omitempty"`
 }
 
+// ApiBrowserCodeExchangeRequest defines model for api.BrowserCodeExchangeRequest.
+type ApiBrowserCodeExchangeRequest struct {
+	Code *string `json:"code,omitempty"`
+}
+
+// ApiBrowserSessionResponse defines model for api.BrowserSessionResponse.
+type ApiBrowserSessionResponse struct {
+	CsrfToken *string    `json:"csrf_token,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Scope     *string    `json:"scope,omitempty"`
+	Subject   *string    `json:"subject,omitempty"`
+}
+
 // ApiCacheExcludeRequest defines model for api.CacheExcludeRequest.
 type ApiCacheExcludeRequest struct {
 	Excludes *[]string `json:"excludes,omitempty"`
@@ -213,6 +227,11 @@ type ApiDashboardSummary struct {
 	CacheHits      *int `json:"cache_hits,omitempty"`
 	CacheMisses    *int `json:"cache_misses,omitempty"`
 	TotalQueries   *int `json:"total_queries,omitempty"`
+}
+
+// ApiErrorResponse defines model for api.ErrorResponse.
+type ApiErrorResponse struct {
+	Error *string `json:"error,omitempty"`
 }
 
 // ApiHostEntry defines model for api.HostEntry.
@@ -409,6 +428,9 @@ type TaggerKnownHostsSearchParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// BrowserCodeExchangeJSONRequestBody defines body for BrowserCodeExchange for application/json ContentType.
+type BrowserCodeExchangeJSONRequestBody = ApiBrowserCodeExchangeRequest
+
 // BlacklistPersistedExcludesReplaceJSONRequestBody defines body for BlacklistPersistedExcludesReplace for application/json ContentType.
 type BlacklistPersistedExcludesReplaceJSONRequestBody = ApiBlacklistExcludesRequest
 
@@ -530,6 +552,38 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+
+	// BrowserCodeExchangeWithBody Exchange browser login code
+	//
+	// Consume a single-use browser login code and create a browser session.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+	BrowserCodeExchangeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowserCodeExchange Exchange browser login code
+	//
+	// Consume a single-use browser login code and create a browser session.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+	BrowserCodeExchange(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowserSessionLogout Log out browser session
+	//
+	// Revoke and clear the active browser session.
+	//
+	// Corresponds with POST /api/auth/logout (the `BrowserSessionLogout` operationId).
+	BrowserSessionLogout(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowserSessionGet Get browser session
+	//
+	// Return the active browser session and issue a CSRF token.
+	//
+	// Corresponds with GET /api/auth/session (the `BrowserSessionGet` operationId).
+	BrowserSessionGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// BlacklistStatus Get blacklist status
 	//
@@ -674,7 +728,7 @@ type ClientInterface interface {
 	//
 	// Delete DNS log entries selected by a relative duration.
 	//
-	// Corresponds with GET /api/dns-log/rotate (the `DnsLogRotate` operationId).
+	// Corresponds with POST /api/dns-log/rotate (the `DnsLogRotate` operationId).
 	DnsLogRotate(ctx context.Context, params *DnsLogRotateParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DnsLogTop Get top queried domains
@@ -965,6 +1019,78 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /metrics (the `MetricsGet` operationId).
 	MetricsGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// BrowserCodeExchangeWithBody Exchange browser login code
+//
+// Consume a single-use browser login code and create a browser session.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+func (c *Client) BrowserCodeExchangeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserCodeExchangeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowserCodeExchange Exchange browser login code
+//
+// Consume a single-use browser login code and create a browser session.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+func (c *Client) BrowserCodeExchange(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserCodeExchangeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowserSessionLogout Log out browser session
+//
+// Revoke and clear the active browser session.
+//
+// Corresponds with POST /api/auth/logout (the `BrowserSessionLogout` operationId).
+func (c *Client) BrowserSessionLogout(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserSessionLogoutRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowserSessionGet Get browser session
+//
+// Return the active browser session and issue a CSRF token.
+//
+// Corresponds with GET /api/auth/session (the `BrowserSessionGet` operationId).
+func (c *Client) BrowserSessionGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserSessionGetRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // BlacklistStatus Get blacklist status
@@ -1280,7 +1406,7 @@ func (c *Client) DnsLogDashboard(ctx context.Context, params *DnsLogDashboardPar
 //
 // Delete DNS log entries selected by a relative duration.
 //
-// Corresponds with GET /api/dns-log/rotate (the `DnsLogRotate` operationId).
+// Corresponds with POST /api/dns-log/rotate (the `DnsLogRotate` operationId).
 func (c *Client) DnsLogRotate(ctx context.Context, params *DnsLogRotateParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDnsLogRotateRequest(c.Server, params)
 	if err != nil {
@@ -1932,6 +2058,100 @@ func (c *Client) MetricsGet(ctx context.Context, reqEditors ...RequestEditorFn) 
 	return c.Client.Do(req)
 }
 
+// NewBrowserCodeExchangeRequest calls the generic BrowserCodeExchange builder with application/json body
+func NewBrowserCodeExchangeRequest(server string, body BrowserCodeExchangeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBrowserCodeExchangeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewBrowserCodeExchangeRequestWithBody constructs an http.Request for the BrowserCodeExchange method, with any body, and a specified content type
+func NewBrowserCodeExchangeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/auth/exchange")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewBrowserSessionLogoutRequest constructs an http.Request for the BrowserSessionLogout method
+func NewBrowserSessionLogoutRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/auth/logout")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewBrowserSessionGetRequest constructs an http.Request for the BrowserSessionGet method
+func NewBrowserSessionGetRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/auth/session")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewBlacklistStatusRequest constructs an http.Request for the BlacklistStatus method
 func NewBlacklistStatusRequest(server string) (*http.Request, error) {
 	var err error
@@ -2447,7 +2667,7 @@ func NewDnsLogRotateRequest(server string, params *DnsLogRotateParams) (*http.Re
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3462,6 +3682,42 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// BrowserCodeExchangeWithBodyWithResponse Exchange browser login code
+	//
+	// Consume a single-use browser login code and create a browser session.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+	BrowserCodeExchangeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BrowserCodeExchangeResponse, error)
+
+	// BrowserCodeExchangeWithResponse Exchange browser login code
+	//
+	// Consume a single-use browser login code and create a browser session.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+	BrowserCodeExchangeWithResponse(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*BrowserCodeExchangeResponse, error)
+
+	// BrowserSessionLogoutWithResponse Log out browser session
+	//
+	// Revoke and clear the active browser session.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/auth/logout (the `BrowserSessionLogout` operationId).
+	BrowserSessionLogoutWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*BrowserSessionLogoutResponse, error)
+
+	// BrowserSessionGetWithResponse Get browser session
+	//
+	// Return the active browser session and issue a CSRF token.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/auth/session (the `BrowserSessionGet` operationId).
+	BrowserSessionGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*BrowserSessionGetResponse, error)
+
 	// BlacklistStatusWithResponse Get blacklist status
 	//
 	// Return blacklist sources, exclusions, and runtime state.
@@ -3621,7 +3877,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with GET /api/dns-log/rotate (the `DnsLogRotate` operationId).
+	// Corresponds with POST /api/dns-log/rotate (the `DnsLogRotate` operationId).
 	DnsLogRotateWithResponse(ctx context.Context, params *DnsLogRotateParams, reqEditors ...RequestEditorFn) (*DnsLogRotateResponse, error)
 
 	// DnsLogTopWithResponse Get top queried domains
@@ -3938,6 +4194,178 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /metrics (the `MetricsGet` operationId).
 	MetricsGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MetricsGetResponse, error)
+}
+
+type BrowserCodeExchangeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiBrowserSessionResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ApiErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ApiErrorResponse
+	// JSON415 the response for an HTTP 415 `application/json` response
+	JSON415 *ApiErrorResponse
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *ApiErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON200() *ApiBrowserSessionResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON400() *ApiErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON401() *ApiErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON403() *ApiErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON415 returns the response for an HTTP 415 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON415() *ApiErrorResponse {
+	return r.JSON415
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r BrowserCodeExchangeResponse) GetJSON429() *ApiErrorResponse {
+	return r.JSON429
+}
+
+// GetBody returns the raw response body bytes
+func (r BrowserCodeExchangeResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BrowserCodeExchangeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BrowserCodeExchangeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BrowserCodeExchangeResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BrowserSessionLogoutResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ApiErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ApiErrorResponse
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BrowserSessionLogoutResponse) GetJSON401() *ApiErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BrowserSessionLogoutResponse) GetJSON403() *ApiErrorResponse {
+	return r.JSON403
+}
+
+// GetBody returns the raw response body bytes
+func (r BrowserSessionLogoutResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BrowserSessionLogoutResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BrowserSessionLogoutResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BrowserSessionLogoutResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BrowserSessionGetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiBrowserSessionResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ApiErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BrowserSessionGetResponse) GetJSON200() *ApiBrowserSessionResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BrowserSessionGetResponse) GetJSON401() *ApiErrorResponse {
+	return r.JSON401
+}
+
+// GetBody returns the raw response body bytes
+func (r BrowserSessionGetResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BrowserSessionGetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BrowserSessionGetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BrowserSessionGetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type BlacklistStatusResponse struct {
@@ -6346,6 +6774,66 @@ func (r MetricsGetResponse) ContentType() string {
 	return ""
 }
 
+// BrowserCodeExchangeWithBodyWithResponse Exchange browser login code
+//
+// Consume a single-use browser login code and create a browser session.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+func (c *ClientWithResponses) BrowserCodeExchangeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BrowserCodeExchangeResponse, error) {
+	rsp, err := c.BrowserCodeExchangeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserCodeExchangeResponse(rsp)
+}
+
+// BrowserCodeExchangeWithResponse Exchange browser login code
+//
+// Consume a single-use browser login code and create a browser session.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
+func (c *ClientWithResponses) BrowserCodeExchangeWithResponse(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*BrowserCodeExchangeResponse, error) {
+	rsp, err := c.BrowserCodeExchange(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserCodeExchangeResponse(rsp)
+}
+
+// BrowserSessionLogoutWithResponse Log out browser session
+//
+// Revoke and clear the active browser session.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/auth/logout (the `BrowserSessionLogout` operationId).
+func (c *ClientWithResponses) BrowserSessionLogoutWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*BrowserSessionLogoutResponse, error) {
+	rsp, err := c.BrowserSessionLogout(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserSessionLogoutResponse(rsp)
+}
+
+// BrowserSessionGetWithResponse Get browser session
+//
+// Return the active browser session and issue a CSRF token.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/auth/session (the `BrowserSessionGet` operationId).
+func (c *ClientWithResponses) BrowserSessionGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*BrowserSessionGetResponse, error) {
+	rsp, err := c.BrowserSessionGet(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserSessionGetResponse(rsp)
+}
+
 // BlacklistStatusWithResponse Get blacklist status
 //
 // Return blacklist sources, exclusions, and runtime state.
@@ -6607,7 +7095,7 @@ func (c *ClientWithResponses) DnsLogDashboardWithResponse(ctx context.Context, p
 //
 // Returns a wrapper object for the known response body format(s).
 //
-// Corresponds with GET /api/dns-log/rotate (the `DnsLogRotate` operationId).
+// Corresponds with POST /api/dns-log/rotate (the `DnsLogRotate` operationId).
 func (c *ClientWithResponses) DnsLogRotateWithResponse(ctx context.Context, params *DnsLogRotateParams, reqEditors ...RequestEditorFn) (*DnsLogRotateResponse, error) {
 	rsp, err := c.DnsLogRotate(ctx, params, reqEditors...)
 	if err != nil {
@@ -7139,6 +7627,136 @@ func (c *ClientWithResponses) MetricsGetWithResponse(ctx context.Context, reqEdi
 		return nil, err
 	}
 	return ParseMetricsGetResponse(rsp)
+}
+
+// ParseBrowserCodeExchangeResponse parses an HTTP response from a BrowserCodeExchangeWithResponse call
+func ParseBrowserCodeExchangeResponse(rsp *http.Response) (*BrowserCodeExchangeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BrowserCodeExchangeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiBrowserSessionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 415:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON415 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBrowserSessionLogoutResponse parses an HTTP response from a BrowserSessionLogoutWithResponse call
+func ParseBrowserSessionLogoutResponse(rsp *http.Response) (*BrowserSessionLogoutResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BrowserSessionLogoutResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBrowserSessionGetResponse parses an HTTP response from a BrowserSessionGetWithResponse call
+func ParseBrowserSessionGetResponse(rsp *http.Response) (*BrowserSessionGetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BrowserSessionGetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiBrowserSessionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseBlacklistStatusResponse parses an HTTP response from a BlacklistStatusWithResponse call

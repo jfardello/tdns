@@ -40,7 +40,7 @@ func TestAuthenticationAuditDoesNotLogCredential(t *testing.T) {
 	const credential = "secret-bearer-credential"
 	handler := Require(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("invalid credential reached handler")
-	}, Requirement{IsRequired: true, Scope: auth.ScopeRead}, testAuthManager(t))
+	}, Requirement{IsRequired: true, Scope: auth.ScopeRead}, testAuthManager(t), nil)
 	request := httptest.NewRequest(http.MethodGet, "/api/cache", nil)
 	request.Header.Set("Authorization", "Bearer "+credential)
 	handler(httptest.NewRecorder(), request)
@@ -67,7 +67,7 @@ func TestRequireAcceptsOnlyBearerScheme(t *testing.T) {
 	token := issueTestToken(t, manager, auth.ScopeWrite)
 	handler := Require(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
-	}, Requirement{IsRequired: true, Scope: auth.ScopeWrite}, manager)
+	}, Requirement{IsRequired: true, Scope: auth.ScopeWrite}, manager, nil)
 
 	for _, test := range []struct {
 		name       string
@@ -100,7 +100,7 @@ func TestRequireDistinguishesAuthenticationAndAuthorization(t *testing.T) {
 			t.Error("authenticated request has no principal")
 		}
 		w.WriteHeader(http.StatusNoContent)
-	}, Requirement{IsRequired: true, Scope: auth.ScopeWrite}, manager)
+	}, Requirement{IsRequired: true, Scope: auth.ScopeWrite}, manager, nil)
 
 	for _, test := range []struct {
 		name       string

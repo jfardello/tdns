@@ -5,6 +5,99 @@ info:
   title: TDNS Management API
   version: "1.0"
 paths:
+  /api/auth/exchange:
+    post:
+      description: Consume a single-use browser login code and create a browser session.
+      operationId: browserCodeExchange
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.BrowserCodeExchangeRequest"
+        description: Browser login code
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.BrowserSessionResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "415":
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+      summary: Exchange browser login code
+      tags:
+        - authentication
+  /api/auth/logout:
+    post:
+      description: Revoke and clear the active browser session.
+      operationId: browserSessionLogout
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+      summary: Log out browser session
+      tags:
+        - authentication
+  /api/auth/session:
+    get:
+      description: Return the active browser session and issue a CSRF token.
+      operationId: browserSessionGet
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.BrowserSessionResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+      summary: Get browser session
+      tags:
+        - authentication
   /api/blacklist:
     get:
       description: Return blacklist sources, exclusions, and runtime state.
@@ -497,7 +590,7 @@ paths:
       tags:
         - dns-log
   /api/dns-log/rotate:
-    get:
+    post:
       description: Delete DNS log entries selected by a relative duration.
       operationId: dnsLogRotate
       parameters:
@@ -1634,6 +1727,8 @@ tags:
     name: tagger
   - description: Service monitoring endpoints.
     name: monitoring
+  - description: Browser authentication session endpoints.
+    name: authentication
 servers:
   - url: /
 components:
@@ -1719,6 +1814,23 @@ components:
             type: string
           type: array
       type: object
+    api.BrowserCodeExchangeRequest:
+      properties:
+        code:
+          type: string
+      type: object
+    api.BrowserSessionResponse:
+      properties:
+        csrf_token:
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        scope:
+          type: string
+        subject:
+          type: string
+      type: object
     api.CacheExcludeRequest:
       properties:
         excludes:
@@ -1784,6 +1896,11 @@ components:
           type: integer
         total_queries:
           type: integer
+      type: object
+    api.ErrorResponse:
+      properties:
+        error:
+          type: string
       type: object
     api.HostEntry:
       properties:

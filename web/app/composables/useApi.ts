@@ -253,7 +253,7 @@ export function useApi() {
   }
 
   async function rotateDnsLog(since: string) {
-    return execute(client.GET('/api/dns-log/rotate', {
+    return execute(client.POST('/api/dns-log/rotate', {
       params: { query: { since } }
     }))
   }

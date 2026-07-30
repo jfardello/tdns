@@ -23,6 +23,8 @@
 //	@tag.description			Client address labels and known hosts.
 //	@tag.name					monitoring
 //	@tag.description			Service monitoring endpoints.
+//	@tag.name					authentication
+//	@tag.description			Browser authentication session endpoints.
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
 //	@name						Authorization

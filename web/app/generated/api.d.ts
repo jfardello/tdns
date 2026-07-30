@@ -4,6 +4,66 @@
  */
 
 export interface paths {
+    "/api/auth/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exchange browser login code
+         * @description Consume a single-use browser login code and create a browser session.
+         */
+        post: operations["browserCodeExchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log out browser session
+         * @description Revoke and clear the active browser session.
+         */
+        post: operations["browserSessionLogout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get browser session
+         * @description Return the active browser session and issue a CSRF token.
+         */
+        get: operations["browserSessionGet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/blacklist": {
         parameters: {
             query?: never;
@@ -235,13 +295,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Rotate DNS log entries
          * @description Delete DNS log entries selected by a relative duration.
          */
-        get: operations["dnsLogRotate"];
-        put?: never;
-        post?: never;
+        post: operations["dnsLogRotate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -665,6 +725,16 @@ export interface components {
         "api.BlacklistWhitelistRequest": {
             domains?: string[];
         };
+        "api.BrowserCodeExchangeRequest": {
+            code?: string;
+        };
+        "api.BrowserSessionResponse": {
+            csrf_token?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            scope?: string;
+            subject?: string;
+        };
         "api.CacheExcludeRequest": {
             excludes?: string[];
         };
@@ -700,6 +770,9 @@ export interface components {
             cache_hits?: number;
             cache_misses?: number;
             total_queries?: number;
+        };
+        "api.ErrorResponse": {
+            error?: string;
         };
         "api.HostEntry": {
             /** @example 192.0.2.10 */
@@ -812,6 +885,141 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    browserCodeExchange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Browser login code */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["api.BrowserCodeExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.BrowserSessionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+        };
+    };
+    browserSessionLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+        };
+    };
+    browserSessionGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.BrowserSessionResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.ErrorResponse"];
+                };
+            };
+        };
+    };
     blacklistStatus: {
         parameters: {
             query?: never;

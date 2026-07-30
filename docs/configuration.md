@@ -236,8 +236,24 @@ tdns --config /etc/tdns/tdns.yaml adm browser-code \
 The command prints only the code to standard output. Codes expire after two
 minutes by default, can be shortened with `--ttl`, and cannot be extended past
 two minutes. Each code is purpose-bound to browser session exchange and can be
-redeemed only once. The browser exchange endpoint is documented separately
-when that HTTP workflow is enabled.
+redeemed only once through `POST /api/auth/exchange`.
+
+The server exposes the following JSON browser-session endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/auth/exchange` | Consume a browser code, set the session cookie, and return session metadata and a CSRF token. |
+| `GET /api/auth/session` | Validate the session and issue a fresh, bounded CSRF token for a browser reload or tab. |
+| `POST /api/auth/logout` | Validate browser request protections, revoke the session, and clear its cookie. |
+
+The session cookie is named `__Host-tdns-session` and is set with `Path=/`,
+`Secure`, `HttpOnly`, and `SameSite=Strict`. It is non-persistent and contains
+an opaque identifier rather than a JWT. The server enforces a 12-hour absolute
+lifetime. Cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` requests
+must send the CSRF token in `X-CSRF-Token` and pass same-origin validation.
+Bearer-authenticated clients continue to use `Authorization` and do not use
+browser CSRF processing. The embedded web UI adopts these endpoints in the
+separate browser-client migration.
 
 To rotate a persistent key without immediately invalidating every current
 strict-format token:
@@ -268,8 +284,12 @@ protected until it is removed.
 
 | Key | Fallback | Description |
 | --- | --- | --- |
-| `cors.enabled` | `false` | Enables cross-origin management API requests. |
-| `cors.allowed_origins` | `[]` | Explicit allowed origins. When CORS is enabled and this list is empty, all origins are accepted. |
+| `cors.enabled` | `false` | Enables cross-origin management API requests for explicitly trusted bearer clients. Browser cookie authentication remains same-origin. |
+| `cors.allowed_origins` | `[]` | Exact HTTP or HTTPS origins. Startup fails when CORS is enabled with an empty, malformed, or wildcard origin list. |
+
+Credentialed CORS is not enabled. Cross-origin callers must use bearer
+authentication. Each origin must contain only a scheme and host, with no path,
+query, fragment, user information, surrounding whitespace, or wildcard.
 
 ### Client
 

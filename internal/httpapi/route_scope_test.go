@@ -19,7 +19,7 @@ func TestManagementRoutesUseExpectedScope(t *testing.T) {
 	for _, match := range matches {
 		route, scope := match[1], match[2]
 		want := "readWrite"
-		if len(route) >= 4 && route[:4] == "GET " && route != "GET /api/dns-log/rotate" {
+		if len(route) >= 4 && route[:4] == "GET " {
 			want = "readOnly"
 		}
 		if scope != want {

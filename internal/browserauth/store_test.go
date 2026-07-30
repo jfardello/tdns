@@ -133,6 +133,36 @@ func TestSessionPersistenceExpirationCSRFAndRevocation(t *testing.T) {
 	if err := store.ValidateCSRF(ctx, credentials.SessionID, credentials.CSRFToken, now); err != nil {
 		t.Fatalf("ValidateCSRF: %v", err)
 	}
+	issued := make([]string, 0, MaxCSRFTokens+2)
+	for i := range MaxCSRFTokens + 2 {
+		token, err := store.IssueCSRF(ctx, credentials.SessionID, now.Add(time.Duration(i+1)*time.Nanosecond))
+		if err != nil {
+			t.Fatalf("IssueCSRF: %v", err)
+		}
+		issued = append(issued, token)
+	}
+	if err := store.ValidateCSRF(ctx, credentials.SessionID, credentials.CSRFToken, now); !errors.Is(err, ErrInvalidCSRF) {
+		t.Fatalf("initial CSRF token remained valid after bounded eviction: %v", err)
+	}
+	for i, token := range issued {
+		err := store.ValidateCSRF(ctx, credentials.SessionID, token, now)
+		if i < len(issued)-MaxCSRFTokens {
+			if !errors.Is(err, ErrInvalidCSRF) {
+				t.Fatalf("evicted token %d error = %v", i, err)
+			}
+		} else if err != nil {
+			t.Fatalf("retained token %d error = %v", i, err)
+		}
+	}
+	var csrfCount int
+	if err := store.conn.QueryRow(
+		`SELECT COUNT(*) FROM browser_session_csrf_tokens`,
+	).Scan(&csrfCount); err != nil {
+		t.Fatal(err)
+	}
+	if csrfCount != MaxCSRFTokens {
+		t.Fatalf("stored CSRF tokens = %d, want %d", csrfCount, MaxCSRFTokens)
+	}
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}

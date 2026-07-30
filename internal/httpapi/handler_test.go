@@ -13,7 +13,10 @@ import (
 func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{})
-		handler := NewHandler(nil, testAuthManager(t))
+		handler, err := NewHandler(nil, testAuthManager(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, path := range []string{"/swagger/index.html", "/swagger/doc.json", "/swagger/openapi.yaml"} {
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
@@ -25,7 +28,10 @@ func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 
 	t.Run("enabled", func(t *testing.T) {
 		config.SetRunningConfig(&config.Config{Server: config.Server{SwaggerEnabled: true}})
-		handler := NewHandler(nil, testAuthManager(t))
+		handler, err := NewHandler(nil, testAuthManager(t), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
@@ -51,7 +57,10 @@ func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 
 func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
-	handler := NewHandler(nil, testAuthManager(t))
+	handler, err := NewHandler(nil, testAuthManager(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	routes := []struct {
 		method string
@@ -81,7 +90,7 @@ func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 		{http.MethodGet, "/api/dns-log/dashboard"},
 		{http.MethodGet, "/api/dns-log/clients"},
 		{http.MethodGet, "/api/dns-log/top/10"},
-		{http.MethodGet, "/api/dns-log/rotate"},
+		{http.MethodPost, "/api/dns-log/rotate"},
 		{http.MethodPost, "/api/dns-log/alias"},
 		{http.MethodPost, "/api/tagger/tags"},
 		{http.MethodGet, "/api/tagger/tags"},

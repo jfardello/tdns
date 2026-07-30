@@ -19,11 +19,13 @@ import (
 
 const (
 	DefaultPurgeLimit = 500
+	MaxCSRFTokens     = 8
 	opaqueSecretBytes = 32
 )
 
 var (
 	ErrCodeConsumed    = errors.New("browser login code has already been consumed")
+	ErrCodeExpired     = errors.New("browser login code expired")
 	ErrSessionNotFound = errors.New("browser session not found")
 	ErrSessionExpired  = errors.New("browser session expired")
 	ErrInvalidCSRF     = errors.New("invalid CSRF token")
@@ -84,7 +86,7 @@ func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now ti
 	}
 	now = now.UTC()
 	if !now.Before(principal.ExpiresAt) {
-		return Credentials{}, errors.New("browser login code expired")
+		return Credentials{}, ErrCodeExpired
 	}
 	sessionID, err := randomSecret()
 	if err != nil {
@@ -139,6 +141,15 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		session.ExpiresAt.Unix(),
 	); err != nil {
 		return Credentials{}, fmt.Errorf("create browser session: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO browser_session_csrf_tokens (session_hash, csrf_hash, created_at)
+VALUES (?, ?, ?)`,
+		hashSecret(sessionID),
+		hashSecret(csrfToken),
+		now.UnixNano(),
+	); err != nil {
+		return Credentials{}, fmt.Errorf("create browser session CSRF token: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return Credentials{}, err
@@ -215,14 +226,13 @@ func (s *Store) ValidateCSRF(ctx context.Context, sessionID, csrfToken string, n
 	if csrfToken == "" {
 		return ErrInvalidCSRF
 	}
-	var storedHash []byte
 	var expiresAt int64
 	err := s.conn.QueryRowContext(ctx, `
-SELECT csrf_hash, expires_at
+SELECT expires_at
 FROM browser_sessions
 WHERE session_hash = ?`,
 		hashSecret(sessionID),
-	).Scan(&storedHash, &expiresAt)
+	).Scan(&expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrSessionNotFound
 	}
@@ -232,10 +242,96 @@ WHERE session_hash = ?`,
 	if !now.Before(time.Unix(expiresAt, 0)) {
 		return ErrSessionExpired
 	}
-	if subtle.ConstantTimeCompare(storedHash, hashSecret(csrfToken)) != 1 {
+	rows, err := s.conn.QueryContext(ctx, `
+SELECT csrf_hash
+FROM browser_session_csrf_tokens
+WHERE session_hash = ?`,
+		hashSecret(sessionID),
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	candidate := hashSecret(csrfToken)
+	valid := 0
+	for rows.Next() {
+		var storedHash []byte
+		if err := rows.Scan(&storedHash); err != nil {
+			return err
+		}
+		valid |= subtle.ConstantTimeCompare(storedHash, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if valid != 1 {
 		return ErrInvalidCSRF
 	}
 	return nil
+}
+
+// IssueCSRF creates a reload-safe CSRF token while retaining a bounded set for
+// other tabs using the same browser session.
+func (s *Store) IssueCSRF(ctx context.Context, sessionID string, now time.Time) (string, error) {
+	if sessionID == "" {
+		return "", ErrSessionNotFound
+	}
+	token, err := randomSecret()
+	if err != nil {
+		return "", err
+	}
+	sessionHash := hashSecret(sessionID)
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var expiresAt int64
+	if err := tx.QueryRowContext(ctx, `
+SELECT expires_at
+FROM browser_sessions
+WHERE session_hash = ?`,
+		sessionHash,
+	).Scan(&expiresAt); errors.Is(err, sql.ErrNoRows) {
+		return "", ErrSessionNotFound
+	} else if err != nil {
+		return "", err
+	}
+	if !now.Before(time.Unix(expiresAt, 0)) {
+		return "", ErrSessionExpired
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO browser_session_csrf_tokens (session_hash, csrf_hash, created_at)
+VALUES (?, ?, ?)`,
+		sessionHash,
+		hashSecret(token),
+		now.UTC().UnixNano(),
+	); err != nil {
+		return "", err
+	}
+	if _, err := tx.ExecContext(ctx, `
+DELETE FROM browser_session_csrf_tokens
+WHERE session_hash = ?
+  AND csrf_hash IN (
+	SELECT csrf_hash
+	FROM browser_session_csrf_tokens
+	WHERE session_hash = ?
+	ORDER BY created_at DESC, csrf_hash DESC
+	LIMIT -1 OFFSET ?
+  )`,
+		sessionHash,
+		sessionHash,
+		MaxCSRFTokens,
+	); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // PurgeExpired removes at most limit sessions and limit consumed-code records.

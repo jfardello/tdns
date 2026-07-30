@@ -7,13 +7,17 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 set -- api/docs api/openapi.yaml apiclient/generated web/app/generated
 
+before=$(mktemp)
+after=$(mktemp)
+trap 'rm -f "$before" "$after"' EXIT
+git diff --binary HEAD -- "$@" >"$before"
+
 ./tools/generate_api.sh
 
-drift=$(git status --porcelain -- "$@")
-if [ -n "$drift" ]; then
+git diff --binary HEAD -- "$@" >"$after"
+if ! cmp -s "$before" "$after"; then
 	echo "generated API files are not up to date:" >&2
-	printf '%s\n' "$drift" >&2
-	git diff -- "$@"
+	diff -u "$before" "$after" || true
 	exit 1
 fi
 

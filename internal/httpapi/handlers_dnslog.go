@@ -62,7 +62,7 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
-//	@Router			/api/dns-log/rotate [get]
+//	@Router			/api/dns-log/rotate [post]
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
 	w.Header().Set("Content-Type", "application/json")

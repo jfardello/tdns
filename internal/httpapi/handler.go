@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 
 	contractapi "github.com/jfardello/tdns/api"
 	_ "github.com/jfardello/tdns/api/docs"
@@ -15,7 +18,10 @@ import (
 )
 
 type v1 struct {
-	server *server.Server
+	server          *server.Server
+	authManager     *auth.Manager
+	browserStore    BrowserSessionStore
+	exchangeLimiter *exchangeLimiter
 }
 
 // Metrics.
@@ -30,52 +36,64 @@ func (api *v1) Metrics(w http.ResponseWriter, r *http.Request) {
 	promhttp.Handler().ServeHTTP(w, r)
 }
 
-func NewHandler(dns *server.Server, authManager *auth.Manager) http.Handler {
+func NewHandler(
+	dns *server.Server,
+	authManager *auth.Manager,
+	browserStore BrowserSessionStore,
+) (http.Handler, error) {
 	conf := config.GetRunningConfig()
 	readOnly := Requirement{IsRequired: true, Scope: auth.ScopeRead}
 	readWrite := Requirement{IsRequired: true, Scope: auth.ScopeWrite}
-	api := v1{server: dns}
+	api := v1{
+		server:          dns,
+		authManager:     authManager,
+		browserStore:    browserStore,
+		exchangeLimiter: newExchangeLimiter(),
+	}
 	mux := http.NewServeMux()
 
-	registerRoute(mux, "POST /api/stub-resolver", api.StubReplace, readWrite, "stub_replace", authManager)
-	registerRoute(mux, "GET /api/stub-resolver", api.StubStatus, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/zen-mode/persisted/domains", api.ZenPersistedDomainsReplace, readWrite, "zen_persisted_domains_replace", authManager)
-	registerRoute(mux, "POST /api/zen-mode/persisted/excludes", api.ZenPersistedExcludesReplace, readWrite, "zen_persisted_excludes_replace", authManager)
-	registerRoute(mux, "POST /api/zen-mode", api.ZenDomainsReplace, readWrite, "zen_domains_replace", authManager)
-	registerRoute(mux, "GET /api/zen-mode", api.ZenModeStatus, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/stub-resolver/{action}", api.StubToggle, readWrite, "stub_toggle", authManager)
-	registerRoute(mux, "GET /api/cache", api.CacheStatus, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/cache/excludes", api.CacheReplaceExcludes, readWrite, "cache_excludes_replace", authManager)
-	registerRoute(mux, "POST /api/cache/{action}", api.CacheToggle, readWrite, "cache_toggle", authManager)
-	registerRoute(mux, "GET /api/blacklist", api.BlacklistStatus, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/blacklist/persisted/hosts", api.BlacklistReplacePersistedHosts, readWrite, "blacklist_persisted_hosts_replace", authManager)
-	registerRoute(mux, "POST /api/blacklist/persisted/excludes", api.BlacklistReplacePersistedExcludes, readWrite, "blacklist_persisted_excludes_replace", authManager)
-	registerRoute(mux, "POST /api/blacklist/{action}", api.BlacklistToggle, readWrite, "blacklist_toggle", authManager)
-	registerRoute(mux, "POST /api/blacklist/whitelist", api.BlacklistAddRuntimeWhitelist, readWrite, "blacklist_whitelist_add", authManager)
-	registerRoute(mux, "GET /api/static-response", api.StaticResponseStatus, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/static-response/persisted", api.StaticResponseReplacePersisted, readWrite, "static_response_persisted_replace", authManager)
-	registerRoute(mux, "POST /api/static-response", api.StaticResponseReplace, readWrite, "static_response_replace", authManager)
-	registerRoute(mux, "POST /api/static-response/{action}", api.StaticResponseToggle, readWrite, "static_response_toggle", authManager)
-	registerRoute(mux, "GET /api/dns-log/dashboard", api.DNSLogDashboard, readOnly, "", authManager)
-	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager)
-	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager)
-	registerRoute(mux, "GET /api/dns-log/rotate", api.DNSLogRotate, readWrite, "dns_log_rotate", authManager)
-	registerRoute(mux, "POST /api/dns-log/alias", api.DNSLogAlias, readWrite, "dns_log_alias", authManager)
-	registerRoute(mux, "POST /api/zen-mode/start", api.ZenModeStart, readWrite, "zen_mode_start", authManager)
-	registerRoute(mux, "DELETE /api/cache", api.DeleteCache, readWrite, "cache_delete", authManager)
+	registerRoute(mux, "POST /api/stub-resolver", api.StubReplace, readWrite, "stub_replace", authManager, browserStore)
+	registerRoute(mux, "GET /api/stub-resolver", api.StubStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/zen-mode/persisted/domains", api.ZenPersistedDomainsReplace, readWrite, "zen_persisted_domains_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/zen-mode/persisted/excludes", api.ZenPersistedExcludesReplace, readWrite, "zen_persisted_excludes_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/zen-mode", api.ZenDomainsReplace, readWrite, "zen_domains_replace", authManager, browserStore)
+	registerRoute(mux, "GET /api/zen-mode", api.ZenModeStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/stub-resolver/{action}", api.StubToggle, readWrite, "stub_toggle", authManager, browserStore)
+	registerRoute(mux, "GET /api/cache", api.CacheStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/cache/excludes", api.CacheReplaceExcludes, readWrite, "cache_excludes_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/cache/{action}", api.CacheToggle, readWrite, "cache_toggle", authManager, browserStore)
+	registerRoute(mux, "GET /api/blacklist", api.BlacklistStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/blacklist/persisted/hosts", api.BlacklistReplacePersistedHosts, readWrite, "blacklist_persisted_hosts_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/blacklist/persisted/excludes", api.BlacklistReplacePersistedExcludes, readWrite, "blacklist_persisted_excludes_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/blacklist/{action}", api.BlacklistToggle, readWrite, "blacklist_toggle", authManager, browserStore)
+	registerRoute(mux, "POST /api/blacklist/whitelist", api.BlacklistAddRuntimeWhitelist, readWrite, "blacklist_whitelist_add", authManager, browserStore)
+	registerRoute(mux, "GET /api/static-response", api.StaticResponseStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/static-response/persisted", api.StaticResponseReplacePersisted, readWrite, "static_response_persisted_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/static-response", api.StaticResponseReplace, readWrite, "static_response_replace", authManager, browserStore)
+	registerRoute(mux, "POST /api/static-response/{action}", api.StaticResponseToggle, readWrite, "static_response_toggle", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log/dashboard", api.DNSLogDashboard, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/dns-log/rotate", api.DNSLogRotate, readWrite, "dns_log_rotate", authManager, browserStore)
+	registerRoute(mux, "POST /api/dns-log/alias", api.DNSLogAlias, readWrite, "dns_log_alias", authManager, browserStore)
+	registerRoute(mux, "POST /api/zen-mode/start", api.ZenModeStart, readWrite, "zen_mode_start", authManager, browserStore)
+	registerRoute(mux, "DELETE /api/cache", api.DeleteCache, readWrite, "cache_delete", authManager, browserStore)
 
-	registerRoute(mux, "POST /api/tagger/tags", api.TaggerAddTag, readWrite, "tag_add", authManager)
-	registerRoute(mux, "GET /api/tagger/tags", api.TaggerGetTags, readOnly, "", authManager)
-	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}", api.TaggerDeleteTag, readWrite, "tag_delete", authManager)
+	registerRoute(mux, "POST /api/tagger/tags", api.TaggerAddTag, readWrite, "tag_add", authManager, browserStore)
+	registerRoute(mux, "GET /api/tagger/tags", api.TaggerGetTags, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}", api.TaggerDeleteTag, readWrite, "tag_delete", authManager, browserStore)
 
-	registerRoute(mux, "GET /api/tagger/hosts", api.TaggerKnownHosts, readOnly, "", authManager)
-	registerRoute(mux, "GET /api/tagger/tags/{tagName}", api.TaggerTagGetMembers, readOnly, "", authManager)
-	registerRoute(mux, "POST /api/tagger/tags/{tagName}", api.TaggerAddMember, readWrite, "tag_member_add", authManager)
-	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}/{address}", api.TaggerDeleteTagMember, readWrite, "tag_member_delete", authManager)
-	registerRoute(mux, "POST /api/tagger/address", api.TaggerAddressCreate, readWrite, "tagger_address_create", authManager)
-	registerRoute(mux, "PUT /api/tagger/address/{address}", api.TaggerAddressReplace, readWrite, "tagger_address_replace", authManager)
-	registerRoute(mux, "PUT /api/tagger/addr/{tagName}", api.TaggerLegacyAddressReplace, readWrite, "tagger_legacy_address_replace", authManager)
+	registerRoute(mux, "GET /api/tagger/hosts", api.TaggerKnownHosts, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "GET /api/tagger/tags/{tagName}", api.TaggerTagGetMembers, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/tagger/tags/{tagName}", api.TaggerAddMember, readWrite, "tag_member_add", authManager, browserStore)
+	registerRoute(mux, "DELETE /api/tagger/tags/{tagName}/{address}", api.TaggerDeleteTagMember, readWrite, "tag_member_delete", authManager, browserStore)
+	registerRoute(mux, "POST /api/tagger/address", api.TaggerAddressCreate, readWrite, "tagger_address_create", authManager, browserStore)
+	registerRoute(mux, "PUT /api/tagger/address/{address}", api.TaggerAddressReplace, readWrite, "tagger_address_replace", authManager, browserStore)
+	registerRoute(mux, "PUT /api/tagger/addr/{tagName}", api.TaggerLegacyAddressReplace, readWrite, "tagger_legacy_address_replace", authManager, browserStore)
 
+	mux.HandleFunc("POST /api/auth/exchange", api.BrowserCodeExchange)
+	mux.HandleFunc("GET /api/auth/session", api.BrowserSession)
+	mux.HandleFunc("POST /api/auth/logout", api.BrowserLogout)
 	mux.HandleFunc("GET /metrics", api.Metrics)
 	if conf.Server.SwaggerEnabled {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(
@@ -97,28 +115,53 @@ func registerRoute(
 	requirement Requirement,
 	auditAction string,
 	manager *auth.Manager,
+	browserStore BrowserSessionStore,
 ) {
 	if auditAction != "" {
 		handler = AuditMutation(auditAction, handler)
 	}
-	mux.HandleFunc(pattern, Require(handler, requirement, manager))
+	mux.HandleFunc(pattern, Require(handler, requirement, manager, browserStore))
 }
 
-func withCORS(handler http.Handler, conf config.CORSConf) http.Handler {
+func withCORS(handler http.Handler, conf config.CORSConf) (http.Handler, error) {
 	if !conf.Enabled {
-		return handler
+		return handler, nil
+	}
+	if len(conf.AllowedOrigins) == 0 {
+		return nil, errors.New("cors.allowed_origins must not be empty when CORS is enabled")
+	}
+	for _, origin := range conf.AllowedOrigins {
+		if err := validateCORSOrigin(origin); err != nil {
+			return nil, err
+		}
 	}
 
 	options := cors.Options{
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-		AllowedHeaders: []string{"authorization", "content-type"},
+		AllowedHeaders: []string{"authorization", "content-type", csrfHeaderName},
+		AllowedOrigins: conf.AllowedOrigins,
 		Debug:          log.IsDebugEnabled(),
 	}
-	if len(conf.AllowedOrigins) > 0 {
-		options.AllowedOrigins = conf.AllowedOrigins
-	} else {
-		options.AllowOriginFunc = func(string) bool { return true }
-	}
 
-	return cors.New(options).Handler(handler)
+	return cors.New(options).Handler(handler), nil
+}
+
+func validateCORSOrigin(origin string) error {
+	if strings.TrimSpace(origin) != origin || origin == "*" {
+		return errors.New("cors.allowed_origins must contain exact origins without wildcards")
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.Host == "" ||
+		parsed.User != nil ||
+		parsed.RawQuery != "" ||
+		parsed.Fragment != "" ||
+		parsed.Path != "" {
+		return errors.New("cors.allowed_origins contains an invalid origin")
+	}
+	if strings.Contains(parsed.Hostname(), "*") {
+		return errors.New("cors.allowed_origins must contain exact origins without wildcards")
+	}
+	return nil
 }

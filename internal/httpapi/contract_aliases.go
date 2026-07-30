@@ -40,3 +40,6 @@ type AddTagRequest = contractapi.AddTagRequest
 type AddMemberRequest = contractapi.AddMemberRequest
 type MemberLabelsRequest = contractapi.MemberLabelsRequest
 type ReplaceMemberLabelsRequest = contractapi.ReplaceMemberLabelsRequest
+type BrowserCodeExchangeRequest = contractapi.BrowserCodeExchangeRequest
+type BrowserSessionResponse = contractapi.BrowserSessionResponse
+type ErrorResponse = contractapi.ErrorResponse

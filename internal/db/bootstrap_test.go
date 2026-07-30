@@ -50,6 +50,7 @@ func TestBootstrapCreatesUnifiedSchema(t *testing.T) {
 		"config_overrides",
 		"browser_sessions",
 		"consumed_browser_codes",
+		"browser_session_csrf_tokens",
 	} {
 		var name string
 		if err := conn.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {

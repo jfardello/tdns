@@ -90,7 +90,12 @@ func TestRunMigrationsAuth(t *testing.T) {
 	conn := openDB(t, dbPath)
 	defer conn.Close()
 
-	for _, table := range []string{"schema_migrations", "browser_sessions", "consumed_browser_codes"} {
+	for _, table := range []string{
+		"schema_migrations",
+		"browser_sessions",
+		"consumed_browser_codes",
+		"browser_session_csrf_tokens",
+	} {
 		var name string
 		if err := conn.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)

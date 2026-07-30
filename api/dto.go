@@ -181,3 +181,18 @@ type MemberLabelsRequest struct {
 type ReplaceMemberLabelsRequest struct {
 	Tags []string `json:"tags"`
 }
+
+type BrowserCodeExchangeRequest struct {
+	Code string `json:"code"`
+}
+
+type BrowserSessionResponse struct {
+	Subject   string `json:"subject"`
+	Scope     string `json:"scope"`
+	ExpiresAt string `json:"expires_at" format:"date-time"`
+	CSRFToken string `json:"csrf_token"`
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
