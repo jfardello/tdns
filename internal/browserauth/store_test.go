@@ -57,6 +57,9 @@ func TestRedeemCodeStoresOnlyHashedSecrets(t *testing.T) {
 	if credentials.Session.ExpiresAt.Sub(credentials.Session.CreatedAt) != auth.BrowserSessionTTL {
 		t.Fatalf("session lifetime = %s", credentials.Session.ExpiresAt.Sub(credentials.Session.CreatedAt))
 	}
+	if credentials.Session.AuthenticationMethod != AuthenticationMethodBrowserCode {
+		t.Fatalf("authentication method = %q", credentials.Session.AuthenticationMethod)
+	}
 
 	var sessionHash, csrfHash []byte
 	if err := store.conn.QueryRow(`

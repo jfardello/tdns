@@ -95,11 +95,40 @@ func TestRunMigrationsAuth(t *testing.T) {
 		"browser_sessions",
 		"consumed_browser_codes",
 		"browser_session_csrf_tokens",
+		"local_administrator",
 	} {
 		var name string
 		if err := conn.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
 		}
+	}
+
+	if err := RunMigrations(context.Background(), dbPath, TargetAuth); err != nil {
+		t.Fatalf("RunMigrations auth second pass: %v", err)
+	}
+	var count int
+	if err := conn.QueryRow(
+		"SELECT COUNT(*) FROM schema_migrations WHERE target = ?",
+		string(TargetAuth),
+	).Scan(&count); err != nil {
+		t.Fatalf("count auth migrations: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("expected 3 auth migrations, got %d", count)
+	}
+
+	if _, err := conn.Exec(`
+INSERT INTO browser_sessions
+	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at)
+VALUES (zeroblob(32), 'legacy', 'tdns.kubewire.net:rw', zeroblob(32), 1, 1, 2)`); err != nil {
+		t.Fatalf("insert pre-attribution session: %v", err)
+	}
+	var method string
+	if err := conn.QueryRow(`SELECT authentication_method FROM browser_sessions`).Scan(&method); err != nil {
+		t.Fatalf("read default authentication method: %v", err)
+	}
+	if method != "browser_code" {
+		t.Fatalf("default authentication method = %q", method)
 	}
 }
 

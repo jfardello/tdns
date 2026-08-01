@@ -18,9 +18,11 @@ import (
 )
 
 const (
-	DefaultPurgeLimit = 500
-	MaxCSRFTokens     = 8
-	opaqueSecretBytes = 32
+	DefaultPurgeLimit               = 500
+	MaxCSRFTokens                   = 8
+	AuthenticationMethodBrowserCode = "browser_code"
+	AuthenticationMethodPassword    = "password"
+	opaqueSecretBytes               = 32
 )
 
 var (
@@ -32,11 +34,12 @@ var (
 )
 
 type Session struct {
-	Subject   string
-	Scope     string
-	CreatedAt time.Time
-	LastUsed  time.Time
-	ExpiresAt time.Time
+	Subject              string
+	Scope                string
+	AuthenticationMethod string
+	CreatedAt            time.Time
+	LastUsed             time.Time
+	ExpiresAt            time.Time
 }
 
 type Credentials struct {
@@ -97,11 +100,12 @@ func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now ti
 		return Credentials{}, err
 	}
 	session := Session{
-		Subject:   principal.Subject,
-		Scope:     principal.Scope,
-		CreatedAt: time.Unix(now.Unix(), 0).UTC(),
-		LastUsed:  time.Unix(now.Unix(), 0).UTC(),
-		ExpiresAt: time.Unix(now.Add(auth.BrowserSessionTTL).Unix(), 0).UTC(),
+		Subject:              principal.Subject,
+		Scope:                principal.Scope,
+		AuthenticationMethod: AuthenticationMethodBrowserCode,
+		CreatedAt:            time.Unix(now.Unix(), 0).UTC(),
+		LastUsed:             time.Unix(now.Unix(), 0).UTC(),
+		ExpiresAt:            time.Unix(now.Add(auth.BrowserSessionTTL).Unix(), 0).UTC(),
 	}
 
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -130,8 +134,8 @@ ON CONFLICT(code_hash) DO NOTHING`,
 	}
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO browser_sessions
-	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)`,
+	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		hashSecret(sessionID),
 		session.Subject,
 		session.Scope,
@@ -139,6 +143,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		session.CreatedAt.Unix(),
 		session.LastUsed.Unix(),
 		session.ExpiresAt.Unix(),
+		session.AuthenticationMethod,
 	); err != nil {
 		return Credentials{}, fmt.Errorf("create browser session: %w", err)
 	}
@@ -168,11 +173,11 @@ func (s *Store) GetSession(ctx context.Context, sessionID string, now time.Time)
 	var session Session
 	var createdAt, lastUsed, expiresAt int64
 	err := s.conn.QueryRowContext(ctx, `
-SELECT subject, scope, created_at, last_used_at, expires_at
+SELECT subject, scope, authentication_method, created_at, last_used_at, expires_at
 FROM browser_sessions
 WHERE session_hash = ?`,
 		hashSecret(sessionID),
-	).Scan(&session.Subject, &session.Scope, &createdAt, &lastUsed, &expiresAt)
+	).Scan(&session.Subject, &session.Scope, &session.AuthenticationMethod, &createdAt, &lastUsed, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, ErrSessionNotFound
 	}

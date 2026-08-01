@@ -264,13 +264,15 @@ available, whichever comes first.
 | Preserve bearer JWT authentication for CLI and public Go clients | Approved | Maintains programmatic API compatibility. |
 | Replace browser JWT storage with an HttpOnly session | Approved | Prevents JavaScript from extracting the reusable session credential. |
 | Store opaque browser sessions server-side in SQLite | Approved | Supports direct expiration, logout, and revocation. |
-| Bootstrap browser sessions with a short-lived CLI-generated code | Approved | Fits the local administration workflow without adding a password database. |
+| Support short-lived CLI browser codes and one local bcrypt administrator | Approved | Preserves recovery through browser codes while adding an optional familiar password login. |
 | Make browser login codes purpose-bound and single-use | Approved | Limits replay and clipboard exposure. |
 | Keep browser cookie authentication same-origin by default | Approved | Avoids unnecessary credentialed CORS exposure. |
 | Retain generated API artifacts in version control | Approved | Builds do not require generators and CI can detect contract drift. |
 | Build releases with Go 1.26.5 or a later patched supported release | Approved | Avoids known reachable standard-library vulnerabilities found with Go 1.26.1. |
 | Default DNS access to loopback and require an explicit CIDR allowlist for other clients | Approved | Prevents a default installation from becoming an open resolver; firewalling remains defense in depth. |
-| Use a two-minute browser login code and a non-persistent 12-hour session | Approved | Limits bootstrap-code replay and avoids retaining the browser session after restart. |
+| Use a two-minute browser login code and a non-persistent 12-hour session by default | Approved | Limits bootstrap-code replay and preserves the current browser-close behavior unless persistence is explicitly requested. |
+| Allow absolute remembered sessions from 1 through 30 days, defaulting to 10 | Approved | Provides explicit browser persistence without sliding or indefinite renewal. |
+| Store one local read-write administrator with bcrypt cost 12 and a 12-72 byte password | Approved | Keeps credential scope and password verification bounded while avoiding plaintext configuration secrets. |
 | Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Approved | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
 | Enforce strict bearer claims without legacy-token compatibility | Implemented | Upgrades from `v0.1.6` or older require credential regeneration instead of retaining weak validation. |
 | Load signing keys from secret files or environment variables and support active/previous key IDs | Implemented | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
@@ -414,6 +416,41 @@ dependency, vulnerability, and version-verification policy.
 
 Status: Approved on 2026-07-26.
 
+### Planned Password Login And Remembered Sessions
+
+TDNS will support one enabled local read-write administrator stored in SQLite.
+The credential will be managed through an interactive CLI that never accepts a
+plaintext password in command arguments, environment variables, or YAML.
+Passwords must contain from 12 through 72 UTF-8 bytes and are stored only as a
+bcrypt cost-12 hash. A valid stored credential enables password login; browser
+codes remain available as an independent authentication and recovery method.
+
+Both password and browser-code login will offer an unchecked remember option.
+Without it, TDNS retains the implemented non-persistent cookie and absolute
+12-hour server session. With it, the cookie and server-side session receive the
+same absolute lifetime from `auth.browser.remember_days`, which defaults to 10
+and accepts values from 1 through 30. Remembered sessions do not slide or renew
+automatically. Password changes and account disablement revoke every session
+created through password authentication.
+
+Password verification will use generic failures, a dummy bcrypt comparison for
+unknown or unusable credentials, and bounded source-address, username, and
+global attempt limits without durable account lockout. Cookie identifiers
+remain opaque, server-side, Secure, HttpOnly, SameSite=Strict, host-only, and
+protected by the existing CSRF controls. Implementation and verification are
+tracked by issues `#91` through `#95`. Until those issues are complete, the
+implemented browser login remains browser-code-only and non-persistent.
+
+The SQLite credential record, cost and input validation, interactive
+`tdns adm password set` and `tdns adm password disable` commands, session
+authentication-method attribution, and password-session revocation are
+implemented by issue `#91`. Password login remains unavailable until the HTTP
+authentication work is implemented, and browser sessions remain
+non-persistent until remembered-session support is implemented.
+
+Status: Approved on 2026-08-01; credential-management foundation implemented,
+password login and remembered sessions pending.
+
 ## Known Temporary Risks
 
 - Metrics and enabled Swagger are unauthenticated.
@@ -462,6 +499,7 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 | 2026-07-26 | Default CLI bearer tokens to 30 days and cap them at 180 days. | Automation receives a bounded lifetime substantially shorter than the previous default. |
 | 2026-07-26 | Fail the CI security gate only for critical findings. | Other findings remain reported and triaged without automatically blocking builds. |
 | 2026-07-26 | Support both native/systemd and container installations. | Both deployment forms require equivalent non-root, minimal-capability, restricted-secret, and listener controls. |
+| 2026-08-01 | Add one CLI-managed bcrypt administrator and optional absolute remembered sessions while retaining browser-code login. | Password login is read-write, bcrypt uses cost 12 with 12-72 byte passwords, the default cookie remains non-persistent for 12 hours, and explicit persistence defaults to 10 days with a 30-day cap. |
 
 ## Related Documents
 
