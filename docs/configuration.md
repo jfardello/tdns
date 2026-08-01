@@ -123,14 +123,44 @@ Bare IP addresses and CIDRs are also accepted and normalized.
 | --- | --- | --- |
 | `blacklist.enabled` | `false` | Enables blacklist filtering. |
 | `blacklist.file` | empty | Local hosts-style file used as the active blocklist. Required when the middleware is configured. |
-| `blacklist.external_file` | empty | Path inside the external Git repository copied into `blacklist.file`. |
-| `blacklist.external_repo` | empty | Git repository used for scheduled blocklist refreshes. |
-| `blacklist.external_repo_branch` | `master` | Branch read from the external repository. |
+| `blacklist.external_file` | empty | Normalized relative path to a hosts file inside the configured GitHub repository. |
+| `blacklist.external_repo` | empty | Exact HTTPS `github.com/<owner>/<repository>` URL used for blocklist refreshes. GitHub is the only supported remote provider. |
+| `blacklist.external_repo_branch` | `master` | Valid Git branch read from the external GitHub repository. |
 | `blacklist.external_pull_period` | empty | Cron expression for scheduled refreshes; empty disables scheduled pulls. |
 | `blacklist.excludes` | `[]` | Configured domain or `label:<name>` exclusions. Persisted exclusions are merged with this list. |
 
 Persisted blacklist hosts add entries to the configured blocklist. Persisted
 exclusions add domain or label selectors to `blacklist.excludes`.
+
+Remote refreshes resolve the branch and retrieve content through the GitHub API.
+Public repositories need no credentials. For a private repository or a higher
+GitHub API rate limit, set `GITHUB_TOKEN` in the TDNS process environment. TDNS
+sends that token only to `api.github.com`, removes authorization before an
+allowed cross-host redirect, and never writes the token to configuration or
+logs.
+
+Remote ingestion always enforces the following limits; they are not
+configuration options:
+
+| Resource | Limit |
+| --- | --- |
+| GitHub metadata response | 1 MiB |
+| Compressed blocklist response | 64 MiB |
+| Uncompressed blocklist content | 128 MiB |
+| Hosts-file line | 64 KiB |
+| Hosts entries | 2,000,000 |
+| Redirects | 3 |
+| Complete refresh, including validation | 2 minutes |
+
+Redirects must remain on HTTPS and target the GitHub API or a supported GitHub
+content host. A remote candidate must contain at least one valid hosts entry;
+each data line starts with an IP address followed by one or more valid domain
+names. Comments and blank lines are accepted. TDNS downloads to a mode `0600`
+temporary file beside `blacklist.file`, validates and prepares the live lookup
+tree, and only then atomically replaces the active file. Any network, size,
+decompression, parsing, or installation failure leaves both the previous file
+and in-memory blocklist active. The revision sidecar is also written atomically
+with mode `0600` after successful installation.
 
 ### Static Responses
 

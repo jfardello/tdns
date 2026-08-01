@@ -2,32 +2,22 @@ package middleware
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
+	"net/netip"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/jfardello/tdns/sched"
-
-	"strings"
-
 	"github.com/jfardello/tdns/config"
+	internalblocklist "github.com/jfardello/tdns/internal/blocklist"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/sched"
 
 	"github.com/armon/go-radix"
 	"github.com/miekg/dns"
-
-	"github.com/dustin/go-humanize"
-	"github.com/go-git/go-git/v5"
-	gitconf "github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,24 +28,8 @@ const (
 
 type None struct{}
 
-type WriteCounter struct {
-	Total    uint64
-	ReportMB int
-	logger   *logrus.Entry
-}
-
-func (wc *WriteCounter) Write(p []byte) (int, error) {
-	n := len(p)
-	wc.Total += uint64(n)
-	if wc.Total >= uint64(1024*1024*wc.ReportMB) {
-		wc.PrintProgress()
-		wc.ReportMB++
-	}
-	return n, nil
-}
-
-func (wc *WriteCounter) PrintProgress() {
-	wc.logger.Infof("Downloaded %s", humanize.Bytes(wc.Total))
+type blocklistIngester interface {
+	Refresh(context.Context, internalblocklist.Source, string, string, internalblocklist.Validator) (internalblocklist.Result, error)
 }
 
 type BlackList struct {
@@ -76,6 +50,9 @@ type BlackList struct {
 	runtimeList   []string
 	runtimeRules  selectorSet
 	mu            sync.RWMutex
+	refreshMu     sync.Mutex
+	source        *internalblocklist.Source
+	ingester      blocklistIngester
 }
 
 type BlacklistStatus struct {
@@ -160,6 +137,17 @@ func (bp *BlackList) Config(c config.Config) error {
 	if branch == "" {
 		branch = "master"
 	}
+	if (ef == "") != (er == "") {
+		return errors.New("blacklist external_file and external_repo must be configured together")
+	}
+	var source *internalblocklist.Source
+	if ef != "" {
+		parsed, err := internalblocklist.ParseSource(er, branch, ef)
+		if err != nil {
+			return err
+		}
+		source = &parsed
+	}
 
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
@@ -178,188 +166,184 @@ func (bp *BlackList) Config(c config.Config) error {
 		bp.DefaultAddr = BLAddr
 		bp.branch = branch
 		bp.pullPeriod = c.Blacklist.ExternalPullPeriod
+		bp.source = source
+		if source != nil {
+			bp.ingester = internalblocklist.NewClient(os.Getenv("GITHUB_TOKEN"))
+		} else {
+			bp.ingester = nil
+		}
 		return nil
 	}
 	return errors.New("blacklist file is mandatory")
 }
 
-type GitLister interface {
-	List(o *git.ListOptions) (rfs []*plumbing.Reference, err error)
-}
-
-type GitDownloader struct {
-	externalFile string
-	externalRepo string
-	branch       string
-	holeFile     string
-	remote       GitLister
-}
-
-func newGitDownloader(externalFile, externalRepo, branch, holeFile string) *GitDownloader {
-	return &GitDownloader{
-		externalFile: externalFile,
-		externalRepo: externalRepo,
-		branch:       branch,
-		holeFile:     holeFile,
-		remote: git.NewRemote(memory.NewStorage(), &gitconf.RemoteConfig{
-			Name: "origin",
-			URLs: []string{externalRepo},
-		}),
-	}
-}
-
-func (gd *GitDownloader) RemoteHEAD() (string, error) {
-	logger := log.GetLogger("blacklist", "RemoteHEAD")
-	logger.Debugf("Checking remote HEAD... %s", gd.externalRepo)
-	refs, err := gd.remote.List(&git.ListOptions{
-		PeelingOption: git.AppendPeeled,
-	})
-	if err != nil {
-		return "", err
-	}
-	for _, r := range refs {
-		if r.Name().String() == fmt.Sprintf("refs/heads/%s", gd.branch) {
-			return r.Hash().String(), nil
-		}
-	}
-	return "", errors.New("could not find remote HEAD")
-}
-
-func (gd *GitDownloader) stateFile() string {
-	return gd.holeFile + ".state"
-}
-
-func (gd *GitDownloader) ReadLastHash() string {
-	b, err := os.ReadFile(gd.stateFile())
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
-}
-
-func (gd *GitDownloader) WriteLastHash(h string) error {
-	return os.WriteFile(gd.stateFile(), []byte(h+"\n"), 0644)
-}
-
-func (gd *GitDownloader) GithubRaw(file *os.File, ref string) (uint64, error) {
-	owner, repo, err := parseGitHub(gd.externalRepo)
-	if err != nil {
-		return 0, err
-	}
-	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
-		owner, repo, url.PathEscape(gd.externalFile), ref)
-	req, _ := http.NewRequest("GET", endpoint, nil)
-	req.Header.Set("Accept", "application/vnd.github.v3.raw")
-
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		req.Header.Set("Authorization", "token "+tok)
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		slurp, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return 0, fmt.Errorf("GitHub API %d: %s", resp.StatusCode, bytes.TrimSpace(slurp))
-	}
-	counter := &WriteCounter{
-		logger:   log.GetLogger("middleware.BlackList", "Download"),
-		ReportMB: 1,
-	}
-	if _, err = io.Copy(file, io.TeeReader(resp.Body, counter)); err != nil {
-		return counter.Total, err
-	}
-	return counter.Total, nil
-
-}
-
 func (bp *BlackList) Download() error {
-	logger := log.GetLogger("middleware.BlackList", "Download")
+	return bp.refresh(context.Background())
+}
+
+func (bp *BlackList) refresh(ctx context.Context) error {
+	bp.refreshMu.Lock()
+	defer bp.refreshMu.Unlock()
+	started := time.Now()
+	logger := log.GetLogger("middleware.BlackList", "Refresh")
 	bp.mu.RLock()
-	externalFile := bp.externalFile
-	externalRepo := bp.externalRepo
-	branch := bp.branch
+	source := bp.source
+	ingester := bp.ingester
 	holeFile := bp.HoleFile
 	bp.mu.RUnlock()
 
-	if externalFile != "" && externalRepo != "" {
-		downloader := newGitDownloader(externalFile, externalRepo, branch, holeFile)
-		head, err := downloader.RemoteHEAD()
-		if err != nil {
-			return fmt.Errorf("could not query remote: %w", err)
+	if source == nil || ingester == nil {
+		return nil
+	}
+
+	var prepared *radix.Tree
+	result, err := ingester.Refresh(ctx, *source, holeFile, currentBlocklistRevision(holeFile),
+		func(validationContext context.Context, candidate string, limits internalblocklist.Limits) (int, error) {
+			var parseErr error
+			var entries int
+			prepared, entries, parseErr = bp.buildHole(validationContext, candidate, true, limits)
+			return entries, parseErr
+		})
+	if err != nil {
+		resultName := string(internalblocklist.KindOf(err))
+		recordBlacklistRefresh(started, resultName, internalblocklist.Result{}, 0)
+		logger.WithFields(logrus.Fields{
+			"result":      resultName,
+			"duration_ms": time.Since(started).Milliseconds(),
+		}).Error(err)
+		return err
+	}
+	if !result.Changed {
+		bp.mu.RLock()
+		activeEntries := 0
+		if bp.Hole != nil {
+			activeEntries = bp.Hole.Len()
 		}
-		last := downloader.ReadLastHash()
-		if head == last {
-			logger.Info("No changes to remote!")
-			return nil
-		}
-		logger.Info("Downloading remote hosts file.")
-		f, err := os.OpenFile(holeFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
-		if err != nil {
-			logger.Error(err)
-			return err
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		total, err := downloader.GithubRaw(f, head)
-		if err != nil {
-			return err
-		}
-		logger.Infof("Downloaded %s from remote hosts file.", humanize.Bytes(total))
-		if err := downloader.WriteLastHash(head); err != nil {
-			return fmt.Errorf("could not persist blacklist state: %w", err)
-		}
+		bp.mu.RUnlock()
+		recordBlacklistRefresh(started, "unchanged", result, activeEntries)
+		logger.WithField("result", "unchanged").Info("Remote blocklist is current.")
+		return nil
+	}
+
+	bp.mu.Lock()
+	bp.Hole = prepared
+	activeEntries := prepared.Len()
+	bp.mu.Unlock()
+	recordBlacklistRefresh(started, "success", result, activeEntries)
+	logger.WithFields(logrus.Fields{
+		"result":             "success",
+		"duration_ms":        time.Since(started).Milliseconds(),
+		"compressed_bytes":   result.CompressedBytes,
+		"uncompressed_bytes": result.UncompressedBytes,
+		"entries":            result.Entries,
+	}).Info("Remote blocklist refreshed.")
+	if err := internalblocklist.WriteRevision(holeFile+".state", result.Revision); err != nil {
+		logger.WithField("result", "state_error").Warn("Remote blocklist revision state could not be persisted; the valid blocklist remains active.")
 	}
 	return nil
 }
 
 func (bp *BlackList) reloadHole() error {
+	bp.refreshMu.Lock()
+	defer bp.refreshMu.Unlock()
+	return bp.reloadHoleLocked()
+}
+
+func (bp *BlackList) reloadHoleLocked() error {
 	bp.mu.RLock()
 	holeFile := bp.HoleFile
+	bp.mu.RUnlock()
+
+	file, err := os.OpenFile(holeFile, os.O_RDONLY|os.O_CREATE, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	hole, _, err := bp.buildHole(context.Background(), holeFile, false, internalblocklist.DefaultLimits())
+	if err != nil {
+		return err
+	}
+	bp.mu.Lock()
+	bp.Hole = hole
+	activeEntries := hole.Len()
+	bp.mu.Unlock()
+	blacklistActiveEntries.Set(float64(activeEntries))
+	return nil
+}
+
+func (bp *BlackList) buildHole(ctx context.Context, filename string, strict bool, limits internalblocklist.Limits) (*radix.Tree, int, error) {
+	bp.mu.RLock()
 	configWhiteList := append([]string(nil), bp.whiteRules.Domains...)
 	extraHosts := append([]string(nil), bp.extraHosts...)
 	bp.mu.RUnlock()
 
-	readFile, err := os.OpenFile(holeFile, os.O_RDONLY|os.O_CREATE, 0644)
+	readFile, err := os.Open(filename)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
-	defer func(readFile *os.File) {
-		err := readFile.Close()
-		if err != nil {
-			logger := log.GetLogger("blacklist", "Init/deferred")
-			logger.Errorf("Error closing file %s: %s", bp.HoleFile, err.Error())
-		}
-	}(readFile)
+	defer readFile.Close()
 	scanner := bufio.NewScanner(readFile)
+	scanner.Buffer(make([]byte, 64*1024), limits.MaxLineBytes)
 	hole := radix.New()
-OUTER:
+	entries := 0
+	lineNumber := 0
 	for scanner.Scan() {
-		s := scanner.Text()
-		if strings.HasPrefix(s, "#") {
+		lineNumber++
+		if lineNumber%1024 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, 0, err
+			}
+		}
+		s := strings.TrimSpace(scanner.Text())
+		if s == "" || strings.HasPrefix(s, "#") {
 			continue
 		}
-
 		fields := strings.Fields(s)
-		if len(fields) > 1 {
-			domain := normalizeDomainPattern(fields[1])
+		if len(fields) < 2 {
+			if strict {
+				return nil, 0, fmt.Errorf("line %d is not a hosts entry", lineNumber)
+			}
+			continue
+		}
+		if strict {
+			if _, err := netip.ParseAddr(fields[0]); err != nil {
+				return nil, 0, fmt.Errorf("line %d has an invalid address", lineNumber)
+			}
+		} else {
+			fields = fields[:2]
+		}
+		for _, field := range fields[1:] {
+			if strings.HasPrefix(field, "#") {
+				break
+			}
+			domain := normalizeDomainPattern(field)
 			if domain == "" {
+				if strict {
+					return nil, 0, fmt.Errorf("line %d has an empty domain", lineNumber)
+				}
 				continue
 			}
-			if matchesSuffix(domain, configWhiteList) {
-				continue OUTER
+			if strict {
+				if _, ok := dns.IsDomainName(dns.Fqdn(domain)); !ok {
+					return nil, 0, fmt.Errorf("line %d has an invalid domain", lineNumber)
+				}
+				entries++
+				if entries > limits.MaxEntries {
+					return nil, 0, fmt.Errorf("candidate exceeds the entry limit")
+				}
 			}
-			hole.Insert(domain, None{})
+			if !matchesSuffix(domain, configWhiteList) {
+				hole.Insert(domain, None{})
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		return nil, 0, err
+	}
+	if strict && entries == 0 {
+		return nil, 0, errors.New("candidate contains no usable hosts entries")
 	}
 	for _, each := range extraHosts {
 		if each == "" || matchesSuffix(each, configWhiteList) {
@@ -367,11 +351,15 @@ OUTER:
 		}
 		hole.Insert(each, None{})
 	}
+	return hole, entries, nil
+}
 
-	bp.mu.Lock()
-	bp.Hole = hole
-	bp.mu.Unlock()
-	return nil
+func currentBlocklistRevision(holeFile string) string {
+	info, err := os.Stat(holeFile)
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		return ""
+	}
+	return internalblocklist.ReadRevision(holeFile + ".state")
 }
 
 func (bp *BlackList) Init() error {
@@ -384,8 +372,13 @@ func (bp *BlackList) Init() error {
 	ctx := bp.ctx
 	bp.mu.RUnlock()
 
-	if err := bp.reloadHole(); err != nil {
-		return err
+	bp.mu.RLock()
+	holeInitialized := bp.Hole != nil
+	bp.mu.RUnlock()
+	if !holeInitialized {
+		if err := bp.reloadHole(); err != nil {
+			return err
+		}
 	}
 
 	cf := config.GetRunningConfig()
@@ -394,9 +387,9 @@ func (bp *BlackList) Init() error {
 		name := "BlackListDownloader"
 		t := sched.Task{
 			Name: name,
-			Fn: sched.FuzzyTask(name, ctx, mf, func(context.Context) {
+			Fn: sched.FuzzyTask(name, ctx, mf, func(taskContext context.Context) {
 				logger := log.GetLogger("blacklist", name)
-				err := bp.Download()
+				err := bp.refresh(taskContext)
 				if err != nil {
 					logger.Error(err.Error())
 				}
@@ -512,39 +505,25 @@ func (bp *BlackList) Status() (BlacklistStatus, error) {
 }
 
 func (bp *BlackList) ReplacePersistedHosts(domains []string) error {
+	bp.refreshMu.Lock()
+	defer bp.refreshMu.Unlock()
 	normalized := normalizeDomainPatterns(domains)
 	bp.mu.Lock()
 	bp.extraHosts = append([]string(nil), normalized...)
 	bp.mu.Unlock()
-	return bp.reloadHole()
+	return bp.reloadHoleLocked()
 }
 
 func (bp *BlackList) ReplacePersistedExcludes(values []string) error {
+	bp.refreshMu.Lock()
+	defer bp.refreshMu.Unlock()
 	normalized := normalizeSelectorValues(values)
 	bp.mu.Lock()
 	bp.persistedList = append([]string(nil), normalized...)
 	mergedWhitelist := append(append([]string(nil), bp.WhiteList...), bp.persistedList...)
 	bp.whiteRules = parseSelectors(mergedWhitelist)
 	bp.mu.Unlock()
-	return bp.reloadHole()
-}
-
-func parseGitHub(uri string) (owner, repo string, err error) {
-	// Accept https://github.com/owner/repo(.git) or git@github.com:owner/repo.git
-	if strings.HasPrefix(uri, "http") {
-		u, err := url.Parse(uri)
-		if err != nil {
-			return "", "", err
-		}
-		parts := strings.Split(strings.TrimSuffix(u.Path, ".git"), "/")
-		if len(parts) < 3 {
-			return "", "", fmt.Errorf("unexpected URL form")
-		}
-		owner, repo = parts[1], parts[2]
-	} else {
-		return "", "", fmt.Errorf("unrecognised GitHub URL")
-	}
-	return owner, repo, nil
+	return bp.reloadHoleLocked()
 }
 
 func normalizeDomainPattern(value string) string {

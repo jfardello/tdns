@@ -91,6 +91,12 @@ container, add the actual client or trusted network prefixes to
 `dns_access.allowed_client_cidrs`. Container bridge networks are not trusted
 implicitly.
 
+The sample blocklist uses a public GitHub repository and needs no credential.
+For a private repository, inject `GITHUB_TOKEN` as a runtime-managed environment
+secret rather than placing it in `tdns.yaml`. Permit outbound HTTPS only to the
+GitHub API and supported GitHub content hosts described in the [configuration
+reference](configuration.md#blacklist).
+
 After bootstrap, do not mount `/etc/tdns` read-write into the serving container.
 
 ## Run With Docker

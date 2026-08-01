@@ -116,9 +116,20 @@ unsafe requests attach the current session-bound CSRF token. A management API
 ### Remote Blocklist Content
 
 Remote repositories, redirects, API responses, and downloaded content are
-untrusted inputs. The current download path does not yet enforce all planned
-time and size bounds or atomic validation. Deployments should use trusted
-repositories until bounded ingestion is implemented.
+untrusted inputs. Remote blocklist ingestion supports exact HTTPS GitHub
+repository URLs only. Repository components and GitHub API metadata are
+validated, request and response work is time-bounded, redirects remain on
+approved HTTPS GitHub hosts, and authorization is removed before cross-host
+redirects. Metadata, compressed content, decompressed content, line length, and
+entry count have mandatory fixed limits.
+
+Candidates are downloaded to restricted temporary files on the destination
+filesystem and parsed into a replacement lookup tree before installation. A
+validated candidate is atomically renamed over the active file and then swapped
+into live memory. Any failure before installation leaves both the previous file
+and lookup tree active. Logs and bounded-label metrics report refresh outcomes
+without repository credentials, authorization headers, or remote response
+bodies.
 
 ### Local Storage and Logs
 
@@ -407,8 +418,6 @@ Status: Approved on 2026-07-26.
 
 - Metrics and enabled Swagger are unauthenticated.
 - pprof is unauthenticated when configured.
-- Remote blocklist downloads need stricter time, size, redirect, validation,
-  and atomic-replacement controls.
 - Frontend production dependencies retain documented build-only audit
   exceptions through 2026-08-31.
 - Runtime database, log, backup, and disposal protection relies partly on

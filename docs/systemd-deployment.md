@@ -138,6 +138,12 @@ sudo systemctl start tdns
 Protect backups as sensitive DNS history and apply the configured retention and
 disposal policy.
 
+The sample blocklist uses a public GitHub repository and needs no credential.
+For a private repository, provide `GITHUB_TOKEN` through a root-owned systemd
+environment file; do not place it in `tdns.yaml`. Restrict outbound HTTPS to the
+GitHub API and supported GitHub content hosts documented in the [configuration
+reference](configuration.md#blacklist).
+
 ## Upgrade
 
 Before replacing the binary:
