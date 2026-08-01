@@ -56,6 +56,75 @@ paths:
       summary: Exchange browser login code
       tags:
         - authentication
+  /api/auth/login:
+    post:
+      description: Verify the local administrator credential and create an opaque browser session.
+      operationId: browserPasswordLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.BrowserPasswordLoginRequest"
+        description: Administrator credentials
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.BrowserSessionResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "413":
+          description: Request Entity Too Large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "415":
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "429":
+          description: Too Many Requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ErrorResponse"
+      summary: Log in with administrator password
+      tags:
+        - authentication
   /api/auth/logout:
     post:
       description: Revoke and clear the active browser session.
@@ -1783,7 +1852,7 @@ components:
       name: Authorization
       type: apiKey
     CookieAuth:
-      description: Opaque HttpOnly browser session cookie set by POST /api/auth/exchange.
+      description: Opaque HttpOnly browser session cookie set by the browser-code exchange or password login.
       in: cookie
       name: __Host-tdns-session
       type: apiKey
@@ -1858,6 +1927,15 @@ components:
     api.BrowserCodeExchangeRequest:
       properties:
         code:
+          type: string
+      type: object
+    api.BrowserPasswordLoginRequest:
+      properties:
+        password:
+          format: password
+          type: string
+        username:
+          example: admin
           type: string
       type: object
     api.BrowserSessionResponse:

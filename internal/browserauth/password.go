@@ -2,6 +2,7 @@ package browserauth
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -19,12 +20,15 @@ const (
 	AdministratorPasswordMax   = 72
 	administratorSingleton     = 1
 	administratorUsernameLimit = 64
+	dummyAdministratorHash     = "$2a$12$tSZ/zF0Vvlr6eDDWloupTOgqFCLLeMnCF/a2iu8Whzvyx7PtQD3hG"
+	dummyAdministratorPassword = "tdns-dummy-password-comparison"
 )
 
 var (
 	ErrAdministratorUnavailable = errors.New("local administrator credential is unavailable")
 	ErrInvalidAdministratorName = errors.New("invalid local administrator username")
 	ErrInvalidPassword          = errors.New("password must contain between 12 and 72 UTF-8 bytes")
+	ErrInvalidCredentials       = errors.New("invalid administrator credentials")
 )
 
 type AdministratorCredential struct {
@@ -59,6 +63,10 @@ func ValidateAdministratorPassword(password []byte) error {
 		return ErrInvalidPassword
 	}
 	return nil
+}
+
+func compareAdministratorPassword(hash, password []byte) error {
+	return bcrypt.CompareHashAndPassword(hash, password)
 }
 
 func (s *Store) SetAdministratorPassword(ctx context.Context, username string, password []byte, now time.Time) error {
@@ -131,10 +139,18 @@ WHERE singleton = ?`, now.Unix(), administratorSingleton)
 }
 
 func (s *Store) Administrator(ctx context.Context) (AdministratorCredential, error) {
+	return administratorCredential(ctx, s.conn)
+}
+
+type administratorQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func administratorCredential(ctx context.Context, querier administratorQuerier) (AdministratorCredential, error) {
 	var credential AdministratorCredential
 	var enabled int
 	var createdAt, updatedAt int64
-	err := s.conn.QueryRowContext(ctx, `
+	err := querier.QueryRowContext(ctx, `
 SELECT username, password_hash, subject, scope, enabled, created_at, updated_at
 FROM local_administrator
 WHERE singleton = ?`, administratorSingleton).Scan(
@@ -163,6 +179,65 @@ WHERE singleton = ?`, administratorSingleton).Scan(
 	credential.CreatedAt = time.Unix(createdAt, 0).UTC()
 	credential.UpdatedAt = time.Unix(updatedAt, 0).UTC()
 	return credential, nil
+}
+
+// CreatePasswordSession verifies the singleton administrator and creates its
+// opaque browser session. Credential state is revalidated in the transaction
+// so a concurrent password rotation cannot leave a post-rotation session.
+func (s *Store) CreatePasswordSession(ctx context.Context, username string, password []byte, now time.Time) (Credentials, error) {
+	normalized, normalizeErr := NormalizeAdministratorUsername(username)
+	credential, credentialErr := s.Administrator(ctx)
+	passwordErr := ValidateAdministratorPassword(password)
+
+	comparisonHash := []byte(dummyAdministratorHash)
+	comparisonPassword := password
+	validCandidate := normalizeErr == nil &&
+		credentialErr == nil &&
+		normalized == credential.Username &&
+		passwordErr == nil
+	if validCandidate {
+		comparisonHash = credential.PasswordHash
+	} else if passwordErr != nil {
+		comparisonPassword = []byte(dummyAdministratorPassword)
+	}
+	comparisonErr := s.comparePassword(comparisonHash, comparisonPassword)
+	if credentialErr != nil && !errors.Is(credentialErr, ErrAdministratorUnavailable) {
+		return Credentials{}, credentialErr
+	}
+	if !validCandidate || comparisonErr != nil {
+		return Credentials{}, ErrInvalidCredentials
+	}
+
+	credentials, err := newSessionCredentials(
+		credential.Subject,
+		credential.Scope,
+		AuthenticationMethodPassword,
+		now,
+	)
+	if err != nil {
+		return Credentials{}, err
+	}
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return Credentials{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	current, err := administratorCredential(ctx, tx)
+	if err != nil || current.Username != credential.Username ||
+		subtle.ConstantTimeCompare(current.PasswordHash, credential.PasswordHash) != 1 {
+		if err != nil && !errors.Is(err, ErrAdministratorUnavailable) {
+			return Credentials{}, err
+		}
+		return Credentials{}, ErrInvalidCredentials
+	}
+	if err := insertSession(ctx, tx, credentials, now); err != nil {
+		return Credentials{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Credentials{}, err
+	}
+	return credentials, nil
 }
 
 type passwordSessionRevoker interface {

@@ -101,6 +101,117 @@ func (api *v1) BrowserCodeExchange(w http.ResponseWriter, r *http.Request) {
 	}).Info("Authentication audit event.")
 }
 
+// Log in with the local administrator password.
+//
+//	@Summary		Log in with administrator password
+//	@Description	Verify the local administrator credential and create an opaque browser session.
+//	@Tags			authentication
+//	@ID				browserPasswordLogin
+//	@Param			request	body		api.BrowserPasswordLoginRequest	true	"Administrator credentials"
+//	@Success		200		{object}	api.BrowserSessionResponse
+//	@Failure		400		{object}	api.ErrorResponse
+//	@Failure		401		{object}	api.ErrorResponse
+//	@Failure		403		{object}	api.ErrorResponse
+//	@Failure		413		{object}	api.ErrorResponse
+//	@Failure		415		{object}	api.ErrorResponse
+//	@Failure		429		{object}	api.ErrorResponse
+//	@Failure		500		{object}	api.ErrorResponse
+//	@Failure		503		{object}	api.ErrorResponse
+//	@Router			/api/auth/login [post]
+func (api *v1) BrowserPasswordLogin(w http.ResponseWriter, r *http.Request) {
+	noStore(w)
+	passwordStore, ok := api.browserStore.(PasswordSessionStore)
+	if !ok || passwordStore == nil {
+		recordBrowserAuthentication("password", "unavailable")
+		writeAuthError(w, http.StatusServiceUnavailable)
+		return
+	}
+	if len(r.Header.Values("Authorization")) > 0 || len(sessionCookieValues(r)) > 0 {
+		recordBrowserAuthentication("password", "ambiguous")
+		auditAuthenticationFailure(r, "ambiguous_credentials")
+		writeAuthError(w, http.StatusUnauthorized)
+		return
+	}
+	if err := validateBrowserOrigin(r); err != nil {
+		recordBrowserAuthentication("password", "cross_site")
+		auditAuthenticationFailure(r, "cross_site_login")
+		writeAuthError(w, http.StatusForbidden)
+		return
+	}
+
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		recordBrowserAuthentication("password", "malformed")
+		writeAuthError(w, http.StatusUnsupportedMediaType)
+		return
+	}
+	var request contractapi.BrowserPasswordLoginRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maximumExchangeBodyBytes))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		var maximumBytesError *http.MaxBytesError
+		if errors.As(err, &maximumBytesError) {
+			recordBrowserAuthentication("password", "oversized")
+			writeAuthError(w, http.StatusRequestEntityTooLarge)
+			return
+		}
+		recordBrowserAuthentication("password", "malformed")
+		writeAuthError(w, http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		recordBrowserAuthentication("password", "malformed")
+		writeAuthError(w, http.StatusBadRequest)
+		return
+	}
+	if request.Username == "" || request.Password == "" {
+		recordBrowserAuthentication("password", "malformed")
+		writeAuthError(w, http.StatusBadRequest)
+		return
+	}
+
+	normalizedUsername, err := browserauth.NormalizeAdministratorUsername(request.Username)
+	if err != nil {
+		normalizedUsername = invalidPasswordUsernameKey
+	}
+	if reason := api.passwordLimiter.Allow(r.RemoteAddr, normalizedUsername); reason != passwordLimitAllowed {
+		w.Header().Set("Retry-After", passwordRetryAfter)
+		recordBrowserAuthentication("password", "rate_limited")
+		auditAuthenticationFailure(r, "password_rate_limited")
+		writeAuthError(w, http.StatusTooManyRequests)
+		return
+	}
+
+	password := []byte(request.Password)
+	request.Password = ""
+	defer clearPasswordBytes(password)
+	started := time.Now()
+	credentials, err := passwordStore.CreatePasswordSession(r.Context(), request.Username, password, started)
+	passwordAuthenticationDuration.Observe(time.Since(started).Seconds())
+	if err != nil {
+		if errors.Is(err, browserauth.ErrInvalidCredentials) {
+			recordBrowserAuthentication("password", "invalid")
+			auditAuthenticationFailure(r, "invalid_credentials")
+			writeAuthError(w, http.StatusUnauthorized)
+			return
+		}
+		recordBrowserAuthentication("password", "error")
+		log.GetLogger("auth", "audit").WithError(err).Error("Password browser session creation failed.")
+		writeAuthError(w, http.StatusInternalServerError)
+		return
+	}
+
+	setSessionCookie(w, credentials.SessionID)
+	writeAPIJSON(w, http.StatusOK, sessionResponse(credentials.Session, credentials.CSRFToken))
+	recordBrowserAuthentication("password", "success")
+	log.GetLogger("auth", "audit").WithFields(logrus.Fields{
+		"authentication_method": "password",
+		"event":                 "browser_session_created",
+		"outcome":               "success",
+		"scope":                 credentials.Session.Scope,
+	}).Info("Authentication audit event.")
+}
+
 // Get current browser session.
 //
 //	@Summary		Get browser session
@@ -218,4 +329,10 @@ func writeAuthError(w http.ResponseWriter, status int) {
 	writeAPIJSON(w, status, contractapi.ErrorResponse{
 		Error: strings.ToLower(strings.ReplaceAll(http.StatusText(status), " ", "_")),
 	})
+}
+
+func clearPasswordBytes(password []byte) {
+	for i := range password {
+		password[i] = 0
+	}
 }

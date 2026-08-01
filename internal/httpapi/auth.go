@@ -43,6 +43,11 @@ type BrowserSessionStore interface {
 	RevokeSession(context.Context, string) error
 }
 
+type PasswordSessionStore interface {
+	BrowserSessionStore
+	CreatePasswordSession(context.Context, string, []byte, time.Time) (browserauth.Credentials, error)
+}
+
 func PrincipalFromContext(ctx context.Context) (auth.Principal, bool) {
 	if identity, ok := IdentityFromContext(ctx); ok {
 		return identity.Principal, true

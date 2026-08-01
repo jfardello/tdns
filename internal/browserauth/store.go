@@ -49,7 +49,8 @@ type Credentials struct {
 }
 
 type Store struct {
-	conn *sql.DB
+	conn            *sql.DB
+	comparePassword func([]byte, []byte) error
 }
 
 func Open(ctx context.Context, dbPath string) (*Store, error) {
@@ -68,7 +69,7 @@ func Open(ctx context.Context, dbPath string) (*Store, error) {
 		_ = conn.Close()
 		return nil, err
 	}
-	return &Store{conn: conn}, nil
+	return &Store{conn: conn, comparePassword: compareAdministratorPassword}, nil
 }
 
 func (s *Store) Close() error {
@@ -91,21 +92,14 @@ func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now ti
 	if !now.Before(principal.ExpiresAt) {
 		return Credentials{}, ErrCodeExpired
 	}
-	sessionID, err := randomSecret()
+	credentials, err := newSessionCredentials(
+		principal.Subject,
+		principal.Scope,
+		AuthenticationMethodBrowserCode,
+		now,
+	)
 	if err != nil {
 		return Credentials{}, err
-	}
-	csrfToken, err := randomSecret()
-	if err != nil {
-		return Credentials{}, err
-	}
-	session := Session{
-		Subject:              principal.Subject,
-		Scope:                principal.Scope,
-		AuthenticationMethod: AuthenticationMethodBrowserCode,
-		CreatedAt:            time.Unix(now.Unix(), 0).UTC(),
-		LastUsed:             time.Unix(now.Unix(), 0).UTC(),
-		ExpiresAt:            time.Unix(now.Add(auth.BrowserSessionTTL).Unix(), 0).UTC(),
 	}
 
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -132,38 +126,66 @@ ON CONFLICT(code_hash) DO NOTHING`,
 	if affected != 1 {
 		return Credentials{}, ErrCodeConsumed
 	}
+	if err := insertSession(ctx, tx, credentials, now); err != nil {
+		return Credentials{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return Credentials{}, err
+	}
+	return credentials, nil
+}
+
+func newSessionCredentials(subject, scope, authenticationMethod string, now time.Time) (Credentials, error) {
+	sessionID, err := randomSecret()
+	if err != nil {
+		return Credentials{}, err
+	}
+	csrfToken, err := randomSecret()
+	if err != nil {
+		return Credentials{}, err
+	}
+	now = now.UTC()
+	return Credentials{
+		SessionID: sessionID,
+		CSRFToken: csrfToken,
+		Session: Session{
+			Subject:              subject,
+			Scope:                scope,
+			AuthenticationMethod: authenticationMethod,
+			CreatedAt:            time.Unix(now.Unix(), 0).UTC(),
+			LastUsed:             time.Unix(now.Unix(), 0).UTC(),
+			ExpiresAt:            time.Unix(now.Add(auth.BrowserSessionTTL).Unix(), 0).UTC(),
+		},
+	}, nil
+}
+
+func insertSession(ctx context.Context, tx *sql.Tx, credentials Credentials, csrfCreatedAt time.Time) error {
+	session := credentials.Session
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO browser_sessions
 	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		hashSecret(sessionID),
+		hashSecret(credentials.SessionID),
 		session.Subject,
 		session.Scope,
-		hashSecret(csrfToken),
+		hashSecret(credentials.CSRFToken),
 		session.CreatedAt.Unix(),
 		session.LastUsed.Unix(),
 		session.ExpiresAt.Unix(),
 		session.AuthenticationMethod,
 	); err != nil {
-		return Credentials{}, fmt.Errorf("create browser session: %w", err)
+		return fmt.Errorf("create browser session: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO browser_session_csrf_tokens (session_hash, csrf_hash, created_at)
 VALUES (?, ?, ?)`,
-		hashSecret(sessionID),
-		hashSecret(csrfToken),
-		now.UnixNano(),
+		hashSecret(credentials.SessionID),
+		hashSecret(credentials.CSRFToken),
+		csrfCreatedAt.UTC().UnixNano(),
 	); err != nil {
-		return Credentials{}, fmt.Errorf("create browser session CSRF token: %w", err)
+		return fmt.Errorf("create browser session CSRF token: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return Credentials{}, err
-	}
-	return Credentials{
-		SessionID: sessionID,
-		CSRFToken: csrfToken,
-		Session:   session,
-	}, nil
+	return nil
 }
 
 func (s *Store) GetSession(ctx context.Context, sessionID string, now time.Time) (Session, error) {

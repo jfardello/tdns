@@ -20,7 +20,7 @@ document.setIn([...schemePath, 'in'], 'cookie')
 document.setIn([...schemePath, 'name'], '__Host-tdns-session')
 document.setIn(
   [...schemePath, 'description'],
-  'Opaque HttpOnly browser session cookie set by POST /api/auth/exchange.'
+  'Opaque HttpOnly browser session cookie set by the browser-code exchange or password login.'
 )
 
 await writeFile(path, document.toString({ lineWidth: 0 }))

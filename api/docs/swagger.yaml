@@ -74,6 +74,15 @@ definitions:
       code:
         type: string
     type: object
+  api.BrowserPasswordLoginRequest:
+    properties:
+      password:
+        format: password
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
   api.BrowserSessionResponse:
     properties:
       csrf_token:
@@ -414,6 +423,58 @@ paths:
           schema:
             $ref: '#/definitions/api.ErrorResponse'
       summary: Exchange browser login code
+      tags:
+      - authentication
+  /api/auth/login:
+    post:
+      description: Verify the local administrator credential and create an opaque
+        browser session.
+      operationId: browserPasswordLogin
+      parameters:
+      - description: Administrator credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.BrowserPasswordLoginRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.BrowserSessionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Log in with administrator password
       tags:
       - authentication
   /api/auth/logout:
@@ -1767,8 +1828,8 @@ securityDefinitions:
     name: Authorization
     type: apiKey
   CookieAuth:
-    description: Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session
-      cookie.
+    description: Browser session cookie set by the browser-code exchange or password
+      login. OpenAPI 3 defines this as the __Host-tdns-session cookie.
     in: header
     name: Cookie
     type: apiKey

@@ -93,11 +93,14 @@ more specific style directives. External stylesheet resources remain restricted
 to same-origin URLs. Lucide icons are bundled into the static application, and
 runtime icon API fallback is disabled.
 
-The implemented browser authentication flow is:
+The implemented browser authentication flows are:
 
 - a CLI command generates a short-lived, purpose-bound login code
 - the administrator pastes the code into the browser login form
 - the code is redeemed once through the HTTPS API
+- when a valid enabled local administrator exists, a same-origin client can
+  instead submit its username and password to `POST /api/auth/login`; the
+  embedded login form will expose this option when issue `#94` is implemented
 - the server creates an opaque server-side session in SQLite
 - the browser receives only a host-bound Secure, HttpOnly, SameSite=Strict
   session cookie
@@ -106,12 +109,14 @@ The implemented browser authentication flow is:
 
 The cookie contains an opaque session identifier, not a JWT. This permits
 immediate logout, expiration, and revocation without maintaining a JWT denylist.
-The exchange, session-status, and logout routes are JSON-only and return
-`Cache-Control: no-store`. Exchange attempts have bounded source-address and
-global rate limits. TDNS uses the direct peer address and does not trust
-forwarding headers. Browser API requests include same-origin credentials, and
-unsafe requests attach the current session-bound CSRF token. A management API
-`401` clears in-memory authentication state and returns the user to login.
+The exchange, password-login, session-status, and logout routes return
+`Cache-Control: no-store`; request-bearing authentication routes are JSON-only.
+Code exchange has bounded source-address and global rate limits. Password login
+adds a normalized-username budget. TDNS uses the direct peer address and does
+not trust forwarding headers. Browser API requests include same-origin
+credentials, and unsafe requests attach the current session-bound CSRF token. A
+management API `401` clears in-memory authentication state and returns the user
+to login.
 
 ### Remote Blocklist Content
 
@@ -438,18 +443,30 @@ unknown or unusable credentials, and bounded source-address, username, and
 global attempt limits without durable account lockout. Cookie identifiers
 remain opaque, server-side, Secure, HttpOnly, SameSite=Strict, host-only, and
 protected by the existing CSRF controls. Implementation and verification are
-tracked by issues `#91` through `#95`. Until those issues are complete, the
-implemented browser login remains browser-code-only and non-persistent.
+tracked by issues `#91` through `#95`.
+
+The JSON-only `POST /api/auth/login` endpoint implements password login. It
+rejects bearer or existing cookie credentials, requires a same-origin request,
+bounds and strictly decodes the body, and returns the same unauthorized response
+for wrong, unknown, disabled, or unusable credentials. Unknown and unusable
+accounts execute a fixed cost-12 dummy bcrypt comparison. Before bcrypt work,
+the endpoint applies independent direct-peer and normalized-username budgets of
+five attempts with one attempt restored every 30 seconds, plus a global burst
+of ten with one attempt restored per second. Peer and username state are each
+limited to 1024 entries and expire after 15 minutes of inactivity. Usernames,
+passwords, hashes, session identifiers, and CSRF tokens are excluded from audit
+events and metric labels.
 
 The SQLite credential record, cost and input validation, interactive
 `tdns adm password set` and `tdns adm password disable` commands, session
 authentication-method attribution, and password-session revocation are
-implemented by issue `#91`. Password login remains unavailable until the HTTP
-authentication work is implemented, and browser sessions remain
-non-persistent until remembered-session support is implemented.
+implemented by issue `#91`. The hardened password endpoint and generated API
+contracts are implemented by issue `#92`. The embedded web login remains
+browser-code-only until issue `#94`, and sessions remain non-persistent until
+remembered-session support is implemented by issue `#93`.
 
-Status: Approved on 2026-08-01; credential-management foundation implemented,
-password login and remembered sessions pending.
+Status: Approved on 2026-08-01; credential management and backend password
+login implemented, remembered sessions and the dual-mode web form pending.
 
 ## Known Temporary Risks
 

@@ -186,6 +186,11 @@ type BrowserCodeExchangeRequest struct {
 	Code string `json:"code"`
 }
 
+type BrowserPasswordLoginRequest struct {
+	Username string `json:"username" example:"admin"`
+	Password string `json:"password" format:"password"`
+}
+
 type BrowserSessionResponse struct {
 	Subject   string `json:"subject"`
 	Scope     string `json:"scope"`

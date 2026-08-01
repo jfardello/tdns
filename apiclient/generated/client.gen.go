@@ -171,6 +171,14 @@ type ApiBrowserCodeExchangeRequest struct {
 	Code *string `json:"code,omitempty"`
 }
 
+// ApiBrowserPasswordLoginRequest defines model for api.BrowserPasswordLoginRequest.
+type ApiBrowserPasswordLoginRequest struct {
+	Password *string `json:"password,omitempty"`
+
+	// Username Example: admin
+	Username *string `json:"username,omitempty"`
+}
+
 // ApiBrowserSessionResponse defines model for api.BrowserSessionResponse.
 type ApiBrowserSessionResponse struct {
 	CsrfToken *string    `json:"csrf_token,omitempty"`
@@ -431,6 +439,9 @@ type TaggerKnownHostsSearchParams struct {
 // BrowserCodeExchangeJSONRequestBody defines body for BrowserCodeExchange for application/json ContentType.
 type BrowserCodeExchangeJSONRequestBody = ApiBrowserCodeExchangeRequest
 
+// BrowserPasswordLoginJSONRequestBody defines body for BrowserPasswordLogin for application/json ContentType.
+type BrowserPasswordLoginJSONRequestBody = ApiBrowserPasswordLoginRequest
+
 // BlacklistPersistedExcludesReplaceJSONRequestBody defines body for BlacklistPersistedExcludesReplace for application/json ContentType.
 type BlacklistPersistedExcludesReplaceJSONRequestBody = ApiBlacklistExcludesRequest
 
@@ -570,6 +581,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
 	BrowserCodeExchange(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowserPasswordLoginWithBody Log in with administrator password
+	//
+	// Verify the local administrator credential and create an opaque browser session.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+	BrowserPasswordLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BrowserPasswordLogin Log in with administrator password
+	//
+	// Verify the local administrator credential and create an opaque browser session.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+	BrowserPasswordLogin(ctx context.Context, body BrowserPasswordLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// BrowserSessionLogout Log out browser session
 	//
@@ -1049,6 +1078,44 @@ func (c *Client) BrowserCodeExchangeWithBody(ctx context.Context, contentType st
 // Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
 func (c *Client) BrowserCodeExchange(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewBrowserCodeExchangeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowserPasswordLoginWithBody Log in with administrator password
+//
+// Verify the local administrator credential and create an opaque browser session.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+func (c *Client) BrowserPasswordLoginWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserPasswordLoginRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BrowserPasswordLogin Log in with administrator password
+//
+// Verify the local administrator credential and create an opaque browser session.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+func (c *Client) BrowserPasswordLogin(ctx context.Context, body BrowserPasswordLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBrowserPasswordLoginRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2079,6 +2146,46 @@ func NewBrowserCodeExchangeRequestWithBody(server string, contentType string, bo
 	}
 
 	operationPath := fmt.Sprintf("/api/auth/exchange")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewBrowserPasswordLoginRequest calls the generic BrowserPasswordLogin builder with application/json body
+func NewBrowserPasswordLoginRequest(server string, body BrowserPasswordLoginJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBrowserPasswordLoginRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewBrowserPasswordLoginRequestWithBody constructs an http.Request for the BrowserPasswordLogin method, with any body, and a specified content type
+func NewBrowserPasswordLoginRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/auth/login")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3700,6 +3807,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/auth/exchange (the `BrowserCodeExchange` operationId).
 	BrowserCodeExchangeWithResponse(ctx context.Context, body BrowserCodeExchangeJSONRequestBody, reqEditors ...RequestEditorFn) (*BrowserCodeExchangeResponse, error)
 
+	// BrowserPasswordLoginWithBodyWithResponse Log in with administrator password
+	//
+	// Verify the local administrator credential and create an opaque browser session.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+	BrowserPasswordLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BrowserPasswordLoginResponse, error)
+
+	// BrowserPasswordLoginWithResponse Log in with administrator password
+	//
+	// Verify the local administrator credential and create an opaque browser session.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+	BrowserPasswordLoginWithResponse(ctx context.Context, body BrowserPasswordLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*BrowserPasswordLoginResponse, error)
+
 	// BrowserSessionLogoutWithResponse Log out browser session
 	//
 	// Revoke and clear the active browser session.
@@ -4266,6 +4391,103 @@ func (r BrowserCodeExchangeResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r BrowserCodeExchangeResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BrowserPasswordLoginResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiBrowserSessionResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ApiErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ApiErrorResponse
+	// JSON413 the response for an HTTP 413 `application/json` response
+	JSON413 *ApiErrorResponse
+	// JSON415 the response for an HTTP 415 `application/json` response
+	JSON415 *ApiErrorResponse
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *ApiErrorResponse
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiErrorResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON200() *ApiBrowserSessionResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON400() *ApiErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON401() *ApiErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON403() *ApiErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON413 returns the response for an HTTP 413 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON413() *ApiErrorResponse {
+	return r.JSON413
+}
+
+// GetJSON415 returns the response for an HTTP 415 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON415() *ApiErrorResponse {
+	return r.JSON415
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON429() *ApiErrorResponse {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON500() *ApiErrorResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r BrowserPasswordLoginResponse) GetJSON503() *ApiErrorResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r BrowserPasswordLoginResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BrowserPasswordLoginResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BrowserPasswordLoginResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BrowserPasswordLoginResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -6804,6 +7026,36 @@ func (c *ClientWithResponses) BrowserCodeExchangeWithResponse(ctx context.Contex
 	return ParseBrowserCodeExchangeResponse(rsp)
 }
 
+// BrowserPasswordLoginWithBodyWithResponse Log in with administrator password
+//
+// Verify the local administrator credential and create an opaque browser session.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+func (c *ClientWithResponses) BrowserPasswordLoginWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BrowserPasswordLoginResponse, error) {
+	rsp, err := c.BrowserPasswordLoginWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserPasswordLoginResponse(rsp)
+}
+
+// BrowserPasswordLoginWithResponse Log in with administrator password
+//
+// Verify the local administrator credential and create an opaque browser session.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/auth/login (the `BrowserPasswordLogin` operationId).
+func (c *ClientWithResponses) BrowserPasswordLoginWithResponse(ctx context.Context, body BrowserPasswordLoginJSONRequestBody, reqEditors ...RequestEditorFn) (*BrowserPasswordLoginResponse, error) {
+	rsp, err := c.BrowserPasswordLogin(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBrowserPasswordLoginResponse(rsp)
+}
+
 // BrowserSessionLogoutWithResponse Log out browser session
 //
 // Revoke and clear the active browser session.
@@ -7684,6 +7936,88 @@ func ParseBrowserCodeExchangeResponse(rsp *http.Response) (*BrowserCodeExchangeR
 			return nil, err
 		}
 		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBrowserPasswordLoginResponse parses an HTTP response from a BrowserPasswordLoginWithResponse call
+func ParseBrowserPasswordLoginResponse(rsp *http.Response) (*BrowserPasswordLoginResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BrowserPasswordLoginResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiBrowserSessionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON413 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 415:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON415 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

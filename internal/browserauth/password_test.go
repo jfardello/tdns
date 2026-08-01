@@ -158,6 +158,190 @@ func TestConcurrentAdministratorReplacementRemainsConsistent(t *testing.T) {
 	}
 }
 
+func TestCreatePasswordSessionUsesOpaqueSessionAndCSRFState(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 2, 10, 0, 0, 123, time.UTC)
+	password := []byte("correct horse battery staple")
+	if err := store.SetAdministratorPassword(ctx, "Admin", password, now.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+
+	credentials, err := store.CreatePasswordSession(ctx, " ADMIN ", password, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if credentials.SessionID == "" || credentials.CSRFToken == "" {
+		t.Fatal("password login returned an empty opaque secret")
+	}
+	if credentials.Session.Subject != "admin" ||
+		credentials.Session.Scope != auth.ScopeWrite ||
+		credentials.Session.AuthenticationMethod != AuthenticationMethodPassword ||
+		credentials.Session.ExpiresAt.Sub(credentials.Session.CreatedAt) != auth.BrowserSessionTTL {
+		t.Fatalf("session = %#v", credentials.Session)
+	}
+	if err := store.ValidateCSRF(ctx, credentials.SessionID, credentials.CSRFToken, now); err != nil {
+		t.Fatalf("ValidateCSRF: %v", err)
+	}
+	stored, err := store.GetSession(ctx, credentials.SessionID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.AuthenticationMethod != AuthenticationMethodPassword {
+		t.Fatalf("stored authentication method = %q", stored.AuthenticationMethod)
+	}
+}
+
+func TestCreatePasswordSessionRejectsInvalidCredentialsGenerically(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 2, 10, 0, 0, 0, time.UTC)
+	password := []byte("correct horse battery staple")
+	if err := store.SetAdministratorPassword(ctx, "admin", password, now); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name     string
+		username string
+		password []byte
+		prepare  func(*testing.T)
+	}{
+		{name: "wrong password", username: "admin", password: []byte("incorrect password value")},
+		{name: "unknown username", username: "unknown", password: password},
+		{name: "invalid username", username: "../admin", password: password},
+		{name: "short password", username: "admin", password: []byte("short")},
+		{name: "long password", username: "admin", password: []byte(strings.Repeat("x", AdministratorPasswordMax+1))},
+		{name: "disabled account", username: "admin", password: password, prepare: func(t *testing.T) {
+			if _, err := store.conn.Exec(`UPDATE local_administrator SET enabled = 0`); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "malformed hash", username: "admin", password: password, prepare: func(t *testing.T) {
+			if _, err := store.conn.Exec(`UPDATE local_administrator SET enabled = 1, password_hash = 'malformed'`); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := store.SetAdministratorPassword(ctx, "admin", password, now); err != nil {
+				t.Fatal(err)
+			}
+			if test.prepare != nil {
+				test.prepare(t)
+			}
+			if _, err := store.CreatePasswordSession(ctx, test.username, test.password, now); !errors.Is(err, ErrInvalidCredentials) {
+				t.Fatalf("error = %v", err)
+			}
+			assertSessionCount(t, store, AuthenticationMethodPassword, 0)
+		})
+	}
+}
+
+func TestUnavailableAdministratorUsesCost12DummyComparison(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 2, 10, 0, 0, 0, time.UTC)
+	if cost, err := bcrypt.Cost([]byte(dummyAdministratorHash)); err != nil || cost != AdministratorBcryptCost {
+		t.Fatalf("dummy bcrypt cost = %d, error = %v", cost, err)
+	}
+
+	type comparison struct {
+		hash     []byte
+		password []byte
+	}
+	var comparisons []comparison
+	store.comparePassword = func(hash, password []byte) error {
+		comparisons = append(comparisons, comparison{
+			hash:     append([]byte(nil), hash...),
+			password: append([]byte(nil), password...),
+		})
+		return bcrypt.ErrMismatchedHashAndPassword
+	}
+
+	for _, test := range []struct {
+		name     string
+		username string
+		password []byte
+		prepare  func(*testing.T)
+	}{
+		{name: "missing", username: "admin", password: []byte("valid password value")},
+		{name: "unknown", username: "unknown", password: []byte("valid password value"), prepare: func(t *testing.T) {
+			storeValidAdministrator(t, store, now)
+		}},
+		{name: "disabled", username: "admin", password: []byte("valid password value"), prepare: func(t *testing.T) {
+			storeValidAdministrator(t, store, now)
+			if _, err := store.conn.Exec(`UPDATE local_administrator SET enabled = 0`); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "malformed", username: "admin", password: []byte("valid password value"), prepare: func(t *testing.T) {
+			storeValidAdministrator(t, store, now)
+			if _, err := store.conn.Exec(`UPDATE local_administrator SET password_hash = 'malformed'`); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := store.conn.Exec(`DELETE FROM local_administrator`); err != nil {
+				t.Fatal(err)
+			}
+			if test.prepare != nil {
+				test.prepare(t)
+			}
+			comparisons = nil
+			if _, err := store.CreatePasswordSession(ctx, test.username, test.password, now); !errors.Is(err, ErrInvalidCredentials) {
+				t.Fatalf("error = %v", err)
+			}
+			if len(comparisons) != 1 || !bytes.Equal(comparisons[0].hash, []byte(dummyAdministratorHash)) {
+				t.Fatalf("comparisons = %#v", comparisons)
+			}
+		})
+	}
+}
+
+func TestPasswordRotationCannotLeaveAnOldPasswordSession(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 2, 10, 0, 0, 0, time.UTC)
+	oldPassword := []byte("old administrator password")
+	if err := store.SetAdministratorPassword(ctx, "admin", oldPassword, now); err != nil {
+		t.Fatal(err)
+	}
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	go func() {
+		<-start
+		_, err := store.CreatePasswordSession(ctx, "admin", oldPassword, now.Add(time.Minute))
+		errs <- err
+	}()
+	go func() {
+		<-start
+		errs <- store.SetAdministratorPassword(ctx, "admin", []byte("new administrator password"), now.Add(time.Minute))
+	}()
+	close(start)
+	for range 2 {
+		err := <-errs
+		if err != nil && !errors.Is(err, ErrInvalidCredentials) {
+			t.Fatalf("concurrent credential operation: %v", err)
+		}
+	}
+	assertSessionCount(t, store, AuthenticationMethodPassword, 0)
+}
+
+func storeValidAdministrator(t *testing.T, store *Store, now time.Time) {
+	t.Helper()
+	hash := mustHashAtCost(t, []byte("valid password value"), AdministratorBcryptCost)
+	if _, err := store.conn.Exec(`
+INSERT INTO local_administrator
+	(singleton, username, password_hash, subject, scope, enabled, created_at, updated_at)
+VALUES (1, 'admin', ?, 'admin', ?, 1, ?, ?)`, hash, auth.ScopeWrite, now.Unix(), now.Unix()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func mustHashAtCost(t *testing.T, password []byte, cost int) []byte {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword(password, cost)

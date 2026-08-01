@@ -80,6 +80,83 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/auth/login": {
+            "post": {
+                "description": "Verify the local administrator credential and create an opaque browser session.",
+                "tags": [
+                    "authentication"
+                ],
+                "summary": "Log in with administrator password",
+                "operationId": "browserPasswordLogin",
+                "parameters": [
+                    {
+                        "description": "Administrator credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BrowserPasswordLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.BrowserSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/logout": {
             "post": {
                 "description": "Revoke and clear the active browser session.",
@@ -2324,6 +2401,19 @@ const docTemplate = `{
                 }
             }
         },
+        "api.BrowserPasswordLoginRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "format": "password"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
         "api.BrowserSessionResponse": {
             "type": "object",
             "properties": {
@@ -2779,7 +2869,7 @@ const docTemplate = `{
             "in": "header"
         },
         "CookieAuth": {
-            "description": "Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session cookie.",
+            "description": "Browser session cookie set by the browser-code exchange or password login. OpenAPI 3 defines this as the __Host-tdns-session cookie.",
             "type": "apiKey",
             "name": "Cookie",
             "in": "header"

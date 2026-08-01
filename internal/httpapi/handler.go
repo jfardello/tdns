@@ -22,6 +22,7 @@ type v1 struct {
 	authManager     *auth.Manager
 	browserStore    BrowserSessionStore
 	exchangeLimiter *exchangeLimiter
+	passwordLimiter *passwordLimiter
 }
 
 // Metrics.
@@ -49,6 +50,7 @@ func NewHandler(
 		authManager:     authManager,
 		browserStore:    browserStore,
 		exchangeLimiter: newExchangeLimiter(),
+		passwordLimiter: newPasswordLimiter(),
 	}
 	mux := http.NewServeMux()
 
@@ -92,6 +94,7 @@ func NewHandler(
 	registerRoute(mux, "PUT /api/tagger/addr/{tagName}", api.TaggerLegacyAddressReplace, readWrite, "tagger_legacy_address_replace", authManager, browserStore)
 
 	mux.HandleFunc("POST /api/auth/exchange", api.BrowserCodeExchange)
+	mux.HandleFunc("POST /api/auth/login", api.BrowserPasswordLogin)
 	mux.HandleFunc("GET /api/auth/session", api.BrowserSession)
 	mux.HandleFunc("POST /api/auth/logout", api.BrowserLogout)
 	mux.HandleFunc("GET /metrics", api.Metrics)

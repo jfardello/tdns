@@ -41,5 +41,6 @@ type AddMemberRequest = contractapi.AddMemberRequest
 type MemberLabelsRequest = contractapi.MemberLabelsRequest
 type ReplaceMemberLabelsRequest = contractapi.ReplaceMemberLabelsRequest
 type BrowserCodeExchangeRequest = contractapi.BrowserCodeExchangeRequest
+type BrowserPasswordLoginRequest = contractapi.BrowserPasswordLoginRequest
 type BrowserSessionResponse = contractapi.BrowserSessionResponse
 type ErrorResponse = contractapi.ErrorResponse

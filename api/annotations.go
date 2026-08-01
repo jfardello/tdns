@@ -32,5 +32,5 @@
 //	@securityDefinitions.apikey	CookieAuth
 //	@in							header
 //	@name						Cookie
-//	@description				Browser session cookie. OpenAPI 3 defines this as the __Host-tdns-session cookie.
+//	@description				Browser session cookie set by the browser-code exchange or password login. OpenAPI 3 defines this as the __Host-tdns-session cookie.
 package api
