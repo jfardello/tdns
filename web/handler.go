@@ -92,7 +92,8 @@ func contentSecurityPolicy(assetsFS fs.FS) (string, error) {
 		"manifest-src 'self'",
 		"object-src 'none'",
 		"script-src " + strings.Join(scriptSources, " "),
-		"style-src 'self'",
+		"style-src 'self' 'unsafe-inline'",
+		"style-src-elem 'self' 'unsafe-inline'",
 		"style-src-attr 'unsafe-inline'",
 	}, "; "), nil
 }

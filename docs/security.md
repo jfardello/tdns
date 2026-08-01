@@ -86,8 +86,12 @@ UI document responses enforce a Content Security Policy that defaults to
 blocking all sources, permits same-origin scripts and API connections, and
 allows generated inline Nuxt bootstrap scripts only by their SHA-256 hashes.
 The policy does not allow `unsafe-eval` or general inline script execution.
-Inline style attributes remain allowed for Nuxt UI component rendering; other
-style resources must be same-origin.
+Inline style attributes and runtime-generated style elements remain allowed for
+Nuxt UI component rendering. The base style policy also includes an
+`unsafe-inline` compatibility fallback for browsers that do not enforce the
+more specific style directives. External stylesheet resources remain restricted
+to same-origin URLs. Lucide icons are bundled into the static application, and
+runtime icon API fallback is disabled.
 
 The implemented browser authentication flow is:
 

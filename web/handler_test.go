@@ -106,6 +106,15 @@ func TestContentSecurityPolicyAllowsGeneratedInlineScriptsByHash(t *testing.T) {
 	if strings.Contains(policy, "'unsafe-eval'") || strings.Contains(policy, "script-src 'self' 'unsafe-inline'") {
 		t.Fatalf("policy permits unsafe script execution: %q", policy)
 	}
+	for _, required := range []string{
+		"style-src 'self' 'unsafe-inline'",
+		"style-src-elem 'self' 'unsafe-inline'",
+		"style-src-attr 'unsafe-inline'",
+	} {
+		if !strings.Contains(policy, required) {
+			t.Fatalf("policy is missing style compatibility directive %q: %q", required, policy)
+		}
+	}
 }
 
 func TestContentSecurityPolicyHeaderIsApplied(t *testing.T) {

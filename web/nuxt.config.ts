@@ -3,6 +3,13 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', 'nuxt-charts'],
   css: ['~/assets/css/main.css'],
   ssr: false,
+  icon: {
+    provider: 'none',
+    fallbackToApi: false,
+    clientBundle: {
+      scan: true
+    }
+  },
   nitro: {
     devProxy: process.env.TDNS_API_PROXY_TARGET
       ? {
