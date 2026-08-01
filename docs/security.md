@@ -461,12 +461,13 @@ The SQLite credential record, cost and input validation, interactive
 `tdns adm password set` and `tdns adm password disable` commands, session
 authentication-method attribution, and password-session revocation are
 implemented by issue `#91`. The hardened password endpoint and generated API
-contracts are implemented by issue `#92`. The embedded web login remains
-browser-code-only until issue `#94`, and sessions remain non-persistent until
-remembered-session support is implemented by issue `#93`.
+contracts are implemented by issue `#92`. Optional absolute remembered sessions,
+bounded configuration, persistence attribution, and persistent cookie lifetime
+are implemented by issue `#93`. The embedded web login remains browser-code-only
+until issue `#94`.
 
-Status: Approved on 2026-08-01; credential management and backend password
-login implemented, remembered sessions and the dual-mode web form pending.
+Status: Approved on 2026-08-01; credential management, backend password login,
+and remembered sessions implemented; the dual-mode web form remains pending.
 
 ## Known Temporary Risks
 

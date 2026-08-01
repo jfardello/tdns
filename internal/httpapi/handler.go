@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	contractapi "github.com/jfardello/tdns/api"
 	_ "github.com/jfardello/tdns/api/docs"
@@ -18,11 +19,12 @@ import (
 )
 
 type v1 struct {
-	server          *server.Server
-	authManager     *auth.Manager
-	browserStore    BrowserSessionStore
-	exchangeLimiter *exchangeLimiter
-	passwordLimiter *passwordLimiter
+	server           *server.Server
+	authManager      *auth.Manager
+	browserStore     BrowserSessionStore
+	exchangeLimiter  *exchangeLimiter
+	passwordLimiter  *passwordLimiter
+	rememberLifetime time.Duration
 }
 
 // Metrics.
@@ -43,14 +45,22 @@ func NewHandler(
 	browserStore BrowserSessionStore,
 ) (http.Handler, error) {
 	conf := config.GetRunningConfig()
+	rememberDays := conf.Auth.Browser.RememberDays
+	if rememberDays == 0 {
+		rememberDays = config.DefaultBrowserRememberDays
+	}
+	if rememberDays < config.MinBrowserRememberDays || rememberDays > config.MaxBrowserRememberDays {
+		return nil, errors.New("auth.browser.remember_days must be between 1 and 30")
+	}
 	readOnly := Requirement{IsRequired: true, Scope: auth.ScopeRead}
 	readWrite := Requirement{IsRequired: true, Scope: auth.ScopeWrite}
 	api := v1{
-		server:          dns,
-		authManager:     authManager,
-		browserStore:    browserStore,
-		exchangeLimiter: newExchangeLimiter(),
-		passwordLimiter: newPasswordLimiter(),
+		server:           dns,
+		authManager:      authManager,
+		browserStore:     browserStore,
+		exchangeLimiter:  newExchangeLimiter(),
+		passwordLimiter:  newPasswordLimiter(),
+		rememberLifetime: time.Duration(rememberDays) * 24 * time.Hour,
 	}
 	mux := http.NewServeMux()
 

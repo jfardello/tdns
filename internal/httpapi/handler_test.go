@@ -55,6 +55,15 @@ func TestSwaggerRoutesFollowConfiguration(t *testing.T) {
 	})
 }
 
+func TestNewHandlerRejectsInvalidRememberedSessionLifetime(t *testing.T) {
+	config.SetRunningConfig(&config.Config{Auth: config.AuthConf{
+		Browser: config.BrowserAuthConf{RememberDays: config.MaxBrowserRememberDays + 1},
+	}})
+	if _, err := NewHandler(nil, testAuthManager(t), nil); err == nil {
+		t.Fatal("NewHandler accepted an invalid remembered-session lifetime")
+	}
+}
+
 func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
 	handler, err := NewHandler(nil, testAuthManager(t), nil)

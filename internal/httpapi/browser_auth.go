@@ -80,7 +80,7 @@ func (api *v1) BrowserCodeExchange(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusUnauthorized)
 		return
 	}
-	credentials, err := api.browserStore.RedeemCode(r.Context(), principal, time.Now())
+	credentials, err := api.browserStore.RedeemCode(r.Context(), principal, time.Now(), api.sessionOptions(request.Remember))
 	if err != nil {
 		if errors.Is(err, browserauth.ErrCodeConsumed) || errors.Is(err, browserauth.ErrCodeExpired) {
 			auditAuthenticationFailure(r, "invalid_browser_code")
@@ -91,7 +91,7 @@ func (api *v1) BrowserCodeExchange(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusInternalServerError)
 		return
 	}
-	setSessionCookie(w, credentials.SessionID)
+	setSessionCookie(w, credentials)
 	writeAPIJSON(w, http.StatusOK, sessionResponse(credentials.Session, credentials.CSRFToken))
 	log.GetLogger("auth", "audit").WithFields(logrus.Fields{
 		"event":   "browser_session_created",
@@ -186,7 +186,7 @@ func (api *v1) BrowserPasswordLogin(w http.ResponseWriter, r *http.Request) {
 	request.Password = ""
 	defer clearPasswordBytes(password)
 	started := time.Now()
-	credentials, err := passwordStore.CreatePasswordSession(r.Context(), request.Username, password, started)
+	credentials, err := passwordStore.CreatePasswordSession(r.Context(), request.Username, password, started, api.sessionOptions(request.Remember))
 	passwordAuthenticationDuration.Observe(time.Since(started).Seconds())
 	if err != nil {
 		if errors.Is(err, browserauth.ErrInvalidCredentials) {
@@ -201,7 +201,7 @@ func (api *v1) BrowserPasswordLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setSessionCookie(w, credentials.SessionID)
+	setSessionCookie(w, credentials)
 	writeAPIJSON(w, http.StatusOK, sessionResponse(credentials.Session, credentials.CSRFToken))
 	recordBrowserAuthentication("password", "success")
 	log.GetLogger("auth", "audit").WithFields(logrus.Fields{
@@ -210,6 +210,13 @@ func (api *v1) BrowserPasswordLogin(w http.ResponseWriter, r *http.Request) {
 		"outcome":               "success",
 		"scope":                 credentials.Session.Scope,
 	}).Info("Authentication audit event.")
+}
+
+func (api *v1) sessionOptions(remember bool) browserauth.SessionOptions {
+	if remember {
+		return browserauth.RememberedSessionOptions(api.rememberLifetime)
+	}
+	return browserauth.DefaultSessionOptions()
 }
 
 // Get current browser session.

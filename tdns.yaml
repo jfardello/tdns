@@ -43,6 +43,8 @@ auth:
     file: ""
     value: ""
   previous_key_accept_until: ""
+  browser:
+    remember_days: 10
 blacklist:
   enabled: true
   file: /var/lib/tdns/bhole_list

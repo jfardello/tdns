@@ -20,26 +20,42 @@ import (
 const (
 	DefaultPurgeLimit               = 500
 	MaxCSRFTokens                   = 8
+	MaxBrowserSessionTTL            = 30 * 24 * time.Hour
 	AuthenticationMethodBrowserCode = "browser_code"
 	AuthenticationMethodPassword    = "password"
 	opaqueSecretBytes               = 32
 )
 
 var (
-	ErrCodeConsumed    = errors.New("browser login code has already been consumed")
-	ErrCodeExpired     = errors.New("browser login code expired")
-	ErrSessionNotFound = errors.New("browser session not found")
-	ErrSessionExpired  = errors.New("browser session expired")
-	ErrInvalidCSRF     = errors.New("invalid CSRF token")
+	ErrCodeConsumed          = errors.New("browser login code has already been consumed")
+	ErrCodeExpired           = errors.New("browser login code expired")
+	ErrSessionNotFound       = errors.New("browser session not found")
+	ErrSessionExpired        = errors.New("browser session expired")
+	ErrInvalidCSRF           = errors.New("invalid CSRF token")
+	ErrInvalidSessionOptions = errors.New("invalid browser session options")
 )
 
 type Session struct {
 	Subject              string
 	Scope                string
 	AuthenticationMethod string
+	Persistent           bool
 	CreatedAt            time.Time
 	LastUsed             time.Time
 	ExpiresAt            time.Time
+}
+
+type SessionOptions struct {
+	Lifetime   time.Duration
+	Persistent bool
+}
+
+func DefaultSessionOptions() SessionOptions {
+	return SessionOptions{Lifetime: auth.BrowserSessionTTL}
+}
+
+func RememberedSessionOptions(lifetime time.Duration) SessionOptions {
+	return SessionOptions{Lifetime: lifetime, Persistent: true}
 }
 
 type Credentials struct {
@@ -81,7 +97,7 @@ func (s *Store) Close() error {
 
 // RedeemCode atomically consumes a validated browser code and creates a
 // session. The code, session identifier, and CSRF token are never persisted.
-func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now time.Time) (Credentials, error) {
+func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now time.Time, requested ...SessionOptions) (Credentials, error) {
 	if principal.Purpose != auth.BrowserCodePurpose ||
 		strings.TrimSpace(principal.TokenID) == "" ||
 		strings.TrimSpace(principal.Subject) == "" ||
@@ -92,11 +108,16 @@ func (s *Store) RedeemCode(ctx context.Context, principal auth.Principal, now ti
 	if !now.Before(principal.ExpiresAt) {
 		return Credentials{}, ErrCodeExpired
 	}
+	options, err := resolveSessionOptions(requested)
+	if err != nil {
+		return Credentials{}, err
+	}
 	credentials, err := newSessionCredentials(
 		principal.Subject,
 		principal.Scope,
 		AuthenticationMethodBrowserCode,
 		now,
+		options,
 	)
 	if err != nil {
 		return Credentials{}, err
@@ -135,7 +156,24 @@ ON CONFLICT(code_hash) DO NOTHING`,
 	return credentials, nil
 }
 
-func newSessionCredentials(subject, scope, authenticationMethod string, now time.Time) (Credentials, error) {
+func resolveSessionOptions(requested []SessionOptions) (SessionOptions, error) {
+	if len(requested) == 0 {
+		return DefaultSessionOptions(), nil
+	}
+	if len(requested) != 1 {
+		return SessionOptions{}, ErrInvalidSessionOptions
+	}
+	options := requested[0]
+	if options.Lifetime <= 0 || options.Lifetime > MaxBrowserSessionTTL {
+		return SessionOptions{}, ErrInvalidSessionOptions
+	}
+	if !options.Persistent && options.Lifetime != auth.BrowserSessionTTL {
+		return SessionOptions{}, ErrInvalidSessionOptions
+	}
+	return options, nil
+}
+
+func newSessionCredentials(subject, scope, authenticationMethod string, now time.Time, options SessionOptions) (Credentials, error) {
 	sessionID, err := randomSecret()
 	if err != nil {
 		return Credentials{}, err
@@ -152,9 +190,10 @@ func newSessionCredentials(subject, scope, authenticationMethod string, now time
 			Subject:              subject,
 			Scope:                scope,
 			AuthenticationMethod: authenticationMethod,
+			Persistent:           options.Persistent,
 			CreatedAt:            time.Unix(now.Unix(), 0).UTC(),
 			LastUsed:             time.Unix(now.Unix(), 0).UTC(),
-			ExpiresAt:            time.Unix(now.Add(auth.BrowserSessionTTL).Unix(), 0).UTC(),
+			ExpiresAt:            time.Unix(now.Add(options.Lifetime).Unix(), 0).UTC(),
 		},
 	}, nil
 }
@@ -163,8 +202,8 @@ func insertSession(ctx context.Context, tx *sql.Tx, credentials Credentials, csr
 	session := credentials.Session
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO browser_sessions
-	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method, persistent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		hashSecret(credentials.SessionID),
 		session.Subject,
 		session.Scope,
@@ -173,6 +212,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		session.LastUsed.Unix(),
 		session.ExpiresAt.Unix(),
 		session.AuthenticationMethod,
+		session.Persistent,
 	); err != nil {
 		return fmt.Errorf("create browser session: %w", err)
 	}
@@ -194,12 +234,13 @@ func (s *Store) GetSession(ctx context.Context, sessionID string, now time.Time)
 	}
 	var session Session
 	var createdAt, lastUsed, expiresAt int64
+	var persistent int
 	err := s.conn.QueryRowContext(ctx, `
-SELECT subject, scope, authentication_method, created_at, last_used_at, expires_at
+SELECT subject, scope, authentication_method, persistent, created_at, last_used_at, expires_at
 FROM browser_sessions
 WHERE session_hash = ?`,
 		hashSecret(sessionID),
-	).Scan(&session.Subject, &session.Scope, &session.AuthenticationMethod, &createdAt, &lastUsed, &expiresAt)
+	).Scan(&session.Subject, &session.Scope, &session.AuthenticationMethod, &persistent, &createdAt, &lastUsed, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, ErrSessionNotFound
 	}
@@ -209,6 +250,7 @@ WHERE session_hash = ?`,
 	session.CreatedAt = time.Unix(createdAt, 0).UTC()
 	session.LastUsed = time.Unix(lastUsed, 0).UTC()
 	session.ExpiresAt = time.Unix(expiresAt, 0).UTC()
+	session.Persistent = persistent == 1
 	if !now.Before(session.ExpiresAt) {
 		return Session{}, ErrSessionExpired
 	}

@@ -2398,6 +2398,9 @@ const docTemplate = `{
             "properties": {
                 "code": {
                     "type": "string"
+                },
+                "remember": {
+                    "type": "boolean"
                 }
             }
         },
@@ -2407,6 +2410,9 @@ const docTemplate = `{
                 "password": {
                     "type": "string",
                     "format": "password"
+                },
+                "remember": {
+                    "type": "boolean"
                 },
                 "username": {
                     "type": "string",

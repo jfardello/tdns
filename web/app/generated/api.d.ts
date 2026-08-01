@@ -747,10 +747,12 @@ export interface components {
         };
         "api.BrowserCodeExchangeRequest": {
             code?: string;
+            remember?: boolean;
         };
         "api.BrowserPasswordLoginRequest": {
             /** Format: password */
             password?: string;
+            remember?: boolean;
             /** @example admin */
             username?: string;
         };

@@ -73,12 +73,16 @@ definitions:
     properties:
       code:
         type: string
+      remember:
+        type: boolean
     type: object
   api.BrowserPasswordLoginRequest:
     properties:
       password:
         format: password
         type: string
+      remember:
+        type: boolean
       username:
         example: admin
         type: string

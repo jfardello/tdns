@@ -98,8 +98,8 @@ func TestAdministratorReplacementAndDisableRevokeOnlyPasswordSessions(t *testing
 	if err := store.SetAdministratorPassword(ctx, "first", []byte("first password value"), now); err != nil {
 		t.Fatal(err)
 	}
-	insertTestSession(t, store, "browser-session", AuthenticationMethodBrowserCode, now)
-	insertTestSession(t, store, "password-session", AuthenticationMethodPassword, now)
+	insertTestSession(t, store, "browser-session", AuthenticationMethodBrowserCode, false, now)
+	insertTestSession(t, store, "password-session", AuthenticationMethodPassword, true, now)
 
 	if err := store.SetAdministratorPassword(ctx, "second", []byte("second password value"), now.Add(time.Minute)); err != nil {
 		t.Fatal(err)
@@ -114,7 +114,7 @@ func TestAdministratorReplacementAndDisableRevokeOnlyPasswordSessions(t *testing
 	assertSessionCount(t, store, AuthenticationMethodBrowserCode, 1)
 	assertSessionCount(t, store, AuthenticationMethodPassword, 0)
 
-	insertTestSession(t, store, "new-password-session", AuthenticationMethodPassword, now)
+	insertTestSession(t, store, "new-password-session", AuthenticationMethodPassword, true, now)
 	if err := store.DisableAdministrator(ctx, now.Add(2*time.Minute)); err != nil {
 		t.Fatal(err)
 	}
@@ -351,14 +351,14 @@ func mustHashAtCost(t *testing.T, password []byte, cost int) []byte {
 	return hash
 }
 
-func insertTestSession(t *testing.T, store *Store, id, method string, now time.Time) {
+func insertTestSession(t *testing.T, store *Store, id, method string, persistent bool, now time.Time) {
 	t.Helper()
 	secretHash := hashSecret(id)
 	if _, err := store.conn.Exec(`
 INSERT INTO browser_sessions
-	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method)
-VALUES (?, 'admin', ?, ?, ?, ?, ?, ?)`,
-		secretHash, auth.ScopeWrite, hashSecret(id+"-csrf"), now.Unix(), now.Unix(), now.Add(time.Hour).Unix(), method,
+	(session_hash, subject, scope, csrf_hash, created_at, last_used_at, expires_at, authentication_method, persistent)
+VALUES (?, 'admin', ?, ?, ?, ?, ?, ?, ?)`,
+		secretHash, auth.ScopeWrite, hashSecret(id+"-csrf"), now.Unix(), now.Unix(), now.Add(time.Hour).Unix(), method, persistent,
 	); err != nil {
 		t.Fatal(err)
 	}

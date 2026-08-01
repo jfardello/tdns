@@ -50,6 +50,23 @@ func testAPIHandler(
 	return handler
 }
 
+func testAPIHandlerWithRememberDays(
+	t *testing.T,
+	manager *auth.Manager,
+	store BrowserSessionStore,
+	days int,
+) http.Handler {
+	t.Helper()
+	config.SetRunningConfig(&config.Config{Auth: config.AuthConf{
+		Browser: config.BrowserAuthConf{RememberDays: days},
+	}})
+	handler, err := NewHandler(nil, manager, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return handler
+}
+
 func sameOrigin(request *http.Request) {
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
 }
@@ -63,7 +80,7 @@ func TestBrowserAuthenticationLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body, _ := json.Marshal(contractapi.BrowserCodeExchangeRequest{Code: code})
+	body, _ := json.Marshal(map[string]any{"code": code, "remember": false})
 	exchange := httptest.NewRequest(http.MethodPost, "https://tdns.example/api/auth/exchange", bytes.NewReader(body))
 	exchange.Header.Set("Content-Type", "application/json")
 	sameOrigin(exchange)
@@ -147,6 +164,49 @@ func TestBrowserAuthenticationLifecycle(t *testing.T) {
 	}
 	if _, err := store.GetSession(context.Background(), cookie.Value, time.Now()); !errors.Is(err, browserauth.ErrSessionNotFound) {
 		t.Fatalf("logged-out session error = %v", err)
+	}
+}
+
+func TestBrowserCodeExchangeCreatesRememberedSession(t *testing.T) {
+	manager := testAuthManager(t)
+	store := testBrowserStore(t)
+	const rememberDays = 3
+	handler := testAPIHandlerWithRememberDays(t, manager, store, rememberDays)
+	code, err := manager.IssueBrowserCode("remembered-browser", auth.ScopeWrite, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(contractapi.BrowserCodeExchangeRequest{Code: code, Remember: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "https://tdns.example/api/auth/exchange", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	sameOrigin(request)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %d, want 1", len(cookies))
+	}
+	cookie := cookies[0]
+	wantMaxAge := rememberDays * 24 * 60 * 60
+	if cookie.MaxAge != wantMaxAge || cookie.Expires.IsZero() || cookie.Domain != "" ||
+		cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("remembered cookie = %#v", cookie)
+	}
+	stored, err := store.GetSession(context.Background(), cookie.Value, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stored.Persistent || stored.ExpiresAt.Sub(stored.CreatedAt) != rememberDays*24*time.Hour {
+		t.Fatalf("stored remembered session = %#v", stored)
+	}
+	if !cookie.Expires.Equal(stored.ExpiresAt) {
+		t.Fatalf("cookie expiry = %s, server expiry = %s", cookie.Expires, stored.ExpiresAt)
 	}
 }
 

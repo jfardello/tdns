@@ -113,8 +113,8 @@ func TestRunMigrationsAuth(t *testing.T) {
 	).Scan(&count); err != nil {
 		t.Fatalf("count auth migrations: %v", err)
 	}
-	if count != 3 {
-		t.Fatalf("expected 3 auth migrations, got %d", count)
+	if count != 4 {
+		t.Fatalf("expected 4 auth migrations, got %d", count)
 	}
 
 	if _, err := conn.Exec(`
@@ -124,11 +124,15 @@ VALUES (zeroblob(32), 'legacy', 'tdns.kubewire.net:rw', zeroblob(32), 1, 1, 2)`)
 		t.Fatalf("insert pre-attribution session: %v", err)
 	}
 	var method string
-	if err := conn.QueryRow(`SELECT authentication_method FROM browser_sessions`).Scan(&method); err != nil {
+	var persistent int
+	if err := conn.QueryRow(`SELECT authentication_method, persistent FROM browser_sessions`).Scan(&method, &persistent); err != nil {
 		t.Fatalf("read default authentication method: %v", err)
 	}
 	if method != "browser_code" {
 		t.Fatalf("default authentication method = %q", method)
+	}
+	if persistent != 0 {
+		t.Fatalf("default persistence = %d, want 0", persistent)
 	}
 }
 

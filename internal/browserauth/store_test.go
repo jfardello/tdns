@@ -86,6 +86,48 @@ FROM browser_sessions`).Scan(&sessionHash, &csrfHash); err != nil {
 	}
 }
 
+func TestRememberedSessionSurvivesRestartAndRetainsAbsoluteExpiry(t *testing.T) {
+	store, dbPath := newTestStore(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	lifetime := 10 * 24 * time.Hour
+	credentials, err := store.RedeemCode(
+		ctx,
+		codePrincipal("remembered-code", now),
+		now,
+		RememberedSessionOptions(lifetime),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	session, err := reopened.GetSession(ctx, credentials.SessionID, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !session.Persistent || !session.ExpiresAt.Equal(now.Add(lifetime)) {
+		t.Fatalf("reopened session = %#v", session)
+	}
+	if _, err := reopened.GetSession(ctx, credentials.SessionID, now.Add(lifetime)); !errors.Is(err, ErrSessionExpired) {
+		t.Fatalf("expiry error = %v", err)
+	}
+	purged, _, err := reopened.PurgeExpired(ctx, now.Add(lifetime), DefaultPurgeLimit)
+	if err != nil || purged != 1 {
+		t.Fatalf("PurgeExpired = %d, %v", purged, err)
+	}
+	if _, err := reopened.GetSession(ctx, credentials.SessionID, now.Add(lifetime)); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("purged session error = %v", err)
+	}
+}
+
 func TestConcurrentCodeRedemptionSucceedsOnce(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()

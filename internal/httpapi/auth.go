@@ -36,7 +36,7 @@ type RequestIdentity struct {
 }
 
 type BrowserSessionStore interface {
-	RedeemCode(context.Context, auth.Principal, time.Time) (browserauth.Credentials, error)
+	RedeemCode(context.Context, auth.Principal, time.Time, ...browserauth.SessionOptions) (browserauth.Credentials, error)
 	GetSession(context.Context, string, time.Time) (browserauth.Session, error)
 	IssueCSRF(context.Context, string, time.Time) (string, error)
 	ValidateCSRF(context.Context, string, string, time.Time) error
@@ -45,7 +45,7 @@ type BrowserSessionStore interface {
 
 type PasswordSessionStore interface {
 	BrowserSessionStore
-	CreatePasswordSession(context.Context, string, []byte, time.Time) (browserauth.Credentials, error)
+	CreatePasswordSession(context.Context, string, []byte, time.Time, ...browserauth.SessionOptions) (browserauth.Credentials, error)
 }
 
 func PrincipalFromContext(ctx context.Context) (auth.Principal, bool) {

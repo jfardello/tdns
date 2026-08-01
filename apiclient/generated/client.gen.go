@@ -168,12 +168,14 @@ type ApiBlacklistWhitelistRequest struct {
 
 // ApiBrowserCodeExchangeRequest defines model for api.BrowserCodeExchangeRequest.
 type ApiBrowserCodeExchangeRequest struct {
-	Code *string `json:"code,omitempty"`
+	Code     *string `json:"code,omitempty"`
+	Remember *bool   `json:"remember,omitempty"`
 }
 
 // ApiBrowserPasswordLoginRequest defines model for api.BrowserPasswordLoginRequest.
 type ApiBrowserPasswordLoginRequest struct {
 	Password *string `json:"password,omitempty"`
+	Remember *bool   `json:"remember,omitempty"`
 
 	// Username Example: admin
 	Username *string `json:"username,omitempty"`

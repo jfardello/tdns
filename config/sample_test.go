@@ -64,6 +64,9 @@ func TestSampleConfigLoadsThroughViper(t *testing.T) {
 	if loaded.DNSAccess.MaxConcurrentUpstreams != 128 || loaded.DNSAccess.ClientIdleTimeout != "10m" {
 		t.Fatalf("dns_access did not load expected defaults: %#v", loaded.DNSAccess)
 	}
+	if loaded.Auth.Browser.RememberDays != DefaultBrowserRememberDays {
+		t.Fatalf("auth.browser.remember_days = %d, want %d", loaded.Auth.Browser.RememberDays, DefaultBrowserRememberDays)
+	}
 }
 
 func mismatchedConfigTags(structType reflect.Type, prefix string) []string {

@@ -183,12 +183,14 @@ type ReplaceMemberLabelsRequest struct {
 }
 
 type BrowserCodeExchangeRequest struct {
-	Code string `json:"code"`
+	Code     string `json:"code"`
+	Remember bool   `json:"remember,omitempty"`
 }
 
 type BrowserPasswordLoginRequest struct {
 	Username string `json:"username" example:"admin"`
 	Password string `json:"password" format:"password"`
+	Remember bool   `json:"remember,omitempty"`
 }
 
 type BrowserSessionResponse struct {

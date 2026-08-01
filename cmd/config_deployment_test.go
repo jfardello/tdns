@@ -82,6 +82,9 @@ func TestGeneratedConfigUsesSelectedDeploymentPaths(t *testing.T) {
 	if generated.Server.SwaggerEnabled {
 		t.Fatal("generated configuration enables Swagger")
 	}
+	if generated.Auth.Browser.RememberDays != config.DefaultBrowserRememberDays {
+		t.Fatalf("generated remembered-session days = %d", generated.Auth.Browser.RememberDays)
+	}
 	if generated.Status.ExposeStats || generated.Status.ExposeUptime {
 		t.Fatal("generated configuration exposes status details")
 	}

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/jfardello/tdns/internal/browserauth"
 )
 
 const (
@@ -57,15 +59,20 @@ func validateOriginOrReferer(r *http.Request) error {
 	return nil
 }
 
-func setSessionCookie(w http.ResponseWriter, sessionID string) {
-	http.SetCookie(w, &http.Cookie{
+func setSessionCookie(w http.ResponseWriter, credentials browserauth.Credentials) {
+	cookie := &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    sessionID,
+		Value:    credentials.SessionID,
 		Path:     "/",
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
-	})
+	}
+	if credentials.Session.Persistent {
+		cookie.Expires = credentials.Session.ExpiresAt
+		cookie.MaxAge = int(credentials.Session.ExpiresAt.Sub(credentials.Session.CreatedAt).Seconds())
+	}
+	http.SetCookie(w, cookie)
 }
 
 func clearSessionCookie(w http.ResponseWriter) {

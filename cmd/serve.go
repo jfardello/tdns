@@ -139,6 +139,7 @@ func init() {
 	viper.SetDefault("auth.bearer_audience", auth.DefaultBearerAudience)
 	viper.SetDefault("auth.active_key.environment", "TDNS_AUTH_ACTIVE_KEY")
 	viper.SetDefault("auth.previous_key.environment", "TDNS_AUTH_PREVIOUS_KEY")
+	viper.SetDefault("auth.browser.remember_days", config.DefaultBrowserRememberDays)
 	viper.SetDefault("tagger.enabled", true)
 	viper.SetDefault("cache.enabled", true)
 
@@ -153,6 +154,9 @@ func run() {
 	c := &config.Config{}
 	err := viper.Unmarshal(c)
 	if err != nil {
+		logger.Fatal(err)
+	}
+	if err := config.Validate(c); err != nil {
 		logger.Fatal(err)
 	}
 	log.Configure(c.LogLevel, verbose)
@@ -181,6 +185,9 @@ func run() {
 			logger.Fatal(err)
 		}
 		if err := overrides.Apply(c, rows); err != nil {
+			logger.Fatal(err)
+		}
+		if err := config.Validate(c); err != nil {
 			logger.Fatal(err)
 		}
 		browserStore, err = browserauth.Open(context.Background(), dbPath)

@@ -28,14 +28,18 @@ type rejectingPasswordSessionStore struct {
 	attempts int
 }
 
-func (s *rejectingPasswordSessionStore) CreatePasswordSession(context.Context, string, []byte, time.Time) (browserauth.Credentials, error) {
+func (s *rejectingPasswordSessionStore) CreatePasswordSession(context.Context, string, []byte, time.Time, ...browserauth.SessionOptions) (browserauth.Credentials, error) {
 	s.attempts++
 	return browserauth.Credentials{}, browserauth.ErrInvalidCredentials
 }
 
-func passwordLoginRequest(t *testing.T, username, password string) *http.Request {
+func passwordLoginRequestWithRemember(t *testing.T, username, password string, remember bool) *http.Request {
 	t.Helper()
-	body, err := json.Marshal(contractapi.BrowserPasswordLoginRequest{Username: username, Password: password})
+	body, err := json.Marshal(contractapi.BrowserPasswordLoginRequest{
+		Username: username,
+		Password: password,
+		Remember: remember,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,6 +47,10 @@ func passwordLoginRequest(t *testing.T, username, password string) *http.Request
 	request.Header.Set("Content-Type", "application/json")
 	sameOrigin(request)
 	return request
+}
+
+func passwordLoginRequest(t *testing.T, username, password string) *http.Request {
+	return passwordLoginRequestWithRemember(t, username, password, false)
 }
 
 func testPasswordBrowserStore(t *testing.T) (*browserauth.Store, *sql.DB) {
@@ -112,6 +120,38 @@ func TestBrowserPasswordLoginCreatesExistingOpaqueSession(t *testing.T) {
 	}
 	if err := store.ValidateCSRF(context.Background(), cookie.Value, session.CSRFToken, time.Now()); err != nil {
 		t.Fatalf("CSRF state = %v", err)
+	}
+}
+
+func TestBrowserPasswordLoginCreatesRememberedSession(t *testing.T) {
+	manager := testAuthManager(t)
+	store := testBrowserStore(t)
+	if err := store.SetAdministratorPassword(context.Background(), "admin", []byte(testAdministratorPassword), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	const rememberDays = 5
+	handler := testAPIHandlerWithRememberDays(t, manager, store, rememberDays)
+	request := passwordLoginRequestWithRemember(t, "admin", testAdministratorPassword, true)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %d, want 1", len(cookies))
+	}
+	cookie := cookies[0]
+	if cookie.MaxAge != rememberDays*24*60*60 || cookie.Expires.IsZero() {
+		t.Fatalf("remembered cookie = %#v", cookie)
+	}
+	stored, err := store.GetSession(context.Background(), cookie.Value, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stored.Persistent || stored.AuthenticationMethod != browserauth.AuthenticationMethodPassword ||
+		stored.ExpiresAt.Sub(stored.CreatedAt) != rememberDays*24*time.Hour {
+		t.Fatalf("stored remembered password session = %#v", stored)
 	}
 }
 

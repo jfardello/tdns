@@ -184,7 +184,7 @@ WHERE singleton = ?`, administratorSingleton).Scan(
 // CreatePasswordSession verifies the singleton administrator and creates its
 // opaque browser session. Credential state is revalidated in the transaction
 // so a concurrent password rotation cannot leave a post-rotation session.
-func (s *Store) CreatePasswordSession(ctx context.Context, username string, password []byte, now time.Time) (Credentials, error) {
+func (s *Store) CreatePasswordSession(ctx context.Context, username string, password []byte, now time.Time, requested ...SessionOptions) (Credentials, error) {
 	normalized, normalizeErr := NormalizeAdministratorUsername(username)
 	credential, credentialErr := s.Administrator(ctx)
 	passwordErr := ValidateAdministratorPassword(password)
@@ -207,12 +207,17 @@ func (s *Store) CreatePasswordSession(ctx context.Context, username string, pass
 	if !validCandidate || comparisonErr != nil {
 		return Credentials{}, ErrInvalidCredentials
 	}
+	options, err := resolveSessionOptions(requested)
+	if err != nil {
+		return Credentials{}, err
+	}
 
 	credentials, err := newSessionCredentials(
 		credential.Subject,
 		credential.Scope,
 		AuthenticationMethodPassword,
 		now,
+		options,
 	)
 	if err != nil {
 		return Credentials{}, err

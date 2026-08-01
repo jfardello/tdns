@@ -2,8 +2,15 @@ package config
 
 import (
 	"crypto/rand"
+	"fmt"
 	"net"
 	"sync"
+)
+
+const (
+	DefaultBrowserRememberDays = 10
+	MinBrowserRememberDays     = 1
+	MaxBrowserRememberDays     = 30
 )
 
 var CtxKey = "values"
@@ -80,11 +87,30 @@ type DNSAccessConf struct {
 }
 
 type AuthConf struct {
-	Issuer                 string         `mapstructure:"issuer" yaml:"issuer"`
-	BearerAudience         string         `mapstructure:"bearer_audience" yaml:"bearer_audience"`
-	ActiveKey              SigningKeyConf `mapstructure:"active_key" yaml:"active_key"`
-	PreviousKey            SigningKeyConf `mapstructure:"previous_key" yaml:"previous_key"`
-	PreviousKeyAcceptUntil string         `mapstructure:"previous_key_accept_until" yaml:"previous_key_accept_until"`
+	Issuer                 string          `mapstructure:"issuer" yaml:"issuer"`
+	BearerAudience         string          `mapstructure:"bearer_audience" yaml:"bearer_audience"`
+	ActiveKey              SigningKeyConf  `mapstructure:"active_key" yaml:"active_key"`
+	PreviousKey            SigningKeyConf  `mapstructure:"previous_key" yaml:"previous_key"`
+	PreviousKeyAcceptUntil string          `mapstructure:"previous_key_accept_until" yaml:"previous_key_accept_until"`
+	Browser                BrowserAuthConf `mapstructure:"browser" yaml:"browser"`
+}
+
+type BrowserAuthConf struct {
+	RememberDays int `mapstructure:"remember_days" yaml:"remember_days"`
+}
+
+func Validate(c *Config) error {
+	if c == nil {
+		return fmt.Errorf("configuration must not be nil")
+	}
+	if days := c.Auth.Browser.RememberDays; days < MinBrowserRememberDays || days > MaxBrowserRememberDays {
+		return fmt.Errorf(
+			"auth.browser.remember_days must be between %d and %d",
+			MinBrowserRememberDays,
+			MaxBrowserRememberDays,
+		)
+	}
+	return nil
 }
 
 type SigningKeyConf struct {

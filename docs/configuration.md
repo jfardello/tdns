@@ -237,6 +237,7 @@ locking.
 | `auth.previous_key.file` | empty | Restricted regular file containing the previous key. |
 | `auth.previous_key.value` | empty | Inline previous key. |
 | `auth.previous_key_accept_until` | empty | Required RFC3339 cutoff when a previous key is configured. |
+| `auth.browser.remember_days` | `10` | Absolute lifetime, in days, for explicitly remembered browser sessions. Must be from 1 through 30. |
 
 For each key slot, TDNS uses the first available source in this order:
 environment variable, key file, inline `value`. The deprecated
@@ -273,13 +274,18 @@ The server exposes the following JSON browser-session endpoints:
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /api/auth/exchange` | Consume a browser code, set the session cookie, and return session metadata and a CSRF token. |
+| `POST /api/auth/login` | Verify the local administrator password, set the session cookie, and return session metadata and a CSRF token. |
 | `GET /api/auth/session` | Validate the session and issue a fresh, bounded CSRF token for a browser reload or tab. |
 | `POST /api/auth/logout` | Validate browser request protections, revoke the session, and clear its cookie. |
 
 The session cookie is named `__Host-tdns-session` and is set with `Path=/`,
-`Secure`, `HttpOnly`, and `SameSite=Strict`. It is non-persistent and contains
-an opaque identifier rather than a JWT. The server enforces a 12-hour absolute
-lifetime. Cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` requests
+`Secure`, `HttpOnly`, and `SameSite=Strict`. It contains an opaque identifier
+rather than a JWT. Login requests with `remember` omitted or false receive the
+existing non-persistent cookie and a 12-hour absolute server session. Requests
+with `remember: true` receive `Expires` and `Max-Age` cookie attributes matching
+the absolute server deadline configured by `auth.browser.remember_days`.
+Remembered sessions do not slide or renew automatically.
+Cookie-authenticated `POST`, `PUT`, `PATCH`, and `DELETE` requests
 must send the CSRF token in `X-CSRF-Token` and pass same-origin validation.
 Bearer-authenticated clients continue to use `Authorization` and do not use
 browser CSRF processing. The embedded web UI uses these endpoints directly. It

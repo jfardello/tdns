@@ -254,6 +254,9 @@ func newConf() *config.Config {
 		Auth: config.AuthConf{
 			Issuer:         auth.DefaultIssuer,
 			BearerAudience: auth.DefaultBearerAudience,
+			Browser: config.BrowserAuthConf{
+				RememberDays: config.DefaultBrowserRememberDays,
+			},
 			ActiveKey: config.SigningKeyConf{
 				Environment: "TDNS_AUTH_ACTIVE_KEY",
 			},
