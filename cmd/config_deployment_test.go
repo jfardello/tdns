@@ -82,6 +82,13 @@ func TestGeneratedConfigUsesSelectedDeploymentPaths(t *testing.T) {
 	if generated.Server.SwaggerEnabled {
 		t.Fatal("generated configuration enables Swagger")
 	}
+	if generated.Diagnostics.ListenAddr != config.DefaultDiagnosticsAddress ||
+		!generated.Diagnostics.MetricsEnabled || generated.Diagnostics.PProfEnabled {
+		t.Fatalf("generated diagnostics defaults are unsafe: %#v", generated.Diagnostics)
+	}
+	if generated.DNSLog.Purge != config.DefaultDNSLogRetention {
+		t.Fatalf("generated DNS-log retention = %q", generated.DNSLog.Purge)
+	}
 	if generated.Auth.Browser.RememberDays != config.DefaultBrowserRememberDays {
 		t.Fatalf("generated remembered-session days = %d", generated.Auth.Browser.RememberDays)
 	}

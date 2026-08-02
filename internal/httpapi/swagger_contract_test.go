@@ -58,7 +58,6 @@ func TestSwaggerMatchesRegisteredRoutes(t *testing.T) {
 			secured: true,
 		})
 	}
-	routes = append(routes, registeredRoute{method: "get", path: "/metrics", secured: false})
 	routes = append(routes,
 		registeredRoute{method: "post", path: "/api/auth/exchange", secured: false},
 		registeredRoute{method: "post", path: "/api/auth/login", secured: false},

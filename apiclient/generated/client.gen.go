@@ -1057,13 +1057,6 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /api/zen-mode/start (the `ZenModeStart` operationId).
 	ZenModeStart(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// MetricsGet Metrics
-	//
-	// Return Prometheus metrics.
-	//
-	// Corresponds with GET /metrics (the `MetricsGet` operationId).
-	MetricsGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // BrowserCodeExchangeWithBody Exchange browser login code
@@ -2148,23 +2141,6 @@ func (c *Client) ZenModePersistedExcludesReplace(ctx context.Context, body ZenMo
 // Corresponds with POST /api/zen-mode/start (the `ZenModeStart` operationId).
 func (c *Client) ZenModeStart(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewZenModeStartRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// MetricsGet Metrics
-//
-// Return Prometheus metrics.
-//
-// Corresponds with GET /metrics (the `MetricsGet` operationId).
-func (c *Client) MetricsGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewMetricsGetRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -3822,33 +3798,6 @@ func NewZenModeStartRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewMetricsGetRequest constructs an http.Request for the MetricsGet method
-func NewMetricsGetRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/metrics")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -4432,15 +4381,6 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /api/zen-mode/start (the `ZenModeStart` operationId).
 	ZenModeStartWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ZenModeStartResponse, error)
-
-	// MetricsGetWithResponse Metrics
-	//
-	// Return Prometheus metrics.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with GET /metrics (the `MetricsGet` operationId).
-	MetricsGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MetricsGetResponse, error)
 }
 
 type BrowserCodeExchangeResponse struct {
@@ -7187,47 +7127,6 @@ func (r ZenModeStartResponse) ContentType() string {
 	return ""
 }
 
-type MetricsGetResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *string
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r MetricsGetResponse) GetJSON200() *string {
-	return r.JSON200
-}
-
-// GetBody returns the raw response body bytes
-func (r MetricsGetResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r MetricsGetResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r MetricsGetResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r MetricsGetResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
 // BrowserCodeExchangeWithBodyWithResponse Exchange browser login code
 //
 // Consume a single-use browser login code and create a browser session.
@@ -8126,21 +8025,6 @@ func (c *ClientWithResponses) ZenModeStartWithResponse(ctx context.Context, reqE
 		return nil, err
 	}
 	return ParseZenModeStartResponse(rsp)
-}
-
-// MetricsGetWithResponse Metrics
-//
-// Return Prometheus metrics.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with GET /metrics (the `MetricsGet` operationId).
-func (c *ClientWithResponses) MetricsGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*MetricsGetResponse, error) {
-	rsp, err := c.MetricsGet(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseMetricsGetResponse(rsp)
 }
 
 // ParseBrowserCodeExchangeResponse parses an HTTP response from a BrowserCodeExchangeWithResponse call
@@ -10254,32 +10138,6 @@ func ParseZenModeStartResponse(rsp *http.Response) (*ZenModeStartResponse, error
 			return nil, err
 		}
 		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseMetricsGetResponse parses an HTTP response from a MetricsGetWithResponse call
-func ParseMetricsGetResponse(rsp *http.Response) (*MetricsGetResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &MetricsGetResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest string
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
 
 	}
 

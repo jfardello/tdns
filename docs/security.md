@@ -60,8 +60,9 @@ defense in depth.
 
 ### Management HTTPS Server
 
-The embedded web UI, management API, metrics, and optional Swagger endpoints
-share the configured HTTPS listener. The server requires TLS 1.2 or newer and
+The embedded web UI, management API, and optional Swagger endpoints share the
+configured HTTPS listener. Metrics and pprof are excluded from this listener.
+The server requires TLS 1.2 or newer and
 sets request timeouts and baseline browser security headers. API query routes
 accept read-only or read-write bearer tokens or browser sessions; mutation
 routes require read-write scope.
@@ -232,11 +233,13 @@ policy. Secrets and authentication credentials must never be logged.
 ### Diagnostics
 
 - Swagger is opt-in through `server.swagger_enabled`.
-- pprof is disabled in the repository sample.
-- Metrics are currently unauthenticated on the management listener.
+- Metrics and pprof use a separate diagnostics HTTP listener that defaults to
+  `127.0.0.1:6060` and rejects wildcard addresses.
+- Metrics are enabled by default on that trusted listener.
+- pprof is disabled by default through `diagnostics.pprof_enabled`.
 - Enabled Swagger endpoints are currently unauthenticated.
-- A configured pprof listener is unauthenticated plain HTTP and must currently
-  be restricted by binding and network policy.
+- Diagnostics are unauthenticated plain HTTP and must be restricted by binding
+  and network policy.
 
 ### Build and Dependencies
 
@@ -278,10 +281,10 @@ available, whichever comes first.
 | Use a two-minute browser login code and a non-persistent 12-hour session by default | Approved | Limits bootstrap-code replay and preserves the current browser-close behavior unless persistence is explicitly requested. |
 | Allow absolute remembered sessions from 1 through 30 days, defaulting to 10 | Approved | Provides explicit browser persistence without sliding or indefinite renewal. |
 | Store one local read-write administrator with bcrypt cost 12 and a 12-72 byte password | Approved | Keeps credential scope and password verification bounded while avoiding plaintext configuration secrets. |
-| Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Approved | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
+| Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Implemented | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
 | Enforce strict bearer claims without legacy-token compatibility | Implemented | Upgrades from `v0.1.6` or older require credential regeneration instead of retaining weak validation. |
 | Load signing keys from secret files or environment variables and support active/previous key IDs | Implemented | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
-| Purge DNS logs after 30 days by default, with a 180-day maximum | Approved | Minimizes retained browsing data and prevents indefinite retention. |
+| Purge DNS logs after 30 days by default, with a 180-day maximum | Implemented | Minimizes retained browsing data and prevents indefinite retention. |
 | Support a single TDNS instance on a trusted home, LAN, or VPN network | Approved | Internet-facing management deployments are outside the supported security model. |
 | Do not support reverse-proxy deployments | Approved | TDNS does not trust or interpret forwarded identity or origin headers. |
 | Treat explicitly allowlisted DNS client networks as trusted | Approved | DNS ACLs define the client trust boundary; unauthorized sources remain untrusted. |
@@ -318,13 +321,13 @@ Status: Implemented on 2026-07-30.
 
 ### Diagnostics and Metrics Exposure
 
-Metrics and pprof will move to a separate listener that defaults to loopback and
-may bind only to an explicitly trusted address. Swagger remains opt-in on the
-management HTTPS listener. Production deployments must keep the diagnostic
-listener behind trusted network controls; a wildcard bind is not a supported
-default.
+Metrics and pprof use a separate listener that defaults to loopback and may bind
+only to an explicit numeric address. Swagger remains opt-in on management
+HTTPS. Production deployments must keep diagnostics behind trusted network
+controls; wildcard diagnostics binds fail startup. The management and DNS
+listeners emit a startup warning when configured with wildcard addresses.
 
-Status: Approved on 2026-07-21.
+Status: Implemented on 2026-08-02.
 
 ### Authorization Compatibility
 
@@ -355,7 +358,9 @@ disabled. Backups containing DNS-log data must have equivalent access controls
 and must expire no later than the documented backup-retention policy. Database
 and backup disposal must prevent ordinary recovery of retained DNS activity.
 
-Status: Approved on 2026-07-21.
+Status: Implemented on 2026-08-02. TDNS validates configured and manual purge
+durations, reports bounded purge metrics, and protects SQLite artifacts with
+owner-only modes.
 
 ### Supported Deployment Topology
 
@@ -472,14 +477,13 @@ remembered sessions, and the dual-mode web form are implemented.
 
 ## Known Temporary Risks
 
-- Metrics and enabled Swagger are unauthenticated.
-- pprof is unauthenticated when configured.
+- Diagnostics and enabled Swagger are unauthenticated and require their
+  documented trusted-network controls.
 - Frontend production dependencies retain documented build-only audit
   exceptions through 2026-08-31.
-- Runtime database, log, backup, and disposal protection relies partly on
-  application file-mode and retention enforcement tracked by issue `#88`.
-- The current DNS-log default remains 180 days until the approved 30-day
-  default and mandatory retention validation are implemented.
+- Backup access, expiration, restoration, and disposal remain deployment
+  responsibilities; TDNS cannot enforce policy on copies outside its runtime
+  database directory.
 
 ## Required Verification
 

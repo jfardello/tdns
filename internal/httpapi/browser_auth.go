@@ -97,7 +97,6 @@ func (api *v1) BrowserCodeExchange(w http.ResponseWriter, r *http.Request) {
 		"event":   "browser_session_created",
 		"outcome": "success",
 		"scope":   principal.Scope,
-		"subject": principal.Subject,
 	}).Info("Authentication audit event.")
 }
 

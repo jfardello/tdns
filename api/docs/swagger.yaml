@@ -1855,18 +1855,6 @@ paths:
       summary: Start zen mode
       tags:
       - zen-mode
-  /metrics:
-    get:
-      description: Return Prometheus metrics.
-      operationId: metricsGet
-      responses:
-        "200":
-          description: Prometheus metrics
-          schema:
-            type: string
-      summary: Metrics
-      tags:
-      - monitoring
 produces:
 - application/json
 schemes:
@@ -1900,7 +1888,5 @@ tags:
   name: dns-log
 - description: Client address labels and known hosts.
   name: tagger
-- description: Service monitoring endpoints.
-  name: monitoring
 - description: Browser authentication session endpoints.
   name: authentication

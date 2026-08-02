@@ -208,7 +208,7 @@ as SQLite configuration overrides.
 | --- | --- | --- |
 | `database.file` | `/var/lib/tdns/tdns.sqlite` | Shared SQLite file for configuration overrides, DNS logs, aliases, and tagger data. |
 | `dns_log.enabled` | `true` | Enables DNS query logging. |
-| `dns_log.purge` | `180d` | Retention age used by the scheduled DNS-log purge. |
+| `dns_log.purge` | `30d` | Mandatory retention age used by the scheduled DNS-log purge. It must be greater than zero and cannot exceed `180d`. |
 | `tagger.enabled` | `true` | Enables address/host labels used by scoped middleware rules. |
 
 TDNS creates the configured database and applies migrations during
@@ -219,6 +219,31 @@ database file. The database also stores hashed browser-session credentials,
 authorization context, and consumed browser-code identifiers. Treat it and its
 backups as authentication data. The storage must provide reliable local file
 locking.
+
+The purge runs daily and cannot be disabled while DNS logging is enabled.
+Prometheus reports purge attempts, duration, deleted rows, and the timestamp of
+the last successful purge. Verify that the success timestamp advances and that
+backups expire no later than the selected DNS-log retention period. Backups and
+discarded database media must be disposed of so retained DNS activity cannot be
+recovered through ordinary file access.
+
+### Diagnostics
+
+Metrics and pprof use a separate, unauthenticated HTTP listener. The listener
+accepts only a numeric, non-wildcard IP address; `0.0.0.0`, `[::]`, and hostnames
+are rejected. Keep it on loopback unless an explicit LAN or VPN address is
+protected by trusted network policy.
+
+| Key | Fallback | Description |
+| --- | --- | --- |
+| `diagnostics.listen_addr` | `127.0.0.1:6060` | Trusted diagnostics HTTP listener. Wildcard addresses are rejected. |
+| `diagnostics.metrics_enabled` | `true` | Serves Prometheus metrics at `/metrics` on the diagnostics listener. |
+| `diagnostics.pprof_enabled` | `false` | Serves Go pprof endpoints under `/debug/pprof/` on the diagnostics listener. |
+
+`server.pprof_addr` is no longer supported. Replace it with
+`diagnostics.listen_addr` and set `diagnostics.pprof_enabled: true` only for a
+bounded diagnostic session. Metrics and pprof are never served by management
+HTTPS.
 
 ## HTTP Server and CLI Client
 
@@ -329,7 +354,6 @@ protected until it is removed.
 | `server.api_addr` | empty | HTTPS management listener, such as `:8443`. |
 | `server.api_cert_file` | empty | HTTPS certificate file. |
 | `server.api_key_file` | empty | HTTPS private-key file. |
-| `server.pprof_addr` | empty | Optional unauthenticated pprof HTTP listener; empty disables it. Restrict this listener to trusted interfaces. |
 | `server.signing_key` | empty | Deprecated inline active-key fallback for installations migrating from `v0.1.6` or older. Prefer `auth.active_key`. |
 | `server.swagger_enabled` | `false` | Exposes Swagger UI and raw Swagger/OpenAPI documents under `/swagger/`. |
 
@@ -430,8 +454,9 @@ Before considering an installation production-ready:
   addresses and enforce matching firewall rules.
 - Do not use container privileged mode or host networking. Drop all
   capabilities and map host port 53 to container port 8053.
-- Keep `server.swagger_enabled` false and `server.pprof_addr` empty during
-  normal operation.
+- Keep `server.swagger_enabled` and `diagnostics.pprof_enabled` false during
+  normal operation. Scrape metrics only through the trusted diagnostics
+  listener.
 - Keep CORS disabled. Frontend development should use only explicitly listed
   local origins.
 - Protect SQLite data and backups as sensitive DNS history. Use cold backups

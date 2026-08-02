@@ -732,26 +732,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Metrics
-         * @description Return Prometheus metrics.
-         */
-        get: operations["metricsGet"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3250,26 +3230,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["api.Response"];
-                };
-            };
-        };
-    };
-    metricsGet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Prometheus metrics */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": string;
                 };
             };
         };

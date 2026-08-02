@@ -266,7 +266,12 @@ func newConf() *config.Config {
 		},
 		DNSLog: config.DNSLogConf{
 			Enabled: true,
-			Purge:   "180d",
+			Purge:   config.DefaultDNSLogRetention,
+		},
+		Diagnostics: config.DiagnosticsConf{
+			ListenAddr:     config.DefaultDiagnosticsAddress,
+			MetricsEnabled: true,
+			PProfEnabled:   false,
 		},
 		Tagger: config.TaggerConf{
 			Enabled: true,
@@ -277,7 +282,6 @@ func newConf() *config.Config {
 			APICertFile:    "",
 			APIKeyFile:     "",
 			SigningKey:     "",
-			PProfAddr:      "",
 			SwaggerEnabled: false,
 		},
 		Client: config.Client{

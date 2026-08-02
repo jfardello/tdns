@@ -4,13 +4,22 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"net/netip"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
+
+	str2duration "github.com/xhit/go-str2duration/v2"
 )
 
 const (
 	DefaultBrowserRememberDays = 10
 	MinBrowserRememberDays     = 1
 	MaxBrowserRememberDays     = 30
+	DefaultDNSLogRetention     = "30d"
+	MaximumDNSLogRetention     = 180 * 24 * time.Hour
+	DefaultDiagnosticsAddress  = "127.0.0.1:6060"
 )
 
 var CtxKey = "values"
@@ -61,6 +70,7 @@ type Config struct {
 	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
 	ZenMode         ZenModeConfig      `mapstructure:"zen_mode" yaml:"zen_mode,omitempty"`
 	Database        DatabaseConf       `mapstructure:"database" yaml:"database,omitempty"`
+	Diagnostics     DiagnosticsConf    `mapstructure:"diagnostics" yaml:"diagnostics"`
 	DNSAccess       DNSAccessConf      `mapstructure:"dns_access" yaml:"dns_access"`
 	Auth            AuthConf           `mapstructure:"auth" yaml:"auth"`
 	DNSLog          DNSLogConf         `mapstructure:"dns_log" yaml:"dns_log,omitempty"`
@@ -110,6 +120,56 @@ func Validate(c *Config) error {
 			MaxBrowserRememberDays,
 		)
 	}
+	if c.DNSLog.Enabled || strings.TrimSpace(c.DNSLog.Purge) != "" {
+		if _, err := ParseDNSLogRetention(c.DNSLog.Purge); err != nil {
+			return err
+		}
+	}
+	if c.Diagnostics.MetricsEnabled || c.Diagnostics.PProfEnabled {
+		if err := ValidateDiagnosticsAddress(c.Diagnostics.ListenAddr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ParseDNSLogRetention(value string) (time.Duration, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("dns_log.purge must not be empty")
+	}
+	duration, err := str2duration.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("dns_log.purge must be a valid duration: %w", err)
+	}
+	if duration <= 0 {
+		return 0, fmt.Errorf("dns_log.purge must be greater than zero")
+	}
+	if duration > MaximumDNSLogRetention {
+		return 0, fmt.Errorf("dns_log.purge must not exceed 180 days")
+	}
+	return duration, nil
+}
+
+func ValidateDiagnosticsAddress(value string) error {
+	host, port, err := net.SplitHostPort(strings.TrimSpace(value))
+	if err != nil {
+		return fmt.Errorf("diagnostics.listen_addr must be an IP address and port: %w", err)
+	}
+	address, err := netip.ParseAddr(host)
+	if err != nil {
+		return fmt.Errorf("diagnostics.listen_addr host must be a numeric IP address")
+	}
+	if address.IsUnspecified() {
+		return fmt.Errorf("diagnostics.listen_addr must not use a wildcard address")
+	}
+	if !address.IsLoopback() && !address.IsGlobalUnicast() {
+		return fmt.Errorf("diagnostics.listen_addr must use a loopback or unicast address")
+	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 1 || portNumber > 65535 {
+		return fmt.Errorf("diagnostics.listen_addr port must be between 1 and 65535")
+	}
 	return nil
 }
 
@@ -132,6 +192,12 @@ type TaggerConf struct {
 type DNSLogConf struct {
 	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
 	Purge   string `mapstructure:"purge" yaml:"purge,omitempty"`
+}
+
+type DiagnosticsConf struct {
+	ListenAddr     string `mapstructure:"listen_addr" yaml:"listen_addr"`
+	MetricsEnabled bool   `mapstructure:"metrics_enabled" yaml:"metrics_enabled"`
+	PProfEnabled   bool   `mapstructure:"pprof_enabled" yaml:"pprof_enabled"`
 }
 
 type CacheConf struct {
@@ -191,7 +257,6 @@ type Server struct {
 	APIAddr     string `mapstructure:"api_addr" yaml:"api_addr,omitempty"`
 	APICertFile string `mapstructure:"api_cert_file" yaml:"api_cert_file,omitempty"`
 	APIKeyFile  string `mapstructure:"api_key_file" yaml:"api_key_file,omitempty"`
-	PProfAddr   string `mapstructure:"pprof_addr" yaml:"pprof_addr,omitempty"`
 	SigningKey  string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 	// SwaggerEnabled exposes the Swagger UI and raw Swagger/OpenAPI documents.
 	SwaggerEnabled bool `mapstructure:"swagger_enabled" yaml:"swagger_enabled,omitempty"`

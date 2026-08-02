@@ -67,6 +67,13 @@ func TestSampleConfigLoadsThroughViper(t *testing.T) {
 	if loaded.Auth.Browser.RememberDays != DefaultBrowserRememberDays {
 		t.Fatalf("auth.browser.remember_days = %d, want %d", loaded.Auth.Browser.RememberDays, DefaultBrowserRememberDays)
 	}
+	if loaded.DNSLog.Purge != DefaultDNSLogRetention {
+		t.Fatalf("dns_log.purge = %q, want %q", loaded.DNSLog.Purge, DefaultDNSLogRetention)
+	}
+	if loaded.Diagnostics.ListenAddr != DefaultDiagnosticsAddress ||
+		!loaded.Diagnostics.MetricsEnabled || loaded.Diagnostics.PProfEnabled {
+		t.Fatalf("diagnostics did not load expected defaults: %#v", loaded.Diagnostics)
+	}
 }
 
 func mismatchedConfigTags(structType reflect.Type, prefix string) []string {

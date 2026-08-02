@@ -211,7 +211,6 @@ func (m *Manager) issueBearer(subject, scope string, lifetime time.Duration, all
 		"key_id":  m.active.id,
 		"outcome": "success",
 		"scope":   scope,
-		"subject": subject,
 	}).Info("Authentication audit event.")
 	return signed, nil
 }

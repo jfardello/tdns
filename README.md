@@ -241,6 +241,9 @@ The current OpenAPI description is available at [api/openapi.yaml](api/openapi.y
 Set `server.swagger_enabled: true` to expose Swagger UI at `/swagger/`; it is
 disabled by default. Generation and client maintenance are documented in
 [API Contract Maintenance](docs/api-contract-maintenance.md).
+Prometheus metrics and optional pprof endpoints use the separate trusted
+diagnostics listener described in the [configuration reference](docs/configuration.md#diagnostics);
+they are not exposed by management HTTPS.
 
 Go applications can import the management client from
 `github.com/jfardello/tdns/apiclient`. DNS upstream transport is exposed

@@ -13,7 +13,6 @@ import (
 	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/server"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -25,18 +24,6 @@ type v1 struct {
 	exchangeLimiter  *exchangeLimiter
 	passwordLimiter  *passwordLimiter
 	rememberLifetime time.Duration
-}
-
-// Metrics.
-//
-//	@Summary		Metrics
-//	@Description	Return Prometheus metrics.
-//	@Tags			monitoring
-//	@ID				metricsGet
-//	@Success		200	{string}	string	"Prometheus metrics"
-//	@Router			/metrics [get]
-func (api *v1) Metrics(w http.ResponseWriter, r *http.Request) {
-	promhttp.Handler().ServeHTTP(w, r)
 }
 
 func NewHandler(
@@ -109,7 +96,6 @@ func NewHandler(
 	mux.HandleFunc("POST /api/auth/login", api.BrowserPasswordLogin)
 	mux.HandleFunc("GET /api/auth/session", api.BrowserSession)
 	mux.HandleFunc("POST /api/auth/logout", api.BrowserLogout)
-	mux.HandleFunc("GET /metrics", api.Metrics)
 	if conf.Server.SwaggerEnabled {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(
 			httpSwagger.URL("/swagger/doc.json"),

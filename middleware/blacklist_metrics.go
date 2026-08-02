@@ -39,6 +39,11 @@ var (
 )
 
 func recordBlacklistRefresh(started time.Time, result string, refresh internalblocklist.Result, activeEntries int) {
+	switch result {
+	case "success", "unchanged", "invalid", "timeout", "too_large", "redirect_rejected", "remote_error", "io_error":
+	default:
+		result = "other"
+	}
 	blacklistRefreshes.WithLabelValues(result).Inc()
 	blacklistRefreshDuration.Observe(time.Since(started).Seconds())
 	if result == "success" {

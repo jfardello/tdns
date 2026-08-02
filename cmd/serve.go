@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
-	netpprof "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/internal/browserauth"
 	"github.com/jfardello/tdns/internal/db"
+	"github.com/jfardello/tdns/internal/diagnostics"
 	"github.com/jfardello/tdns/internal/dnsserver"
 	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/jfardello/tdns/internal/overrides"
@@ -126,7 +128,10 @@ func init() {
 	viper.SetDefault("database.file", db.DefaultFile)
 	viper.SetDefault("cors.enabled", false)
 	viper.SetDefault("dns_log.enabled", true)
-	viper.SetDefault("dns_log.purge", "180d")
+	viper.SetDefault("dns_log.purge", config.DefaultDNSLogRetention)
+	viper.SetDefault("diagnostics.listen_addr", config.DefaultDiagnosticsAddress)
+	viper.SetDefault("diagnostics.metrics_enabled", true)
+	viper.SetDefault("diagnostics.pprof_enabled", false)
 	viper.SetDefault("dns_access.allowed_client_cidrs", []string{})
 	viper.SetDefault("dns_access.client_queries_per_second", 100)
 	viper.SetDefault("dns_access.client_burst", 200)
@@ -152,6 +157,9 @@ func run() {
 
 	logger := log.GetLogger("newServer", "lookup")
 	c := &config.Config{}
+	if err := validateRemovedConfigOptions(viper.GetViper()); err != nil {
+		logger.Fatal(err)
+	}
 	err := viper.Unmarshal(c)
 	if err != nil {
 		logger.Fatal(err)
@@ -226,10 +234,8 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	var pprofServer *http.Server
-	if c.Server.PProfAddr != "" {
-		pprofServer = startPProfServer(c.Server.PProfAddr)
-	}
+	logStartupSecurityWarnings(c)
+	diagnosticsServer := startDiagnosticsServer(c.Diagnostics)
 	newServer := server.NewServer(
 		server.WithStaticResponse(),
 		server.WithUpstreams(c.Upstreams, c.Timeout, c.UpstreamTimeout),
@@ -301,9 +307,9 @@ func run() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	if pprofServer != nil {
+	if diagnosticsServer != nil {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if err := pprofServer.Shutdown(shutdownCtx); err != nil {
+		if err := diagnosticsServer.Shutdown(shutdownCtx); err != nil {
 			logger.Error(err)
 		}
 		cancel()
@@ -336,6 +342,13 @@ func run() {
 		}
 	}
 	os.Exit(0)
+}
+
+func validateRemovedConfigOptions(v *viper.Viper) error {
+	if v.IsSet("server.pprof_addr") {
+		return errors.New("server.pprof_addr is no longer supported; configure diagnostics.listen_addr and diagnostics.pprof_enabled")
+	}
+	return nil
 }
 
 func setServingUmask() {
@@ -389,7 +402,8 @@ func newHTTPHandler(
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", apiHandler)
-	mux.Handle("/metrics", apiHandler)
+	mux.Handle("/metrics", http.NotFoundHandler())
+	mux.Handle("/debug/pprof/", http.NotFoundHandler())
 	mux.Handle("/swagger/", apiHandler)
 	mux.Handle("/_nuxt/", uiHandlers.Static)
 	mux.Handle("/", uiHandlers.SPA)
@@ -407,27 +421,116 @@ func withSecurityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-func startPProfServer(addr string) *http.Server {
-	logger := log.GetLogger("serve", "pprof")
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", netpprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", netpprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", netpprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
+func startDiagnosticsServer(conf config.DiagnosticsConf) *http.Server {
+	if !conf.MetricsEnabled && !conf.PProfEnabled {
+		return nil
+	}
+	logger := log.GetLogger("serve", "diagnostics")
 	srv := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
+		Addr:              conf.ListenAddr,
+		Handler:           diagnostics.NewHandler(conf.MetricsEnabled, conf.PProfEnabled),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 	go func() {
-		logger.Infof("Starting pprof server at %s", addr)
+		logger.WithFields(logrus.Fields{
+			"address": conf.ListenAddr,
+			"metrics": conf.MetricsEnabled,
+			"pprof":   conf.PProfEnabled,
+		}).Info("Starting diagnostics server.")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error(err)
 		}
 	}()
 	return srv
+}
+
+func logStartupSecurityWarnings(c *config.Config) {
+	logger := log.GetLogger("serve", "security")
+	for _, warning := range startupSecurityWarnings(c, viper.ConfigFileUsed()) {
+		logger.Warn(warning)
+	}
+}
+
+func startupSecurityWarnings(c *config.Config, configPath string) []string {
+	warnings := make([]string, 0, 6)
+	for _, listener := range []struct {
+		name    string
+		address string
+	}{
+		{name: "DNS", address: c.Server.ListenAddr},
+		{name: "management", address: c.Server.APIAddr},
+	} {
+		host, _, err := net.SplitHostPort(listener.address)
+		ip := net.ParseIP(host)
+		if err == nil && (host == "" || ip != nil && ip.IsUnspecified()) {
+			warnings = append(warnings, listener.name+" listener uses a wildcard address; restrict it to a trusted interface in production")
+		}
+	}
+	if c.Server.SwaggerEnabled {
+		warnings = append(warnings, "Swagger is enabled on the management listener; expose it only in a trusted environment")
+	}
+	for _, file := range []struct {
+		name      string
+		path      string
+		forbidden os.FileMode
+	}{
+		{name: "configuration", path: configPath, forbidden: 0o027},
+		{name: "management TLS private key", path: c.Server.APIKeyFile, forbidden: 0o027},
+		{name: "active signing key", path: c.Auth.ActiveKey.File, forbidden: 0o027},
+		{name: "previous signing key", path: c.Auth.PreviousKey.File, forbidden: 0o027},
+		{name: "SQLite database", path: c.Database.File, forbidden: 0o077},
+	} {
+		if warning := sensitiveFileWarning(file.name, file.path, file.forbidden); warning != "" {
+			warnings = append(warnings, warning)
+		}
+	}
+	if c.Database.File != "" {
+		if warning := sensitiveDirectoryWarning("SQLite directory", filepath.Dir(c.Database.File)); warning != "" {
+			warnings = append(warnings, warning)
+		}
+	}
+	return warnings
+}
+
+func sensitiveFileWarning(name, path string, forbidden os.FileMode) string {
+	if path == "" {
+		return ""
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return ""
+	}
+	if err != nil {
+		return fmt.Sprintf("cannot inspect %s permissions: %v", name, err)
+	}
+	if !info.Mode().IsRegular() {
+		return name + " is not a regular file"
+	}
+	if info.Mode().Perm()&forbidden != 0 {
+		return fmt.Sprintf("%s permissions %04o are too permissive", name, info.Mode().Perm())
+	}
+	return ""
+}
+
+func sensitiveDirectoryWarning(name, path string) string {
+	if path == "" || path == "." {
+		return ""
+	}
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return ""
+	}
+	if err != nil {
+		return fmt.Sprintf("cannot inspect %s permissions: %v", name, err)
+	}
+	if !info.IsDir() {
+		return name + " is not a directory"
+	}
+	if info.Mode().Perm()&0o027 != 0 {
+		return fmt.Sprintf("%s permissions %04o permit group write or other access", name, info.Mode().Perm())
+	}
+	return ""
 }

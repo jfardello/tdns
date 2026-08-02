@@ -85,7 +85,6 @@ func Require(
 					"required_scope": requirement.Scope,
 					"route":          r.Pattern,
 					"scope":          principal.Scope,
-					"subject":        principal.Subject,
 				}).Warn("Authentication audit event.")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
@@ -203,7 +202,6 @@ func auditAuthorizationDenial(r *http.Request, principal auth.Principal, require
 		"required_scope": requiredScope,
 		"route":          r.Pattern,
 		"scope":          principal.Scope,
-		"subject":        principal.Subject,
 	}).Warn("Authentication audit event.")
 }
 
@@ -283,7 +281,6 @@ func AuditMutation(action string, handler http.HandlerFunc) http.HandlerFunc {
 			"route":   r.Pattern,
 			"scope":   principal.Scope,
 			"status":  writer.status,
-			"subject": principal.Subject,
 		}).Info("Authentication audit event.")
 	}
 }

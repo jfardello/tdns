@@ -99,8 +99,10 @@ journalctl -u tdns
 
 Bind DNS to loopback or a specific trusted LAN/VPN address. Bind management
 HTTPS to loopback unless remote administration is required. Keep
-`server.pprof_addr` empty and `server.swagger_enabled` false in normal
-production operation.
+`diagnostics.pprof_enabled` and `server.swagger_enabled` false in normal
+production operation. The diagnostics listener defaults to loopback; select an
+explicit trusted LAN or VPN address only when remote metrics scraping is
+required.
 
 Enforce the same boundary in the host or network firewall:
 

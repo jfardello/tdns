@@ -496,7 +496,7 @@ func (cs *DNSLog) Config(cf config.Config) error {
 }
 
 func (cs *DNSLog) Rotate(since string) error {
-	s, err := str2duration.ParseDuration(since)
+	s, err := config.ParseDNSLogRetention(since)
 	if err != nil {
 		return err
 	}
@@ -505,8 +505,13 @@ func (cs *DNSLog) Rotate(since string) error {
 
 }
 
-func (cs *DNSLog) rotate(since time.Duration) error {
+func (cs *DNSLog) rotate(since time.Duration) (returnErr error) {
 	logger := log.GetLogger("DNSLog", "rotate")
+	started := time.Now()
+	var deleted int64
+	defer func() {
+		recordDNSLogPurge(started, deleted, returnErr)
+	}()
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 
@@ -533,6 +538,7 @@ func (cs *DNSLog) rotate(since time.Duration) error {
 		logger.Error(err)
 		return err
 	}
+	deleted = ra
 	logger.Debugf("Deleted %d rows", ra)
 
 	_, err = cs.se.ExecNoTx("VACUUM;", nil)

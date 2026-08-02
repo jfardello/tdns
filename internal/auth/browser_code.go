@@ -77,7 +77,6 @@ func (m *Manager) IssueBrowserCode(subject, scope string, lifetime time.Duration
 		"key_id":  m.active.id,
 		"outcome": "success",
 		"scope":   scope,
-		"subject": subject,
 	}).Info("Authentication audit event.")
 	return signed, nil
 }

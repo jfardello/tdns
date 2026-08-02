@@ -18,5 +18,13 @@ var (
 )
 
 func recordBrowserAuthentication(method, outcome string) {
+	if method != "password" {
+		method = "other"
+	}
+	switch outcome {
+	case "unavailable", "ambiguous", "cross_site", "malformed", "oversized", "rate_limited", "invalid", "error", "success":
+	default:
+		outcome = "other"
+	}
 	browserAuthenticationAttempts.WithLabelValues(method, outcome).Inc()
 }

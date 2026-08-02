@@ -58,6 +58,24 @@ func TestHTTPHandlerDoesNotServeSwaggerFromSPA(t *testing.T) {
 	}
 }
 
+func TestHTTPHandlerDoesNotServeDiagnosticsFromManagement(t *testing.T) {
+	config.SetRunningConfig(&config.Config{})
+	handler, err := newHTTPHandler(nil, nil, nil)
+	if err != nil {
+		t.Fatalf("newHTTPHandler: %v", err)
+	}
+	for _, path := range []string{"/metrics", "/debug/pprof/"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Errorf("%s status = %d, want %d", path, response.Code, http.StatusNotFound)
+		}
+		if strings.Contains(response.Body.String(), "<html") {
+			t.Errorf("%s fell through to the SPA", path)
+		}
+	}
+}
+
 func TestHTTPHandlerAppliesRestrictiveCSPToWebUI(t *testing.T) {
 	config.SetRunningConfig(&config.Config{})
 	handler, err := newHTTPHandler(nil, nil, nil)

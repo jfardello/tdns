@@ -2345,24 +2345,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/metrics": {
-            "get": {
-                "description": "Return Prometheus metrics.",
-                "tags": [
-                    "monitoring"
-                ],
-                "summary": "Metrics",
-                "operationId": "metricsGet",
-                "responses": {
-                    "200": {
-                        "description": "Prometheus metrics",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -2985,10 +2967,6 @@ const docTemplate = `{
         {
             "description": "Client address labels and known hosts.",
             "name": "tagger"
-        },
-        {
-            "description": "Service monitoring endpoints.",
-            "name": "monitoring"
         },
         {
             "description": "Browser authentication session endpoints.",

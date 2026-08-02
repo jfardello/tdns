@@ -17,6 +17,7 @@ import (
 	"github.com/jfardello/tdns/internal/auth"
 	"github.com/jfardello/tdns/internal/browserauth"
 	"github.com/jfardello/tdns/internal/db"
+	"github.com/jfardello/tdns/internal/diagnostics"
 	"github.com/jfardello/tdns/internal/sqliteutil"
 	"github.com/sirupsen/logrus"
 )
@@ -324,7 +325,7 @@ func TestBrowserPasswordLoginRateLimitAndAuditAreSecretSafe(t *testing.T) {
 
 	metricsRequest := httptest.NewRequest(http.MethodGet, "https://tdns.example/metrics", nil)
 	metricsResponse := httptest.NewRecorder()
-	handler.ServeHTTP(metricsResponse, metricsRequest)
+	diagnostics.NewHandler(true, false).ServeHTTP(metricsResponse, metricsRequest)
 	metrics := metricsResponse.Body.String()
 	if !strings.Contains(metrics, "tdns_browser_authentication_attempts_total") ||
 		!strings.Contains(metrics, `method="password"`) ||

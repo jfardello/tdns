@@ -78,6 +78,15 @@ func TestDNSLog_doInsert(t *testing.T) {
 	}
 }
 
+func TestDNSLogRotateRejectsUnsafeRetention(t *testing.T) {
+	cs := &DNSLog{}
+	for _, value := range []string{"", "0s", "181d", "forever"} {
+		if err := cs.Rotate(value); err == nil {
+			t.Errorf("Rotate(%q) accepted an unsafe retention", value)
+		}
+	}
+}
+
 func TestSQLStmt_Build(t *testing.T) {
 	type fields struct {
 		SelectStr string

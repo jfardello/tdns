@@ -221,9 +221,13 @@ read-only host inspection of the mounted directories. Do not add troubleshooting
 tools to the production image.
 
 Swagger remains disabled by default. If enabled temporarily, restrict the
-management listener to a trusted network and disable Swagger after use. Keep
-`server.pprof_addr` empty until the separate trusted diagnostics listener
-tracked by issue `#88` is implemented.
+management listener to a trusted network and disable Swagger after use. The
+diagnostics listener defaults to `127.0.0.1:6060` inside the container and is
+therefore reachable only from the same network namespace. For external
+scraping, use a collector sidecar sharing that namespace or assign a stable
+address on an isolated container network and bind diagnostics to that exact
+address. Publishing the port alone does not make a loopback-bound listener
+reachable. Keep `diagnostics.pprof_enabled` false during normal operation.
 
 ## Publishing
 

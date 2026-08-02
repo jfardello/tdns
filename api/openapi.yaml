@@ -1859,20 +1859,6 @@ paths:
       summary: Start zen mode
       tags:
         - zen-mode
-  /metrics:
-    get:
-      description: Return Prometheus metrics.
-      operationId: metricsGet
-      responses:
-        "200":
-          description: Prometheus metrics
-          content:
-            application/json:
-              schema:
-                type: string
-      summary: Metrics
-      tags:
-        - monitoring
 tags:
   - description: Stub resolver configuration and state.
     name: stub-resolver
@@ -1888,8 +1874,6 @@ tags:
     name: dns-log
   - description: Client address labels and known hosts.
     name: tagger
-  - description: Service monitoring endpoints.
-    name: monitoring
   - description: Browser authentication session endpoints.
     name: authentication
 servers:

@@ -183,10 +183,7 @@ func (se *SyncExecutor) Run() {
 			}
 			return
 		case stmt := <-se.syncExecChan:
-			se.log.WithFields(logrus.Fields{
-				"stmt": stmt.Query,
-				"args": stmt.Args,
-			}).Debug("Running query")
+			se.log.WithField("stmt", stmt.Query).Debug("Running query")
 			result, err := se.rwConnDatabase.ExecContext(se.ctx, stmt.Query, stmt.Args...)
 
 			if err != nil {

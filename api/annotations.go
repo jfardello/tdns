@@ -21,8 +21,6 @@
 //	@tag.description			DNS query log reports and maintenance.
 //	@tag.name					tagger
 //	@tag.description			Client address labels and known hosts.
-//	@tag.name					monitoring
-//	@tag.description			Service monitoring endpoints.
 //	@tag.name					authentication
 //	@tag.description			Browser authentication session endpoints.
 //	@securityDefinitions.apikey	BearerAuth
