@@ -95,6 +95,32 @@ systemctl status tdns
 journalctl -u tdns
 ```
 
+## Local Administrator Password
+
+Bootstrap does not create a browser password. Password login becomes available
+only after the service account writes a valid credential to SQLite. Run the
+interactive command from a terminal; never place the password in shell
+arguments, an environment variable, or an input redirect:
+
+```bash
+sudo -u tdns /usr/local/bin/tdns \
+  -c /etc/tdns/tdns.yaml adm password set --username admin
+```
+
+Run the same command to rotate a forgotten or exposed password. Rotation
+revokes all password-authenticated browser sessions. Disable password login
+while retaining browser-code recovery with:
+
+```bash
+sudo -u tdns /usr/local/bin/tdns \
+  -c /etc/tdns/tdns.yaml adm password disable
+```
+
+The commands open the configured SQLite database directly and therefore must
+run as the same dedicated identity as the service. Browser-code login remains
+available as long as the operator can read the active signing key and run
+`tdns adm browser-code`.
+
 ## Listener And Firewall Policy
 
 Bind DNS to loopback or a specific trusted LAN/VPN address. Bind management
@@ -137,8 +163,12 @@ sudo tar --numeric-owner -C /var/lib/tdns -czf tdns-data-backup.tar.gz .
 sudo systemctl start tdns
 ```
 
-Protect backups as sensitive DNS history and apply the configured retention and
-disposal policy.
+Protect backups as sensitive DNS history and authentication data and apply the
+configured retention and disposal policy. A restore also restores the local
+password hash, consumed-code records, and unexpired browser sessions from the
+snapshot. After an incident-related restore, rotate the local password and
+bearer credentials; note that password rotation does not revoke browser-code
+sessions.
 
 The sample blocklist uses a public GitHub repository and needs no credential.
 For a private repository, provide `GITHUB_TOKEN` through a root-owned systemd
@@ -157,5 +187,8 @@ Before replacing the binary:
 5. Verify `tdns --version`, service logs, DNS resolution, HTTPS management, and
    persisted state.
 
-Database migrations are automatic. Restore both the old binary and the
-pre-upgrade data backup for a rollback.
+Database migrations are automatic. An upgraded database does not enable
+password login until `tdns adm password set` stores a credential. Verify both
+password and browser-code login after an authentication-related upgrade.
+Restore both the old binary and the pre-upgrade data backup for a rollback,
+accounting for the authentication state contained in that snapshot.

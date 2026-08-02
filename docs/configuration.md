@@ -294,6 +294,30 @@ minutes by default, can be shortened with `--ttl`, and cannot be extended past
 two minutes. Each code is purpose-bound to browser session exchange and can be
 redeemed only once through `POST /api/auth/exchange`.
 
+Password login is disabled until a valid local credential has been stored in
+SQLite. Set or replace the singleton administrator from an interactive terminal:
+
+```bash
+tdns -c /etc/tdns/tdns.yaml adm password set --username admin
+```
+
+The command prompts twice without echo and accepts no password argument or
+password environment variable. The normalized username uses lowercase ASCII
+letters, digits, dots, underscores, and hyphens, and the password must contain
+12 through 72 UTF-8 bytes. Setting a password activates password login and
+revokes every password-authenticated session. Disable it and revoke those
+sessions with:
+
+```bash
+tdns -c /etc/tdns/tdns.yaml adm password disable
+```
+
+Browser-code login remains enabled independently of the local password. It is
+the recovery path when the password is forgotten or disabled, provided the
+operator still has local access to the active signing key. Use a browser code
+to regain web access, then run the interactive `password set` command on a host
+that can access the SQLite database to establish a new password.
+
 The server exposes the following JSON browser-session endpoints:
 
 | Endpoint | Purpose |
@@ -321,6 +345,15 @@ The login page supports password and browser-code modes with one unchecked
 `Remember this browser` option. Passwords and browser codes are cleared after
 submission and are never written to Web Storage. The UI removes the legacy
 `tdns_jwt_token` local-storage entry during startup.
+
+The local administrator record, browser sessions, CSRF state, and consumed-code
+history are stored only in SQLite; no password belongs in YAML. Back up and
+restore the complete SQLite directory as one authentication boundary. A restore
+also restores the snapshot's password hash and any session whose absolute
+expiry is still in the future. After an untrusted or incident-recovery restore,
+set a new password and reissue bearer credentials. Password rotation does not
+revoke browser-code sessions, and TDNS does not currently provide a global
+browser-session revocation command.
 
 The browser UI and management API must share an origin. Production uses the
 embedded UI. For Nuxt development, proxy `/api` through the development server:

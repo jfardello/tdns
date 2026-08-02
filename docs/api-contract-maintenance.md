@@ -91,6 +91,17 @@ The web application imports generated definitions from
 `web/app/composables/useApiClient.ts`; components and domain composables should
 not recreate endpoint or response types manually.
 
+Browser authentication has two generated request contracts:
+`BrowserPasswordLoginRequest` for `POST /api/auth/login` and
+`BrowserCodeExchangeRequest` for `POST /api/auth/exchange`. Both expose the same
+optional `remember` choice, but neither endpoint is a bearer-client login
+mechanism. They set the host-only HttpOnly cookie and return session metadata
+plus a CSRF token for the same-origin browser flow. Keep their cookie responses,
+generic error responses, and generated Go and TypeScript methods synchronized
+whenever either request changes. The public Go client remains bearer-oriented;
+generated browser-auth methods are transport-level contract coverage rather
+than a replacement for `apiclient` bearer configuration.
+
 When an API change cannot be represented accurately by the generators, fix the
 annotations or DTO boundary first. Do not patch generated output as a permanent
 solution.

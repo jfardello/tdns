@@ -426,16 +426,16 @@ dependency, vulnerability, and version-verification policy.
 
 Status: Approved on 2026-07-26.
 
-### Planned Password Login And Remembered Sessions
+### Password Login And Remembered Sessions
 
-TDNS will support one enabled local read-write administrator stored in SQLite.
-The credential will be managed through an interactive CLI that never accepts a
+TDNS supports one enabled local read-write administrator stored in SQLite.
+The credential is managed through an interactive CLI that never accepts a
 plaintext password in command arguments, environment variables, or YAML.
 Passwords must contain from 12 through 72 UTF-8 bytes and are stored only as a
 bcrypt cost-12 hash. A valid stored credential enables password login; browser
 codes remain available as an independent authentication and recovery method.
 
-Both password and browser-code login will offer an unchecked remember option.
+Both password and browser-code login offer an unchecked remember option.
 Without it, TDNS retains the implemented non-persistent cookie and absolute
 12-hour server session. With it, the cookie and server-side session receive the
 same absolute lifetime from `auth.browser.remember_days`, which defaults to 10
@@ -443,7 +443,7 @@ and accepts values from 1 through 30. Remembered sessions do not slide or renew
 automatically. Password changes and account disablement revoke every session
 created through password authentication.
 
-Password verification will use generic failures, a dummy bcrypt comparison for
+Password verification uses generic failures, a dummy bcrypt comparison for
 unknown or unusable credentials, and bounded source-address, username, and
 global attempt limits without durable account lockout. Cookie identifiers
 remain opaque, server-side, Secure, HttpOnly, SameSite=Strict, host-only, and
@@ -472,8 +472,13 @@ are implemented by issue `#93`. The dual-mode embedded login, shared explicit
 remember control, secret clearing, and generic browser errors are implemented by
 issue `#94`.
 
-Status: Approved on 2026-08-01; credential management, backend password login,
-remembered sessions, and the dual-mode web form are implemented.
+The local credential and all browser authentication state are part of the
+SQLite backup boundary. Restoring a database restores the password hash,
+consumed-code history, and any sessions that were unexpired at the snapshot's
+timestamps. Password rotation or disablement revokes password-authenticated
+sessions but deliberately leaves browser-code recovery sessions active.
+
+Status: Implemented and operationally verified on 2026-08-02.
 
 ## Known Temporary Risks
 
@@ -484,6 +489,10 @@ remembered sessions, and the dual-mode web form are implemented.
 - Backup access, expiration, restoration, and disposal remain deployment
   responsibilities; TDNS cannot enforce policy on copies outside its runtime
   database directory.
+- Restoring an older SQLite snapshot can restore unexpired sessions and an old
+  local password hash. TDNS has no global browser-session revocation command;
+  operators must protect backups as credentials and account for restored
+  authentication state during incident recovery.
 
 ## Required Verification
 

@@ -99,6 +99,28 @@ reference](configuration.md#blacklist).
 
 After bootstrap, do not mount `/etc/tdns` read-write into the serving container.
 
+Bootstrap does not create a local browser password. After the serving container
+has created and migrated SQLite, set the password through an interactive exec
+session. The image accepts no plaintext-password argument or environment
+variable:
+
+```bash
+docker exec -it tdns /usr/local/bin/tdns \
+  -c /etc/tdns/tdns.yaml adm password set --username admin
+```
+
+Run the same command to rotate the password. Disable password login and revoke
+password-authenticated sessions with:
+
+```bash
+docker exec -it tdns /usr/local/bin/tdns \
+  -c /etc/tdns/tdns.yaml adm password disable
+```
+
+Both operations run as the container's UID `65532` and update the mounted
+SQLite database. Browser-code login remains available independently for
+recovery when the active signing key is accessible to the container command.
+
 ## Run With Docker
 
 Replace the host listener addresses with addresses on the trusted network that
@@ -167,13 +189,20 @@ sudo tar --numeric-owner -C ./tdns-data -czf tdns-data-backup.tar.gz .
 docker start tdns
 ```
 
-Protect and expire backups as sensitive DNS history. To restore:
+Protect and expire backups as sensitive DNS history and authentication data.
+The snapshot includes the local password hash, browser sessions, CSRF state,
+and consumed-code history. To restore:
 
 1. Stop and remove the TDNS container.
 2. Move the current data directory aside.
 3. Restore the complete archived directory, including any WAL files.
 4. Restore ownership to `65532:65532` and directory mode `0750`.
 5. Start the same TDNS version and verify DNS and management API operation.
+
+An older snapshot can restore a previous password hash and sessions whose
+absolute expiration is still in the future. Rotate the password and bearer
+credentials after an incident-related restore. Password rotation does not
+revoke browser-code sessions.
 
 ## Upgrade And Rollback
 
@@ -185,9 +214,13 @@ Before an upgrade:
 4. Recreate the container with the same mounts and listener mappings.
 5. Verify the reported version, DNS resolution, HTTPS API, and retained state.
 
-Database migrations run automatically. Rolling back the binary after a migration
-is not assumed to be safe. Restore the pre-upgrade data backup when returning to
-an older image.
+Database migrations run automatically. Password login remains disabled until a
+credential exists, so an existing installation may continue with browser-code
+login or explicitly provision the password after upgrade. Verify password and
+browser-code login, remembered-session persistence, and logout after an
+authentication-related upgrade. Rolling back the binary after a migration is
+not assumed to be safe. Restore the pre-upgrade data backup when returning to an
+older image and account for its restored authentication state.
 
 ## Verification And Troubleshooting
 
