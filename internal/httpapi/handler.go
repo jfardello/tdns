@@ -83,6 +83,8 @@ func NewHandler(
 	registerRoute(mux, "POST /api/static-response/persisted", api.StaticResponseReplacePersisted, readWrite, "static_response_persisted_replace", authManager, browserStore)
 	registerRoute(mux, "POST /api/static-response", api.StaticResponseReplace, readWrite, "static_response_replace", authManager, browserStore)
 	registerRoute(mux, "POST /api/static-response/{action}", api.StaticResponseToggle, readWrite, "static_response_toggle", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log/dashboard/history", api.DNSLogDashboardHistory, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log/dashboard/current", api.DNSLogDashboardCurrent, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/dashboard", api.DNSLogDashboard, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager, browserStore)

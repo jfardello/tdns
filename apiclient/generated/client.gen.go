@@ -755,6 +755,20 @@ type ClientInterface interface {
 	// Corresponds with GET /api/dns-log/dashboard (the `DnsLogDashboard` operationId).
 	DnsLogDashboard(ctx context.Context, params *DnsLogDashboardParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DnsLogDashboardCurrent Get current dashboard hour
+	//
+	// Calculate statistics for the current partial UTC hour.
+	//
+	// Corresponds with GET /api/dns-log/dashboard/current (the `DnsLogDashboardCurrent` operationId).
+	DnsLogDashboardCurrent(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DnsLogDashboardHistory Get completed dashboard hours
+	//
+	// Return the cached statistics for the previous 23 completed UTC hours.
+	//
+	// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
+	DnsLogDashboardHistory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DnsLogRotate Rotate DNS log entries
 	//
 	// Delete DNS log entries selected by a relative duration.
@@ -1461,6 +1475,40 @@ func (c *Client) DnsLogClientsSearch(ctx context.Context, params *DnsLogClientsS
 // Corresponds with GET /api/dns-log/dashboard (the `DnsLogDashboard` operationId).
 func (c *Client) DnsLogDashboard(ctx context.Context, params *DnsLogDashboardParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDnsLogDashboardRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DnsLogDashboardCurrent Get current dashboard hour
+//
+// Calculate statistics for the current partial UTC hour.
+//
+// Corresponds with GET /api/dns-log/dashboard/current (the `DnsLogDashboardCurrent` operationId).
+func (c *Client) DnsLogDashboardCurrent(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogDashboardCurrentRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DnsLogDashboardHistory Get completed dashboard hours
+//
+// Return the cached statistics for the previous 23 completed UTC hours.
+//
+// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
+func (c *Client) DnsLogDashboardHistory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogDashboardHistoryRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -2720,6 +2768,60 @@ func NewDnsLogDashboardRequest(server string, params *DnsLogDashboardParams) (*h
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDnsLogDashboardCurrentRequest constructs an http.Request for the DnsLogDashboardCurrent method
+func NewDnsLogDashboardCurrentRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log/dashboard/current")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDnsLogDashboardHistoryRequest constructs an http.Request for the DnsLogDashboardHistory method
+func NewDnsLogDashboardHistoryRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log/dashboard/history")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -3997,6 +4099,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /api/dns-log/dashboard (the `DnsLogDashboard` operationId).
 	DnsLogDashboardWithResponse(ctx context.Context, params *DnsLogDashboardParams, reqEditors ...RequestEditorFn) (*DnsLogDashboardResponse, error)
+
+	// DnsLogDashboardCurrentWithResponse Get current dashboard hour
+	//
+	// Calculate statistics for the current partial UTC hour.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/dns-log/dashboard/current (the `DnsLogDashboardCurrent` operationId).
+	DnsLogDashboardCurrentWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogDashboardCurrentResponse, error)
+
+	// DnsLogDashboardHistoryWithResponse Get completed dashboard hours
+	//
+	// Return the cached statistics for the previous 23 completed UTC hours.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
+	DnsLogDashboardHistoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogDashboardHistoryResponse, error)
 
 	// DnsLogRotateWithResponse Rotate DNS log entries
 	//
@@ -5337,6 +5457,116 @@ func (r DnsLogDashboardResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DnsLogDashboardResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DnsLogDashboardCurrentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogDashboardCurrentResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogDashboardCurrentResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogDashboardCurrentResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogDashboardCurrentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogDashboardCurrentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogDashboardCurrentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogDashboardCurrentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DnsLogDashboardHistoryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogDashboardHistoryResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogDashboardHistoryResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogDashboardHistoryResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogDashboardHistoryResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogDashboardHistoryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogDashboardHistoryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogDashboardHistoryResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7343,6 +7573,36 @@ func (c *ClientWithResponses) DnsLogDashboardWithResponse(ctx context.Context, p
 	return ParseDnsLogDashboardResponse(rsp)
 }
 
+// DnsLogDashboardCurrentWithResponse Get current dashboard hour
+//
+// Calculate statistics for the current partial UTC hour.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/dns-log/dashboard/current (the `DnsLogDashboardCurrent` operationId).
+func (c *ClientWithResponses) DnsLogDashboardCurrentWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogDashboardCurrentResponse, error) {
+	rsp, err := c.DnsLogDashboardCurrent(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogDashboardCurrentResponse(rsp)
+}
+
+// DnsLogDashboardHistoryWithResponse Get completed dashboard hours
+//
+// Return the cached statistics for the previous 23 completed UTC hours.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
+func (c *ClientWithResponses) DnsLogDashboardHistoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogDashboardHistoryResponse, error) {
+	rsp, err := c.DnsLogDashboardHistory(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogDashboardHistoryResponse(rsp)
+}
+
 // DnsLogRotateWithResponse Rotate DNS log entries
 //
 // Delete DNS log entries selected by a relative duration.
@@ -8635,6 +8895,86 @@ func ParseDnsLogDashboardResponse(rsp *http.Response) (*DnsLogDashboardResponse,
 	}
 
 	response := &DnsLogDashboardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDnsLogDashboardCurrentResponse parses an HTTP response from a DnsLogDashboardCurrentWithResponse call
+func ParseDnsLogDashboardCurrentResponse(rsp *http.Response) (*DnsLogDashboardCurrentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogDashboardCurrentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDnsLogDashboardHistoryResponse parses an HTTP response from a DnsLogDashboardHistoryWithResponse call
+func ParseDnsLogDashboardHistoryResponse(rsp *http.Response) (*DnsLogDashboardHistoryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogDashboardHistoryResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

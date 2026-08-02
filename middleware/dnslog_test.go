@@ -199,6 +199,117 @@ func TestDNSLog_GetDashboardStats(t *testing.T) {
 	}
 }
 
+func TestDNSLog_DashboardCacheLifecycle(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations error: %v", err)
+	}
+
+	se := syncsqlite.NewSyncExecutor(connString, 1)
+	t.Cleanup(se.Close)
+	cs := &DNSLog{se: se}
+	now := time.Date(2026, time.August, 2, 16, 30, 0, 0, time.UTC)
+	currentBucket := dashboardHourBucket(now)
+
+	stmts := make([]*syncsqlite.ExecStmt, 0, dashboardWindowHours+1)
+	for offset := -dashboardWindowHours; offset <= 0; offset++ {
+		bucket := currentBucket + int64(offset)
+		stmts = append(stmts, &syncsqlite.ExecStmt{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+			Args:  []any{bucket*nanosecondsPerHour + int64(10*time.Minute), "1.1.1.1", fmt.Sprintf("%d.example.", offset), offset%2 == 0},
+		})
+	}
+	if err := se.SyncExecBulk(stmts); err != nil {
+		t.Fatalf("seed dashboard rows: %v", err)
+	}
+
+	history, err := cs.GetDashboardHistoryAt(now)
+	if err != nil {
+		t.Fatalf("GetDashboardHistoryAt error: %v", err)
+	}
+	if len(history.Hourly) != dashboardHistoryHours {
+		t.Fatalf("history bucket count = %d, want %d", len(history.Hourly), dashboardHistoryHours)
+	}
+	if history.Hourly[0].HourBucket != currentBucket-dashboardHistoryHours {
+		t.Fatalf("first history bucket = %d", history.Hourly[0].HourBucket)
+	}
+	if history.Hourly[len(history.Hourly)-1].HourBucket != currentBucket-1 {
+		t.Fatalf("last history bucket = %d", history.Hourly[len(history.Hourly)-1].HourBucket)
+	}
+
+	conn := se.GetConn()
+	var cached int
+	if err := conn.QueryRow("SELECT COUNT(*) FROM dashboard_hourly_stats").Scan(&cached); err != nil {
+		se.FreeConn(conn)
+		t.Fatalf("count dashboard cache: %v", err)
+	}
+	se.FreeConn(conn)
+	if cached != dashboardHistoryHours {
+		t.Fatalf("cached bucket count = %d, want %d", cached, dashboardHistoryHours)
+	}
+
+	missingBucket := currentBucket - 5
+	if _, err := se.SyncExec("DELETE FROM dashboard_hourly_stats WHERE hour_bucket = ?", []any{missingBucket}); err != nil {
+		t.Fatalf("delete cached bucket: %v", err)
+	}
+	repaired, err := cs.GetDashboardHistoryAt(now)
+	if err != nil {
+		t.Fatalf("repair dashboard history: %v", err)
+	}
+	if len(repaired.Hourly) != dashboardHistoryHours {
+		t.Fatalf("repaired bucket count = %d, want %d", len(repaired.Hourly), dashboardHistoryHours)
+	}
+
+	if _, err := se.SyncExec(
+		"INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (?, ?, ?, ?)",
+		[]any{(currentBucket-1)*nanosecondsPerHour + int64(20*time.Minute), "1.1.1.1", "late.example.", 0},
+	); err != nil {
+		t.Fatalf("insert late previous-hour row: %v", err)
+	}
+	if err := cs.refreshDashboardCacheAt(now); err != nil {
+		t.Fatalf("refresh dashboard cache: %v", err)
+	}
+	refreshed, err := cs.GetDashboardHistoryAt(now)
+	if err != nil {
+		t.Fatalf("read refreshed dashboard history: %v", err)
+	}
+	if got := refreshed.Hourly[len(refreshed.Hourly)-1].TotalQueries; got != 2 {
+		t.Fatalf("refreshed previous-hour total = %d, want 2", got)
+	}
+
+	current, err := cs.GetDashboardCurrentAt(now)
+	if err != nil {
+		t.Fatalf("GetDashboardCurrentAt error: %v", err)
+	}
+	if len(current.Hourly) != 1 || current.Hourly[0].HourBucket != currentBucket || current.Summary.TotalQueries != 1 {
+		t.Fatalf("unexpected current dashboard stats: %#v", current)
+	}
+
+	combined, err := cs.GetDashboardStatsAt(now, dashboardWindowHours)
+	if err != nil {
+		t.Fatalf("GetDashboardStatsAt error: %v", err)
+	}
+	if len(combined.Hourly) != dashboardWindowHours {
+		t.Fatalf("combined bucket count = %d, want %d", len(combined.Hourly), dashboardWindowHours)
+	}
+	if combined.Summary.TotalQueries != refreshed.Summary.TotalQueries+current.Summary.TotalQueries {
+		t.Fatalf("combined total = %d, want history + current", combined.Summary.TotalQueries)
+	}
+
+	if err := cs.rotate(time.Hour); err != nil {
+		t.Fatalf("rotate DNS log: %v", err)
+	}
+	conn = se.GetConn()
+	if err := conn.QueryRow("SELECT COUNT(*) FROM dashboard_hourly_stats").Scan(&cached); err != nil {
+		se.FreeConn(conn)
+		t.Fatalf("count invalidated dashboard cache: %v", err)
+	}
+	se.FreeConn(conn)
+	if cached != 0 {
+		t.Fatalf("cached buckets after DNS-log rotation = %d, want 0", cached)
+	}
+}
+
 func TestDNSLog_GetTopFiltersByStatusAndClient(t *testing.T) {
 	connString := newTempConnString(t)
 	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {

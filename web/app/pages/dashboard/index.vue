@@ -2,8 +2,13 @@
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 import type { DashboardHourlyPoint, DashboardSummary, DnsLogItem } from '~/composables/useApi'
+import {
+  dashboardSegmentsHaveGap,
+  mergeDashboardSegments,
+  type DashboardSegment
+} from '~/lib/dashboardStats'
 
-const { clearCache, getDnsDashboard, getDnsLogTop } = useApi()
+const { clearCache, getDnsDashboardCurrent, getDnsDashboardHistory, getDnsLogTop } = useApi()
 const toast = useToast()
 
 const EMPTY_SUMMARY: DashboardSummary = {
@@ -19,7 +24,9 @@ const hourly = ref<DashboardHourlyPoint[]>([])
 const topDomains = ref<DnsLogItem[]>([])
 const windowHours = ref(24)
 const dashboardLoading = ref(false)
+const currentHourLoading = ref(false)
 const topDomainsLoading = ref(false)
+let dashboardRequest = 0
 
 const chartCategories = {
   allowed_queries: { name: 'Allowed', color: '#00dc82' },
@@ -75,18 +82,55 @@ function getTooltipMetric(values: Record<string, unknown> | undefined, key: stri
   return formatTooltipValue(getTooltipDatum(values)?.[key as keyof DashboardHourlyPoint])
 }
 
+function applyDashboard(history: DashboardSegment, current?: DashboardSegment) {
+  const dashboard = mergeDashboardSegments(history, current)
+  summary.value = dashboard.summary
+  hourly.value = dashboard.hourly
+  windowHours.value = dashboard.window_hours
+}
+
+async function loadCurrentDashboard(request: number, history: DashboardSegment) {
+  currentHourLoading.value = true
+  try {
+    const current = await getDnsDashboardCurrent()
+    if (request === dashboardRequest && current?.summary) {
+      let completed = history
+      if (dashboardSegmentsHaveGap(history, current)) {
+        const refreshed = await getDnsDashboardHistory()
+        if (request !== dashboardRequest) {
+          return
+        }
+        if (refreshed?.summary) {
+          completed = refreshed
+        }
+      }
+      applyDashboard(completed, current)
+    }
+  } finally {
+    if (request === dashboardRequest) {
+      currentHourLoading.value = false
+    }
+  }
+}
+
 async function loadDashboard() {
+  const request = ++dashboardRequest
   dashboardLoading.value = true
-  const response = await getDnsDashboard(windowHours.value)
+  currentHourLoading.value = false
+  const response = await getDnsDashboardHistory()
+  if (request !== dashboardRequest) {
+    return
+  }
   if (response?.summary) {
-    summary.value = response.summary
-    hourly.value = response.hourly || []
-    windowHours.value = response.window_hours || windowHours.value
+    applyDashboard(response)
+    dashboardLoading.value = false
+    void loadCurrentDashboard(request, response)
   } else {
     summary.value = { ...EMPTY_SUMMARY }
     hourly.value = []
+    windowHours.value = 24
+    dashboardLoading.value = false
   }
-  dashboardLoading.value = false
 }
 
 async function loadTopDomains() {
@@ -132,7 +176,7 @@ onMounted(() => {
               icon="i-lucide-refresh-cw"
               color="neutral"
               variant="ghost"
-              :loading="dashboardLoading || topDomainsLoading"
+              :loading="dashboardLoading || currentHourLoading || topDomainsLoading"
               @click="loadDashboardData"
             />
             <UButton
@@ -199,6 +243,12 @@ onMounted(() => {
                 <p class="text-sm text-muted">Allowed and blocked DNS queries across the last {{ windowHours }} hours.</p>
               </div>
               <div class="flex items-center gap-2 text-sm text-muted">
+                <UIcon
+                  v-if="currentHourLoading"
+                  name="i-lucide-loader-circle"
+                  class="size-4 animate-spin"
+                  aria-label="Loading current hour"
+                />
                 <span>Total {{ summary.total_queries.toLocaleString() }}</span>
                 <span>Blocked {{ summary.blocked_queries.toLocaleString() }}</span>
               </div>

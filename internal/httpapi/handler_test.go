@@ -96,6 +96,8 @@ func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 		{http.MethodPost, "/api/static-response/persisted"},
 		{http.MethodPost, "/api/static-response"},
 		{http.MethodPost, "/api/static-response/start"},
+		{http.MethodGet, "/api/dns-log/dashboard/history"},
+		{http.MethodGet, "/api/dns-log/dashboard/current"},
 		{http.MethodGet, "/api/dns-log/dashboard"},
 		{http.MethodGet, "/api/dns-log/clients"},
 		{http.MethodGet, "/api/dns-log/top/10"},

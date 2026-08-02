@@ -231,10 +231,66 @@ func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	api.writeDNSLogDashboard(w, stats)
+}
+
+// Get completed DNS log dashboard hours.
+//
+//	@Summary		Get completed dashboard hours
+//	@Description	Return the cached statistics for the previous 23 completed UTC hours.
+//	@Tags			dns-log
+//	@ID				dnsLogDashboardHistory
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Router			/api/dns-log/dashboard/history [get]
+func (api *v1) DNSLogDashboardHistory(w http.ResponseWriter, _ *http.Request) {
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	stats, err := p.GetDashboardHistory()
+	if err != nil {
+		api.writeDNSLogDashboardError(w, err)
+		return
+	}
+	api.writeDNSLogDashboard(w, stats)
+}
+
+// Get the current DNS log dashboard hour.
+//
+//	@Summary		Get current dashboard hour
+//	@Description	Calculate statistics for the current partial UTC hour.
+//	@Tags			dns-log
+//	@ID				dnsLogDashboardCurrent
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Router			/api/dns-log/dashboard/current [get]
+func (api *v1) DNSLogDashboardCurrent(w http.ResponseWriter, _ *http.Request) {
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	stats, err := p.GetDashboardCurrent()
+	if err != nil {
+		api.writeDNSLogDashboardError(w, err)
+		return
+	}
+	api.writeDNSLogDashboard(w, stats)
+}
+
+func (api *v1) writeDNSLogDashboardError(w http.ResponseWriter, err error) {
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       err.Error(),
+		CurrentStatus: "Enabled",
+	}, w)
+}
+
+func (api *v1) writeDNSLogDashboard(w http.ResponseWriter, stats *middleware.DashboardStats) {
 	cacheStats := middleware.GetCache().Status()
 	stats.Summary.CacheHits = cacheStats.Hits
 	stats.Summary.CacheMisses = cacheStats.Misses
-
+	w.Header().Set("Content-Type", "application/json")
 	writeJSON(Response{
 		Kind:          DNSLogResponseKind,
 		Message:       MESSAGE_OK,

@@ -14,7 +14,11 @@ export default defineNuxtConfig({
     provider: 'none',
     fallbackToApi: false,
     clientBundle: {
-      scan: true
+      scan: true,
+      icons: [
+        'lucide:layout-dashboard',
+        'lucide:shield-ban'
+      ]
     }
   },
   nitro: {

@@ -849,6 +849,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/dns-log/dashboard/current": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Calculate statistics for the current partial UTC hour.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Get current dashboard hour",
+                "operationId": "dnsLogDashboardCurrent",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/dashboard/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Return the cached statistics for the previous 23 completed UTC hours.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Get completed dashboard hours",
+                "operationId": "dnsLogDashboardHistory",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/dns-log/rotate": {
             "post": {
                 "security": [

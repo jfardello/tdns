@@ -36,7 +36,7 @@ func TestRunMigrationsDNSLog(t *testing.T) {
 	db := openDB(t, dbPath)
 	defer db.Close()
 
-	for _, table := range []string{"schema_migrations", "tdnslog", "hosts"} {
+	for _, table := range []string{"schema_migrations", "tdnslog", "hosts", "dashboard_hourly_stats"} {
 		var name string
 		if err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name); err != nil {
 			t.Fatalf("expected table %s: %v", table, err)
@@ -155,8 +155,8 @@ func TestRunMigrationsIsIdempotent(t *testing.T) {
 	).Scan(&count); err != nil {
 		t.Fatalf("count schema_migrations: %v", err)
 	}
-	if count != 3 {
-		t.Fatalf("expected 3 dnslog migrations, got %d", count)
+	if count != 4 {
+		t.Fatalf("expected 4 dnslog migrations, got %d", count)
 	}
 }
 

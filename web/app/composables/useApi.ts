@@ -252,6 +252,26 @@ export function useApi() {
     }
   }
 
+  async function getDnsDashboardHistory() {
+    const response = await execute(client.GET('/api/dns-log/dashboard/history'))
+    return response && {
+      ...response,
+      window_hours: response.window_hours ?? 23,
+      summary: normalizeDashboardSummary(response.summary),
+      hourly: (response.hourly ?? []).map(normalizeDashboardHourlyPoint)
+    }
+  }
+
+  async function getDnsDashboardCurrent() {
+    const response = await execute(client.GET('/api/dns-log/dashboard/current'))
+    return response && {
+      ...response,
+      window_hours: response.window_hours ?? 1,
+      summary: normalizeDashboardSummary(response.summary),
+      hourly: (response.hourly ?? []).map(normalizeDashboardHourlyPoint)
+    }
+  }
+
   async function rotateDnsLog(since: string) {
     return execute(client.POST('/api/dns-log/rotate', {
       params: { query: { since } }
@@ -386,6 +406,8 @@ export function useApi() {
     replaceStaticResponseHosts,
     replaceStaticResponsePersistedHosts,
     getDnsDashboard,
+    getDnsDashboardHistory,
+    getDnsDashboardCurrent,
     getDnsLogTop,
     searchDnsLogClients,
     rotateDnsLog,

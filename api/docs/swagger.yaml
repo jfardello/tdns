@@ -915,6 +915,53 @@ paths:
       summary: Get DNS log dashboard
       tags:
       - dns-log
+  /api/dns-log/dashboard/current:
+    get:
+      description: Calculate statistics for the current partial UTC hour.
+      operationId: dnsLogDashboardCurrent
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      summary: Get current dashboard hour
+      tags:
+      - dns-log
+  /api/dns-log/dashboard/history:
+    get:
+      description: Return the cached statistics for the previous 23 completed UTC
+        hours.
+      operationId: dnsLogDashboardHistory
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "403":
+          description: Forbidden
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      - CookieAuth: []
+      summary: Get completed dashboard hours
+      tags:
+      - dns-log
   /api/dns-log/rotate:
     post:
       description: Delete DNS log entries selected by a relative duration.
