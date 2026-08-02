@@ -4,9 +4,15 @@ import {
   normalizeBrowserSession,
   type BrowserSession
 } from '~/lib/browserSession'
+import {
+  exchangeBrowserCode,
+  loginWithAdministratorPassword,
+  type BrowserLoginAttempt,
+  type BrowserLoginOutcome
+} from '~/lib/browserLogin'
 
 export type AuthenticationStatus = 'loading' | 'authenticated' | 'anonymous'
-export type ExchangeResult = 'success' | 'invalid-code' | 'error'
+export type LoginResult = BrowserLoginOutcome
 
 let restorePromise: Promise<void> | null = null
 
@@ -75,24 +81,32 @@ export function useAuth() {
     }
   }
 
-  async function exchangeCode(code: string): Promise<ExchangeResult> {
-    clearLegacyBrowserCredential()
-    try {
-      const api = createSessionClient()
-      const { data, response } = await api.client.POST('/api/auth/exchange', {
-        body: { code: code.trim() }
-      })
-      if (response.ok && applySession(data)) {
-        return 'success'
-      }
-      if (response.status === 400 || response.status === 401) {
-        clearSession()
-        return 'invalid-code'
-      }
-    } catch {
-      return 'error'
+  function applyLoginAttempt(attempt: BrowserLoginAttempt): LoginResult {
+    if (attempt.outcome === 'success' && applySession(attempt.session)) {
+      return 'success'
     }
-    return 'error'
+    if (attempt.outcome === 'invalid-code' || attempt.outcome === 'invalid-credentials') {
+      clearSession()
+    }
+    return attempt.outcome === 'success' ? 'error' : attempt.outcome
+  }
+
+  async function exchangeCode(code: string, remember = false): Promise<LoginResult> {
+    clearLegacyBrowserCredential()
+    const api = createSessionClient()
+    return applyLoginAttempt(await exchangeBrowserCode(api.client, code, remember))
+  }
+
+  async function loginWithPassword(
+    username: string,
+    password: string,
+    remember = false
+  ): Promise<LoginResult> {
+    clearLegacyBrowserCredential()
+    const api = createSessionClient()
+    return applyLoginAttempt(
+      await loginWithAdministratorPassword(api.client, username, password, remember)
+    )
   }
 
   async function logout(): Promise<boolean> {
@@ -130,6 +144,7 @@ export function useAuth() {
     isLoading,
     restoreSession,
     exchangeCode,
+    loginWithPassword,
     logout,
     expireSession
   }

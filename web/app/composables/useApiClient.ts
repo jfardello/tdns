@@ -13,7 +13,7 @@ export function useApiClient() {
       }
       toast.add({
         title: 'Session expired',
-        description: 'Sign in with a new browser code',
+        description: 'Sign in again to continue',
         color: 'error',
         icon: 'i-lucide-circle-alert'
       })

@@ -292,7 +292,10 @@ browser CSRF processing. The embedded web UI uses these endpoints directly. It
 stores session metadata and the CSRF token only in memory; the opaque session
 identifier remains inaccessible in the HttpOnly cookie. A browser reload calls
 `GET /api/auth/session` to restore state and issue a fresh bounded CSRF token.
-The UI removes the legacy `tdns_jwt_token` local-storage entry during startup.
+The login page supports password and browser-code modes with one unchecked
+`Remember this browser` option. Passwords and browser codes are cleared after
+submission and are never written to Web Storage. The UI removes the legacy
+`tdns_jwt_token` local-storage entry during startup.
 
 The browser UI and management API must share an origin. Production uses the
 embedded UI. For Nuxt development, proxy `/api` through the development server:

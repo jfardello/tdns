@@ -96,11 +96,11 @@ runtime icon API fallback is disabled.
 The implemented browser authentication flows are:
 
 - a CLI command generates a short-lived, purpose-bound login code
-- the administrator pastes the code into the browser login form
-- the code is redeemed once through the HTTPS API
-- when a valid enabled local administrator exists, a same-origin client can
-  instead submit its username and password to `POST /api/auth/login`; the
-  embedded login form will expose this option when issue `#94` is implemented
+- the embedded login form presents password and browser-code modes as equal
+  choices and leaves `Remember this browser` unchecked by default
+- browser codes are redeemed once through the HTTPS API
+- when a valid enabled local administrator exists, its username and password
+  can instead be submitted to `POST /api/auth/login`
 - the server creates an opaque server-side session in SQLite
 - the browser receives only a host-bound Secure, HttpOnly, SameSite=Strict
   session cookie
@@ -463,11 +463,12 @@ authentication-method attribution, and password-session revocation are
 implemented by issue `#91`. The hardened password endpoint and generated API
 contracts are implemented by issue `#92`. Optional absolute remembered sessions,
 bounded configuration, persistence attribution, and persistent cookie lifetime
-are implemented by issue `#93`. The embedded web login remains browser-code-only
-until issue `#94`.
+are implemented by issue `#93`. The dual-mode embedded login, shared explicit
+remember control, secret clearing, and generic browser errors are implemented by
+issue `#94`.
 
 Status: Approved on 2026-08-01; credential management, backend password login,
-and remembered sessions implemented; the dual-mode web form remains pending.
+remembered sessions, and the dual-mode web form are implemented.
 
 ## Known Temporary Risks
 

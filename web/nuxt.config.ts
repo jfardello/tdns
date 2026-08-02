@@ -3,6 +3,13 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', 'nuxt-charts'],
   css: ['~/assets/css/main.css'],
   ssr: false,
+  app: {
+    head: {
+      meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ]
+    }
+  },
   icon: {
     provider: 'none',
     fallbackToApi: false,

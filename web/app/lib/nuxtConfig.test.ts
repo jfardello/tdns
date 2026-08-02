@@ -13,3 +13,9 @@ test('bundles icons locally without a runtime API fallback', () => {
   assert.equal(config.icon?.fallbackToApi, false)
   assert.equal(config.icon?.clientBundle?.scan, true)
 })
+
+test('declares a responsive mobile viewport', () => {
+  assert.deepEqual(config.app?.head?.meta, [
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+  ])
+})
