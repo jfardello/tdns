@@ -8,9 +8,9 @@ implementation. Update it whenever a change affects authentication,
 authorization, exposed listeners, configuration secrets, stored DNS data,
 remote content, dependencies, or release artifacts.
 
-`security-review.md` is the dated review that identified the current findings.
-`security-plan.md` organizes remediation work. This document describes the
-security posture and decisions that are currently in force.
+This document is the authoritative record of the security posture and decisions
+that are currently in force. Historical findings and completed remediation work
+remain available through the repository and issue history.
 
 ## Maintenance Rules
 
@@ -128,6 +128,11 @@ validated, request and response work is time-bounded, redirects remain on
 approved HTTPS GitHub hosts, and authorization is removed before cross-host
 redirects. Metadata, compressed content, decompressed content, line length, and
 entry count have mandatory fixed limits.
+
+Generated bootstrap configuration opts into the public `StevenBlack/hosts`
+repository and refreshes its gambling alternate every six hours. Operators may
+remove the paired remote repository and file settings when they require a
+locally managed blocklist without this outbound dependency.
 
 Candidates are downloaded to restricted temporary files on the destination
 filesystem and parsed into a replacement lookup tree before installation. A
@@ -535,8 +540,6 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 
 ## Related Documents
 
-- [Security review](security-review.md)
-- [Security implementation plan](security-plan.md)
 - [Configuration reference](configuration.md)
 - [Container deployment](container-deployment.md)
 - [Native and systemd deployment](systemd-deployment.md)

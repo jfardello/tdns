@@ -29,8 +29,8 @@ const topDomainsLoading = ref(false)
 let dashboardRequest = 0
 
 const chartCategories = {
-  allowed_queries: { name: 'Allowed', color: '#00dc82' },
-  blocked_queries: { name: 'Blocked', color: '#E06945' }
+  allowed_queries: { name: 'Allowed', color: '#572bbc' },
+  blocked_queries: { name: 'Blocked', color: '#4579e0' }
 }
 
 const chartData = computed(() =>

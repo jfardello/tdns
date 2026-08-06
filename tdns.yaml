@@ -52,7 +52,7 @@ auth:
 blacklist:
   enabled: true
   file: /var/lib/tdns/bhole_list
-  external_file: /alternates/gambling/hosts
+  external_file: alternates/gambling/hosts
   external_repo: https://github.com/StevenBlack/hosts.git
   external_repo_branch: master
   external_pull_period: "0 */6 * * *"

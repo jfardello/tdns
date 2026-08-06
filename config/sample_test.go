@@ -61,6 +61,12 @@ func TestSampleConfigLoadsThroughViper(t *testing.T) {
 	if want := []string{"domain.tld", "facebook.com"}; !reflect.DeepEqual(loaded.Blacklist.Excludes, want) {
 		t.Fatalf("blacklist.excludes = %v, want %v", loaded.Blacklist.Excludes, want)
 	}
+	if loaded.Blacklist.ExternalRepo != DefaultBlacklistRepository ||
+		loaded.Blacklist.ExternalRepoBranch != DefaultBlacklistBranch ||
+		loaded.Blacklist.ExternalFile != DefaultBlacklistFile ||
+		loaded.Blacklist.ExternalPullPeriod != DefaultBlacklistSchedule {
+		t.Fatalf("sample blacklist source = %#v", loaded.Blacklist)
+	}
 	if loaded.DNSAccess.MaxConcurrentUpstreams != 128 || loaded.DNSAccess.ClientIdleTimeout != "10m" {
 		t.Fatalf("dns_access did not load expected defaults: %#v", loaded.DNSAccess)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/auth"
+	internalblocklist "github.com/jfardello/tdns/internal/blocklist"
 	"gopkg.in/yaml.v3"
 )
 
@@ -72,6 +73,22 @@ func TestGeneratedConfigUsesSelectedDeploymentPaths(t *testing.T) {
 	}
 	if got, want := generated.Blacklist.File, "/srv/tdns/bhole_list"; got != want {
 		t.Fatalf("blacklist file = %q, want %q", got, want)
+	}
+	if generated.Blacklist.ExternalPullPeriod == "" {
+		t.Fatal("generated blacklist has no refresh schedule")
+	}
+	if generated.Blacklist.ExternalRepo != config.DefaultBlacklistRepository ||
+		generated.Blacklist.ExternalRepoBranch != config.DefaultBlacklistBranch ||
+		generated.Blacklist.ExternalFile != config.DefaultBlacklistFile ||
+		generated.Blacklist.ExternalPullPeriod != config.DefaultBlacklistSchedule {
+		t.Fatalf("generated blacklist source = %#v", generated.Blacklist)
+	}
+	if _, err := internalblocklist.ParseSource(
+		generated.Blacklist.ExternalRepo,
+		generated.Blacklist.ExternalRepoBranch,
+		generated.Blacklist.ExternalFile,
+	); err != nil {
+		t.Fatalf("generated blacklist source is invalid: %v", err)
 	}
 	if got, want := generated.Server.ListenAddr, ":8053"; got != want {
 		t.Fatalf("DNS listener = %q, want %q", got, want)

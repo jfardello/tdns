@@ -1,6 +1,6 @@
 services:
   tdns:
-    image: ${TDNS_IMAGE:-git.kubewire.net/jfardello/tdns:latest}
+    image: ${TDNS_IMAGE:-ghcr.io/jfardello/tdns:latest}
     command: ["serve", "-c", "/etc/tdns/tdns.yaml"]
     user: "65532:65532"
     read_only: true

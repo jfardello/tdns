@@ -6,7 +6,7 @@ ARG CREATED=unknown
 
 LABEL org.opencontainers.image.title="TDNS" \
       org.opencontainers.image.description="DNS over TLS forwarder with caching and runtime reconfiguration" \
-      org.opencontainers.image.source="https://git.kubewire.net/jfardello/tdns" \
+      org.opencontainers.image.source="https://github.com/jfardello/tdns" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.created="${CREATED}" \

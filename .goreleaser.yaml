@@ -40,7 +40,7 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     image_templates:
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-amd64"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--pull"
@@ -55,7 +55,7 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     image_templates:
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-arm64"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--pull"
@@ -64,14 +64,14 @@ dockers:
       - "--build-arg=CREATED={{ .Date }}"
 
 docker_manifests:
-  - name_template: "git.kubewire.net/jfardello/tdns:{{ .Tag }}"
+  - name_template: "ghcr.io/jfardello/tdns:{{ .Tag }}"
     image_templates:
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-amd64"
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-arm64"
-  - name_template: "{{ if not .Prerelease }}git.kubewire.net/jfardello/tdns:latest{{ end }}"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-amd64"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-arm64"
+  - name_template: "{{ if not .Prerelease }}ghcr.io/jfardello/tdns:latest{{ end }}"
     image_templates:
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-amd64"
-      - "git.kubewire.net/jfardello/tdns:{{ .Tag }}-arm64"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-amd64"
+      - "ghcr.io/jfardello/tdns:{{ .Tag }}-arm64"
 
 archives:
   - formats: ['tar.gz']
@@ -107,7 +107,7 @@ archives:
           mode: 0644
 
 release:
-  gitea:
+  github:
     owner: jfardello
     name: tdns
 
@@ -117,6 +117,3 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-gitea_urls:
-  api: https://git.kubewire.net/api/v1
-  download: https://git.kubewire.net

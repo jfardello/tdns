@@ -43,7 +43,7 @@ var (
 
 var unitTemplate = `[Unit]
 Description=TDNS DNS resolver
-Documentation=https://git.kubewire.net/jfardello/tdns
+Documentation=https://github.com/jfardello/tdns
 Wants=network-online.target
 After=network-online.target
 
@@ -219,8 +219,12 @@ func newConf() *config.Config {
 			Ttl:     5,
 		},
 		Blacklist: config.BlacklistConfig{
-			Enabled: true,
-			File:    path.Join(dataPath, "bhole_list"),
+			Enabled:            true,
+			File:               path.Join(dataPath, "bhole_list"),
+			ExternalFile:       config.DefaultBlacklistFile,
+			ExternalRepo:       config.DefaultBlacklistRepository,
+			ExternalRepoBranch: config.DefaultBlacklistBranch,
+			ExternalPullPeriod: config.DefaultBlacklistSchedule,
 		},
 		StaticResponse: config.StaticResponseConf{
 			Enabled: true,

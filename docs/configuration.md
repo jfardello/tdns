@@ -132,6 +132,12 @@ Bare IP addresses and CIDRs are also accepted and normalized.
 Persisted blacklist hosts add entries to the configured blocklist. Persisted
 exclusions add domain or label selectors to `blacklist.excludes`.
 
+`tdns config` enables remote refreshes using the public
+`StevenBlack/hosts` repository, the relative file
+`alternates/gambling/hosts`, and a six-hour schedule. Remove both
+`external_repo` and `external_file` and clear `external_pull_period` when a
+deployment should use only a locally managed blocklist.
+
 Remote refreshes resolve the branch and retrieve content through the GitHub API.
 Public repositories need no credentials. For a private repository or a higher
 GitHub API rate limit, set `GITHUB_TOKEN` in the TDNS process environment. TDNS

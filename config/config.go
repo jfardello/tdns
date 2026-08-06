@@ -17,6 +17,10 @@ const (
 	DefaultBrowserRememberDays = 10
 	MinBrowserRememberDays     = 1
 	MaxBrowserRememberDays     = 30
+	DefaultBlacklistRepository = "https://github.com/StevenBlack/hosts.git"
+	DefaultBlacklistBranch     = "master"
+	DefaultBlacklistFile       = "alternates/gambling/hosts"
+	DefaultBlacklistSchedule   = "0 */6 * * *"
 	DefaultDNSLogRetention     = "30d"
 	MaximumDNSLogRetention     = 180 * 24 * time.Hour
 	DefaultDiagnosticsAddress  = "127.0.0.1:6060"

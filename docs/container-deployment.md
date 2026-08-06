@@ -13,15 +13,15 @@ Internet.
 The release image is:
 
 ```text
-git.kubewire.net/jfardello/tdns:<version>
+ghcr.io/jfardello/tdns:<version>
 ```
 
 Stable releases also update `latest`. Production deployments should pin a
 release tag or, preferably, the published image digest:
 
 ```bash
-docker pull git.kubewire.net/jfardello/tdns:v0.2.0
-docker buildx imagetools inspect git.kubewire.net/jfardello/tdns:v0.2.0
+docker pull ghcr.io/jfardello/tdns:v0.2.0
+docker buildx imagetools inspect ghcr.io/jfardello/tdns:v0.2.0
 ```
 
 The image exposes `8053/udp` for DNS and `8443/tcp` for the management HTTPS
@@ -57,7 +57,7 @@ docker run --rm \
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --mount type=bind,src="$(pwd)/tdns-config",dst=/etc/tdns \
-  git.kubewire.net/jfardello/tdns:<version> \
+  ghcr.io/jfardello/tdns:<version> \
   config \
   --output-dir /etc/tdns \
   --basepath /etc/tdns \
@@ -139,7 +139,7 @@ docker run -d \
   --mount type=bind,src="$(pwd)/tdns-data",dst=/var/lib/tdns \
   --publish 192.168.1.53:53:8053/udp \
   --publish 127.0.0.1:8443:8443/tcp \
-  git.kubewire.net/jfardello/tdns:<version> \
+  ghcr.io/jfardello/tdns:<version> \
   serve -c /etc/tdns/tdns.yaml
 ```
 
@@ -264,12 +264,13 @@ reachable. Keep `diagnostics.pprof_enabled` false during normal operation.
 
 ## Publishing
 
-Tag pushes matching `v*` run the release workflow and publish one OCI manifest
-for amd64 and arm64. The Gitea repository must define:
+Tag pushes matching `v*` run the GitHub Actions release workflow and publish
+one OCI manifest for amd64 and arm64. The workflow uses the repository's
+automatic `GITHUB_TOKEN` with `contents: write` and `packages: write`; no
+additional release or registry secret is required. Repository or organization
+policy must allow those token permissions.
 
-- `GITEA_TOKEN` for creating the release
-- `REGISTRY_USERNAME` for registry login
-- `REGISTRY_TOKEN` with permission to publish the container package
-
-GoReleaser creates architecture-specific images and the shared version manifest.
-Prereleases do not update `latest`.
+GoReleaser creates architecture-specific images and the shared version
+manifest. Prereleases do not update `latest`. GHCR packages are private on first
+publication; change the package visibility to public in GitHub if deployments
+must pull TDNS without authenticating.
