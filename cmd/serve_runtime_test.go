@@ -11,6 +11,27 @@ import (
 	"github.com/spf13/viper"
 )
 
+func TestReadConfigurationRejectsUnreadableOrInvalidConfiguredPath(t *testing.T) {
+	v := viper.New()
+	v.SetConfigFile(t.TempDir())
+
+	err := readConfiguration(v)
+	if err == nil || !strings.Contains(err.Error(), "read configuration") {
+		t.Fatalf("readConfiguration error = %v, want explicit read failure", err)
+	}
+}
+
+func TestReadConfigurationAllowsMissingDefaultSearchFile(t *testing.T) {
+	v := viper.New()
+	v.SetConfigName("tdns")
+	v.SetConfigType("yaml")
+	v.AddConfigPath(t.TempDir())
+
+	if err := readConfiguration(v); err != nil {
+		t.Fatalf("readConfiguration missing default file: %v", err)
+	}
+}
+
 func TestServingUmaskProtectsRuntimeFiles(t *testing.T) {
 	oldMask := syscall.Umask(0)
 	syscall.Umask(oldMask)

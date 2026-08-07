@@ -53,7 +53,7 @@ ExecStart={{.Path}} serve -c {{.ConfigFile}}
 User=tdns
 Group=tdns
 UMask=0077
-WorkingDirectory=/var/lib/tdns
+WorkingDirectory={{.DataPath}}
 StateDirectory=tdns
 StateDirectoryMode=0750
 ConfigurationDirectory=tdns
@@ -76,7 +76,7 @@ ProtectKernelModules=true
 ProtectKernelTunables=true
 ProtectSystem=strict
 ReadOnlyPaths=/etc/tdns
-ReadWritePaths=/var/lib/tdns
+ReadWritePaths={{.DataPath}}
 RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
 RestrictRealtime=true
@@ -121,7 +121,7 @@ var configCmd = &cobra.Command{
 		WriteSampleConfig("tdns.yaml", certname, keyname)
 		if generateSystemdUnit {
 			abs, _ := os.Executable()
-			createUnit(abs, path.Join(basepath, "tdns.yaml"), path.Join(destination, "tdns.service"))
+			createUnit(abs, path.Join(basepath, "tdns.yaml"), dataPath, path.Join(destination, "tdns.service"))
 		}
 		fmt.Printf("Sample config written to %s.\n", path.Join(destination, "tdns.yaml"))
 		fmt.Printf("Runtime data such as the blacklist and database files will be stored in %s.\n", dataPath)
@@ -302,17 +302,18 @@ func newConf() *config.Config {
 	return c
 }
 
-func createUnit(tdnspath, cfgName, unitpath string) {
+func createUnit(tdnspath, cfgName, runtimeDataPath, unitpath string) {
 	logger := log.GetLogger("config", "createUnit")
 	type T struct {
 		Path       string
 		ConfigFile string
+		DataPath   string
 	}
 	t, err := template.New("unit").Parse(unitTemplate)
 	if err != nil {
 		panic(err)
 	}
-	data := &T{Path: tdnspath, ConfigFile: cfgName}
+	data := &T{Path: tdnspath, ConfigFile: cfgName, DataPath: runtimeDataPath}
 	unitOut, err := os.OpenFile(unitpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		logger.Fatalf("Failed to open %s for writing: %v", unitpath, err)

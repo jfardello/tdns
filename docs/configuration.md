@@ -52,6 +52,17 @@ file. Generated listeners default to loopback. Use an explicit trusted LAN or
 VPN address when remote clients need access; do not replace it with a wildcard
 unless equivalent network controls have been reviewed.
 
+Addresses such as `:53` and `:8443` mean "bind this port on every available
+local address." They are valid server bind addresses, but clients cannot
+connect to the empty host: use a concrete IP address or hostname covered by the
+management certificate. On Linux, port 53 also requires root or
+`CAP_NET_BIND_SERVICE`. The generated native systemd unit supplies that one
+capability; a release binary run directly does not. The capability-free
+container must instead use `:8053` internally and publish host UDP port 53 to
+container UDP port 8053. Port 8443 is unprivileged; investigate an occupied
+port, certificate/key access, firewalling, or missing port publishing if it is
+unavailable.
+
 See [Native and Systemd Deployment](systemd-deployment.md) and
 [Container Deployment](container-deployment.md) for ownership and mount
 procedures.
@@ -97,6 +108,13 @@ dns_access:
     - 192.168.50.0/24
     - fd00:50::/64
 ```
+
+The current `tdns config` command has no CIDR-selection flag. After bootstrap,
+add the explicitly trusted prefixes to the restricted generated YAML before
+starting TDNS. Do not add the server's interface prefix merely because it was
+auto-detected: choose the smallest client prefixes required by the deployment.
+The planned repeatable bootstrap option and its acceptance criteria are recorded
+in [Bootstrap CIDR Selection Plan](security.md#bootstrap-cidr-selection-plan).
 
 Malformed or duplicate prefixes, disabled limits, excessive values, and invalid
 idle durations fail startup. ACL and per-client rate rejection occur before

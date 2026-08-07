@@ -309,6 +309,14 @@ LAN address, add every DNS client network to
 in `--hosts`. Avoid wildcard listeners. Private and link-local networks are
 denied unless explicitly configured.
 
+The ARM64 and AMD64 release binaries have the same listener behavior. A release
+archive does not preserve a Linux file capability on the binary. Port 53 works
+for the non-root `tdns` account when TDNS is launched through the generated
+systemd unit because that unit grants `CAP_NET_BIND_SERVICE`; starting the
+binary directly as `tdns` does not. Port 8443 needs no privileged-port
+capability. `:53` and `:8443` are valid wildcard binds, but clients must use a
+concrete address or certificate-covered hostname.
+
 The generated YAML contains an active signing key, its identifier, and a
 bootstrap client token. Restrict the configuration and API private key to root
 and the service group:
@@ -355,6 +363,12 @@ The generated service:
 - makes `/etc/tdns` read-only to the service
 - enables systemd process, device, filesystem, kernel, and namespace isolation
 
+The generated `WorkingDirectory` and `ReadWritePaths` follow `--data-path`.
+Releases up to and including `v0.1.7` hard-coded `/var/lib/tdns` in the unit; if
+their YAML uses a different data directory, either move the runtime data back to
+`/var/lib/tdns` or add that exact directory to the installed unit's
+`ReadWritePaths` before restarting.
+
 If TDNS listens only on ports greater than 1023, remove both
 `AmbientCapabilities` and `CapabilityBoundingSet` from the installed unit.
 
@@ -365,6 +379,14 @@ systemd-analyze security tdns.service
 systemctl status tdns
 journalctl -u tdns
 ```
+
+Read the first listener error in the journal. `permission denied` on port 53
+means TDNS was not launched with the generated unit's bind capability;
+`address already in use` means another resolver owns that address and UDP port.
+A fatal DNS bind error exits the process, so HTTPS on 8443 disappears as a
+consequence even when its bind was valid. For an independent 8443 problem,
+check its TCP owner, certificate and key readability, firewall rules, and the
+concrete client address rather than adding bind capabilities.
 
 ### Local Administrator Password
 

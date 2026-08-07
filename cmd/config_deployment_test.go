@@ -16,7 +16,7 @@ import (
 
 func TestGeneratedSystemdUnitIsHardened(t *testing.T) {
 	unitPath := filepath.Join(t.TempDir(), "tdns.service")
-	createUnit("/usr/local/bin/tdns", "/etc/tdns/tdns.yaml", unitPath)
+	createUnit("/usr/local/bin/tdns", "/etc/tdns/tdns.yaml", "/var/lib/tdns", unitPath)
 
 	contents, err := os.ReadFile(unitPath)
 	if err != nil {
@@ -51,6 +51,25 @@ func TestGeneratedSystemdUnitIsHardened(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0o644 {
 		t.Fatalf("unit mode = %04o, want 0644", got)
+	}
+}
+
+func TestGeneratedSystemdUnitUsesSelectedDataPath(t *testing.T) {
+	unitPath := filepath.Join(t.TempDir(), "tdns.service")
+	createUnit("/usr/sbin/tdns", "/etc/tdns/tdns.yaml", "/var/lib/rancher/tdns", unitPath)
+
+	contents, err := os.ReadFile(unitPath)
+	if err != nil {
+		t.Fatalf("read generated unit: %v", err)
+	}
+	unit := string(contents)
+	for _, expected := range []string{
+		"WorkingDirectory=/var/lib/rancher/tdns",
+		"ReadWritePaths=/var/lib/rancher/tdns",
+	} {
+		if !strings.Contains(unit, expected) {
+			t.Errorf("generated unit is missing %q", expected)
+		}
 	}
 }
 
