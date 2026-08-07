@@ -73,13 +73,12 @@ func initConfig() {
 		viper.SetConfigFile(configFile)
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if errors.As(err, &configFileNotFoundError) {
-
-			logger.Infof("config file not found %v", err)
-			return
-		}
+	if err := readConfiguration(viper.GetViper()); err != nil {
+		logger.Fatal(err)
+	}
+	if viper.ConfigFileUsed() == "" {
+		logger.Info("config file not found; using command-line options and defaults")
+		return
 	}
 	logger.Infof("Loaded config file %s", viper.ConfigFileUsed())
 
@@ -90,6 +89,17 @@ func initConfig() {
 	}
 	config.SetRunningConfig(c)
 
+}
+
+func readConfiguration(v *viper.Viper) error {
+	if err := v.ReadInConfig(); err != nil {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
+			return nil
+		}
+		return fmt.Errorf("read configuration: %w", err)
+	}
+	return nil
 }
 
 func init() {

@@ -28,6 +28,13 @@ The image exposes `8053/udp` for DNS and `8443/tcp` for the management HTTPS
 server. `EXPOSE` is metadata only; published host addresses determine which
 networks can reach the service.
 
+Do not change the container DNS listener to `:53`. The image runs non-root and
+the approved runtime drops every capability, so binding privileged UDP port 53
+inside the container fails. Keep `server.listen_addr: :8053` and map host UDP
+port 53 to it. `:8443` is a valid wildcard bind; connect through a concrete
+published host address or certificate-covered hostname rather than the empty
+wildcard host.
+
 ## Filesystem Layout
 
 TDNS uses two mounts:
@@ -231,6 +238,14 @@ docker inspect tdns --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}}'
 docker inspect tdns --format '{{json .HostConfig.CapDrop}}'
 docker logs tdns
 ```
+
+If DNS port 53 reports `permission denied`, confirm that the generated YAML did
+not use `server.listen_addr: :53`; that setting belongs only to a native process
+with the bind-service capability. If DNS reports `address already in use`, find
+the host resolver already owning UDP port 53 or publish TDNS on a different host
+address. Because a fatal DNS bind error exits TDNS, HTTPS on 8443 also disappears
+even if its own bind was valid. An independent 8443 bind failure instead points
+to a port conflict or certificate/key problem, not privileged-port policy.
 
 Test the listeners from outside the container:
 

@@ -38,8 +38,27 @@ The generated configuration contains a signing key and bootstrap bearer token.
 Keep it private. It also configures a public blocklist download and creates
 SQLite state under the selected data path.
 
+When installing the generated systemd unit, remember that bootstrap files are
+created owner-only. Give only the service group read access to the configuration
+and API private key before starting TDNS:
+
+```bash
+sudo chown root:tdns /etc/tdns/tdns.yaml /etc/tdns/tdns_key.pem
+sudo chmod 0640 /etc/tdns/tdns.yaml /etc/tdns/tdns_key.pem
+sudo chown root:root /etc/tdns/tdns_cert.pem
+sudo chmod 0644 /etc/tdns/tdns_cert.pem
+```
+
+TDNS fails startup when a selected configuration cannot be read. Older releases
+could silently continue with defaults, producing a loopback DNS listener, an
+empty management listener, and an ephemeral signing key.
+
 Before using DNS port 53, check whether NetworkManager, `systemd-resolved`,
-`dnsmasq`, or another resolver already owns it.
+`dnsmasq`, or another resolver already owns it. A non-root direct run also lacks
+permission to bind port 53; use the generated systemd unit, which grants only
+`CAP_NET_BIND_SERVICE`, or keep using an unprivileged port. In the container,
+keep DNS on port 8053 and publish host port 53 to it. These rules are identical
+for AMD64 and ARM64 builds.
 
 ## Production Options
 
