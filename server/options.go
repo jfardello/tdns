@@ -5,7 +5,6 @@ import (
 	"github.com/jfardello/tdns/middleware"
 	"time"
 
-	"github.com/armon/go-radix"
 	"github.com/jfardello/tdns/log"
 	"github.com/jfardello/tdns/resolver"
 )
@@ -160,9 +159,7 @@ func WithBlacklist() func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
 		if c.Blacklist.File != "" {
-			b := &middleware.BlackList{
-				Hole: radix.New(),
-			}
+			b := &middleware.BlackList{}
 			err := b.Config(s.Config)
 			if err != nil {
 				logger.Fatal(err)

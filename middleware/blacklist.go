@@ -51,6 +51,7 @@ type BlackList struct {
 	runtimeRules  selectorSet
 	mu            sync.RWMutex
 	refreshMu     sync.Mutex
+	holeLoaded    bool
 	source        *internalblocklist.Source
 	ingester      blocklistIngester
 }
@@ -227,6 +228,7 @@ func (bp *BlackList) refresh(ctx context.Context) error {
 
 	bp.mu.Lock()
 	bp.Hole = prepared
+	bp.holeLoaded = true
 	activeEntries := prepared.Len()
 	bp.mu.Unlock()
 	recordBlacklistRefresh(started, "success", result, activeEntries)
@@ -267,6 +269,7 @@ func (bp *BlackList) reloadHoleLocked() error {
 	}
 	bp.mu.Lock()
 	bp.Hole = hole
+	bp.holeLoaded = true
 	activeEntries := hole.Len()
 	bp.mu.Unlock()
 	blacklistActiveEntries.Set(float64(activeEntries))
@@ -373,7 +376,7 @@ func (bp *BlackList) Init() error {
 	bp.mu.RUnlock()
 
 	bp.mu.RLock()
-	holeInitialized := bp.Hole != nil
+	holeInitialized := bp.holeLoaded
 	bp.mu.RUnlock()
 	if !holeInitialized {
 		if err := bp.reloadHole(); err != nil {
@@ -381,7 +384,6 @@ func (bp *BlackList) Init() error {
 		}
 	}
 
-	cf := config.GetRunningConfig()
 	mf := int64(BLMaxFuzziness * time.Second)
 	if pullPeriod != "" {
 		name := "BlackListDownloader"
@@ -394,7 +396,7 @@ func (bp *BlackList) Init() error {
 					logger.Error(err.Error())
 				}
 			}),
-			Expr: cf.Blacklist.ExternalPullPeriod,
+			Expr: pullPeriod,
 		}
 		sched.Add(t)
 	}

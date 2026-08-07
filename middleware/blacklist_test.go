@@ -19,6 +19,14 @@ type fakeBlocklistIngester struct {
 	err     error
 }
 
+type unchangedBlocklistIngester struct {
+	revision string
+}
+
+func (f unchangedBlocklistIngester) Refresh(_ context.Context, _ internalblocklist.Source, _ string, _ string, _ internalblocklist.Validator) (internalblocklist.Result, error) {
+	return internalblocklist.Result{Revision: f.revision}, nil
+}
+
 func (f fakeBlocklistIngester) Refresh(_ context.Context, _ internalblocklist.Source, destination, _ string, validate internalblocklist.Validator) (internalblocklist.Result, error) {
 	if f.err != nil {
 		return internalblocklist.Result{}, f.err
@@ -115,6 +123,31 @@ func TestBlackListDownloadAtomicallyUpdatesLiveTree(t *testing.T) {
 	}
 	if got := internalblocklist.ReadRevision(blockfile + ".state"); got != testBlacklistRevision {
 		t.Fatalf("revision state = %q", got)
+	}
+}
+
+func TestBlackListInitLoadsLocalFileWhenRemoteRevisionIsUnchanged(t *testing.T) {
+	blockfile := filepath.Join(t.TempDir(), "blacklist.txt")
+	if err := os.WriteFile(blockfile, []byte("0.0.0.0 ads.example\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	source := internalblocklist.Source{Owner: "acme", Repo: "lists", Branch: "main", File: "hosts"}
+	bp := &BlackList{
+		HoleFile: blockfile,
+		Hole:     radix.New(), // Reproduces the empty tree created by v0.1.7 startup.
+		ctx:      context.Background(),
+		source:   &source,
+		ingester: unchangedBlocklistIngester{revision: testBlacklistRevision},
+	}
+
+	if err := bp.Init(); err != nil {
+		t.Fatalf("Init error: %v", err)
+	}
+	if bp.Hole == nil {
+		t.Fatal("local blocklist was not initialized")
+	}
+	if _, ok := bp.Hole.Get("ads.example"); !ok {
+		t.Fatal("local blocklist entry was not loaded after unchanged refresh")
 	}
 }
 
