@@ -33,7 +33,7 @@ TDNS protects:
 - DNS queries and responses passing through the resolver
 - management operations that alter resolver behavior or persisted overrides
 - the server signing key and issued bearer credentials
-- future browser login codes and browser sessions
+- browser login codes, local administrator credentials, and browser sessions
 - TLS private keys and trusted CA material
 - the SQLite database containing DNS activity, aliases, tags, and overrides
 - local and remotely downloaded hosts and blocklist data
@@ -180,7 +180,7 @@ policy. Secrets and authentication credentials must never be logged.
 - Read-only and read-write scopes have distinct values; read-write credentials
   satisfy read-only routes, while read-only credentials receive `403` on
   mutation routes.
-- Bearer tokens are purpose-bound and cannot be substituted for future browser
+- Bearer tokens are purpose-bound and cannot be substituted for browser
   login codes or sessions.
 - Browser login codes use a purpose-specific derived signing key, a distinct
   audience, a two-minute maximum lifetime, and zero validation leeway.
@@ -209,6 +209,10 @@ policy. Secrets and authentication credentials must never be logged.
 - Generated configuration files use mode `0600`.
 - Generated API private keys use mode `0600`; public certificates use mode
   `0644`.
+- Native bootstrap files created by root must be changed to `root:tdns` mode
+  `0640` before starting the generated non-root service. A selected
+  configuration that cannot be read fails startup instead of silently applying
+  listener and authentication defaults.
 - Generated DNS and management listeners default to loopback.
 - Generated bootstrap administration tokens have a 30-day lifetime.
 - The repository sample contains no signing key or bearer token.
@@ -222,7 +226,7 @@ policy. Secrets and authentication credentials must never be logged.
 
 - The generated systemd unit runs as `tdns:tdns`, uses `UMask=0077`, grants
   only `CAP_NET_BIND_SERVICE`, and restricts writable storage to
-  `/var/lib/tdns`.
+  the configured runtime data path.
 - The production container runs as UID/GID `65532` on a pinned SUSE BCI Nano
   base and contains no shell or package manager.
 - The container deployment uses read-only configuration, a read-only root
@@ -234,6 +238,32 @@ policy. Secrets and authentication credentials must never be logged.
   `linux/arm64`.
 - Container and native deployment guides define bootstrap, listener, firewall,
   SQLite WAL, backup, restore, upgrade, and rollback controls.
+
+### Listener Binding and Reachability
+
+- `:53` and `:8443` are valid wildcard bind addresses for the DNS and
+  management listeners. TDNS warns about these addresses in production but does
+  not reject them. The diagnostics listener is the only listener that rejects a
+  wildcard address.
+- A wildcard address is not a destination address. Clients must connect to a
+  concrete host address or name covered by the management TLS certificate and
+  permitted by host firewall and routing policy.
+- UDP port 53 is a privileged port on normal Linux installations. A native
+  non-root process needs `CAP_NET_BIND_SERVICE`; the generated systemd unit
+  grants only that capability. A release binary started directly does not carry
+  the capability from the archive.
+- The production container deliberately drops every capability. It must listen
+  on unprivileged UDP port 8053 and publish host port 53 to container port 8053.
+  Configuring `:53` inside that container is incompatible with the approved
+  capability-free runtime.
+- TCP port 8443 is unprivileged. A failure there is not caused by Linux
+  privileged-port rules; check for another listener, certificate/key access,
+  host firewall or port publishing, and use of a concrete certificate-covered
+  client address.
+- A fatal DNS bind error terminates the TDNS process and therefore also removes
+  a management listener that may have started successfully. Listener errors
+  must be diagnosed from the first bind failure in the service or container
+  log, not only from a later connectivity test.
 
 ### Diagnostics
 
@@ -274,28 +304,28 @@ available, whichever comes first.
 
 | Decision | Status | Rationale |
 | --- | --- | --- |
-| Preserve bearer JWT authentication for CLI and public Go clients | Approved | Maintains programmatic API compatibility. |
-| Replace browser JWT storage with an HttpOnly session | Approved | Prevents JavaScript from extracting the reusable session credential. |
-| Store opaque browser sessions server-side in SQLite | Approved | Supports direct expiration, logout, and revocation. |
-| Support short-lived CLI browser codes and one local bcrypt administrator | Approved | Preserves recovery through browser codes while adding an optional familiar password login. |
-| Make browser login codes purpose-bound and single-use | Approved | Limits replay and clipboard exposure. |
-| Keep browser cookie authentication same-origin by default | Approved | Avoids unnecessary credentialed CORS exposure. |
-| Retain generated API artifacts in version control | Approved | Builds do not require generators and CI can detect contract drift. |
-| Build releases with Go 1.26.5 or a later patched supported release | Approved | Avoids known reachable standard-library vulnerabilities found with Go 1.26.1. |
-| Default DNS access to loopback and require an explicit CIDR allowlist for other clients | Approved | Prevents a default installation from becoming an open resolver; firewalling remains defense in depth. |
-| Use a two-minute browser login code and a non-persistent 12-hour session by default | Approved | Limits bootstrap-code replay and preserves the current browser-close behavior unless persistence is explicitly requested. |
-| Allow absolute remembered sessions from 1 through 30 days, defaulting to 10 | Approved | Provides explicit browser persistence without sliding or indefinite renewal. |
-| Store one local read-write administrator with bcrypt cost 12 and a 12-72 byte password | Approved | Keeps credential scope and password verification bounded while avoiding plaintext configuration secrets. |
+| Preserve bearer JWT authentication for CLI and public Go clients | Implemented | Maintains programmatic API compatibility. |
+| Replace browser JWT storage with an HttpOnly session | Implemented | Prevents JavaScript from extracting the reusable session credential. |
+| Store opaque browser sessions server-side in SQLite | Implemented | Supports direct expiration, logout, and revocation. |
+| Support short-lived CLI browser codes and one local bcrypt administrator | Implemented | Preserves recovery through browser codes while adding an optional familiar password login. |
+| Make browser login codes purpose-bound and single-use | Implemented | Limits replay and clipboard exposure. |
+| Keep browser cookie authentication same-origin by default | Implemented | Avoids unnecessary credentialed CORS exposure. |
+| Retain generated API artifacts in version control | Implemented | Builds do not require generators and CI can detect contract drift. |
+| Build releases with Go 1.26.5 or a later patched supported release | Implemented | Avoids known reachable standard-library vulnerabilities found with Go 1.26.1. |
+| Default DNS access to loopback and require an explicit CIDR allowlist for other clients | Implemented | Prevents a default installation from becoming an open resolver; firewalling remains defense in depth. |
+| Use a two-minute browser login code and a non-persistent 12-hour session by default | Implemented | Limits bootstrap-code replay and preserves the current browser-close behavior unless persistence is explicitly requested. |
+| Allow absolute remembered sessions from 1 through 30 days, defaulting to 10 | Implemented | Provides explicit browser persistence without sliding or indefinite renewal. |
+| Store one local read-write administrator with bcrypt cost 12 and a 12-72 byte password | Implemented | Keeps credential scope and password verification bounded while avoiding plaintext configuration secrets. |
 | Put metrics and pprof on a separate trusted listener and keep Swagger opt-in | Implemented | Separates diagnostics from the management surface and makes their network trust boundary explicit. |
 | Enforce strict bearer claims without legacy-token compatibility | Implemented | Upgrades from `v0.1.6` or older require credential regeneration instead of retaining weak validation. |
 | Load signing keys from secret files or environment variables and support active/previous key IDs | Implemented | Keeps production secrets out of ordinary YAML and permits controlled key rotation. |
 | Purge DNS logs after 30 days by default, with a 180-day maximum | Implemented | Minimizes retained browsing data and prevents indefinite retention. |
-| Support a single TDNS instance on a trusted home, LAN, or VPN network | Approved | Internet-facing management deployments are outside the supported security model. |
-| Do not support reverse-proxy deployments | Approved | TDNS does not trust or interpret forwarded identity or origin headers. |
-| Treat explicitly allowlisted DNS client networks as trusted | Approved | DNS ACLs define the client trust boundary; unauthorized sources remain untrusted. |
+| Support a single TDNS instance on a trusted home, LAN, or VPN network | Implemented | Internet-facing management deployments are outside the supported security model. |
+| Do not support reverse-proxy deployments | Implemented | TDNS does not trust or interpret forwarded identity or origin headers. |
+| Treat explicitly allowlisted DNS client networks as trusted | Implemented | DNS ACLs define the client trust boundary; unauthorized sources remain untrusted. |
 | Issue CLI bearer tokens for 30 days by default with a 180-day normal maximum | Implemented | Reduces the previous 500-day default while retaining an explicit administrative override. |
-| Block CI only for critical security findings | Approved | Lower-severity findings remain visible for triage without blocking every build. |
-| Support native/systemd and container deployments | Approved | Both installation forms must provide equivalent least-privilege and secret-protection controls. |
+| Block CI only for critical security findings | Implemented | Lower-severity findings remain visible for triage without blocking every build. |
+| Support native/systemd and container deployments | Implemented | Both installation forms must provide equivalent least-privilege and secret-protection controls. |
 
 ## Policy Decisions
 
@@ -305,12 +335,51 @@ starts.
 
 ### DNS Client Policy
 
-TDNS will allow loopback clients by default. Every non-loopback client network
+TDNS allows loopback clients by default. Every non-loopback client network
 must be present in an explicit CIDR allowlist. Standard private networks are not
 trusted automatically. Application ACLs are mandatory; listener binding and
 firewall policy remain defense-in-depth controls.
 
-Status: Approved on 2026-07-21.
+Status: Implemented on 2026-07-21 by the socket-peer admission policy and its
+IPv4, IPv6, normalization, rejection, and bounded-state tests.
+
+### Bootstrap CIDR Selection Plan
+
+The application ACL is implemented, but bootstrap currently writes an empty
+allowlist and requires the operator to edit YAML. Bootstrap ergonomics will be
+completed without weakening the loopback-only default:
+
+1. Add a repeatable `tdns config --allow-cidr <prefix>` option that writes only
+   explicitly supplied IPv4 or IPv6 prefixes to
+   `dns_access.allowed_client_cidrs`. Do not infer trust from host interfaces,
+   RFC1918 ranges, container bridges, or a wildcard listener.
+2. Move prefix parsing and canonicalization into shared configuration code so
+   bootstrap and serving apply the same maximum of 256 entries, IPv4-mapped IPv6
+   normalization, network masking, and duplicate rejection before credential
+   files are generated.
+3. Print a credential-free bootstrap summary containing the DNS bind address,
+   the selected CIDRs, and whether the result remains loopback-only. Warn when a
+   wildcard DNS listener is combined with non-loopback CIDRs, while allowing the
+   explicitly requested configuration.
+4. Keep listener selection separate from trust selection. `--listendns` decides
+   where the socket binds; `--allow-cidr` decides which socket peers receive DNS
+   service; host firewall or container publishing decides which packets can
+   reach the socket.
+5. Add generation tests for no option, repeated IPv4 and IPv6 options,
+   canonical duplicates, malformed values, the 256-entry limit, and ensuring a
+   rejected request creates no partial configuration or secret artifacts.
+6. Update native and container bootstrap examples and verify each deployment
+   from one allowed and one denied client. Container verification must use the
+   peer address TDNS actually observes after the selected runtime's port
+   publishing path.
+
+Changing the allowlist through the management API remains out of this bootstrap
+plan. It would require an authenticated configuration contract, atomic
+persistence, live policy replacement, audit events, rollback behavior, and a
+guard against removing the administrator's only working DNS path.
+
+Status: Planned on 2026-08-07. The serving ACL is implemented; the repeatable
+bootstrap selection option is not.
 
 ### Browser Credential Lifetimes
 
@@ -380,7 +449,8 @@ authentication, authorization, CSRF-origin, rate-limit, or client-address
 decisions. Operators may place network infrastructure in front of TDNS, but it
 must preserve direct connection semantics and is outside documented support.
 
-Status: Approved on 2026-07-26.
+Status: Implemented on 2026-08-07 through the single-instance deployment
+artifacts and direct-peer authentication, origin, and rate-limit behavior.
 
 ### Threat Assumptions
 
@@ -395,7 +465,8 @@ concurrency controls should still protect availability from accidental load,
 misconfiguration, and compromised devices, but deliberate attacks from an
 allowlisted client network are not part of the guaranteed threat model.
 
-Status: Approved on 2026-07-26.
+Status: Implemented on 2026-07-21 by the DNS admission boundary. The trusted
+client assumption remains an explicit limit of the guaranteed threat model.
 
 ### CLI Bearer-Token Lifetime
 
@@ -414,7 +485,8 @@ findings remain visible and require normal triage, but do not fail the security
 gate solely because they exist. Release documentation must not describe a
 non-blocking finding as remediated or absent.
 
-Status: Approved on 2026-07-26.
+Status: Implemented on 2026-08-07 by the CI production audit configured with
+the critical failure threshold and the documented triage exception process.
 
 ### Supported Installation Forms
 
@@ -429,7 +501,9 @@ read-only, and prefer port mapping or the minimum required bind capability for
 DNS port 53. Container images and native release artifacts follow the same
 dependency, vulnerability, and version-verification policy.
 
-Status: Approved on 2026-07-26.
+Status: Implemented on 2026-08-07 by the hardened generated systemd unit,
+capability-free container, multi-architecture release configuration, and the
+native and container operating guides.
 
 ### Password Login And Remembered Sessions
 
@@ -537,6 +611,8 @@ the enabled HTTPS, Swagger, authentication, and shutdown paths.
 | 2026-07-26 | Fail the CI security gate only for critical findings. | Other findings remain reported and triaged without automatically blocking builds. |
 | 2026-07-26 | Support both native/systemd and container installations. | Both deployment forms require equivalent non-root, minimal-capability, restricted-secret, and listener controls. |
 | 2026-08-01 | Add one CLI-managed bcrypt administrator and optional absolute remembered sessions while retaining browser-code login. | Password login is read-write, bcrypt uses cost 12 with 12-72 byte passwords, the default cookie remains non-persistent for 12 hours, and explicit persistence defaults to 10 days with a 30-day cap. |
+| 2026-08-07 | Keep wildcard DNS and management binds available, but treat them only as socket selection and preserve explicit CIDR and network controls. | Port 53 requires the systemd bind capability or container host-port mapping; wildcard destinations and certificate coverage remain operator concerns. |
+| 2026-08-07 | Plan explicit repeatable CIDR selection during bootstrap without network auto-discovery. | Generated configurations remain loopback-only unless the operator supplies each trusted prefix. |
 
 ## Related Documents
 
