@@ -3,6 +3,30 @@
 TDNS contains a Go server and CLI plus a Nuxt web application embedded into the
 binary. Generated API contracts and clients are committed to the repository.
 
+## Contribution Flow
+
+TDNS uses a lightweight integration-branch flow:
+
+1. Fork the repository on GitHub.
+2. Create a focused feature or fix branch from the upstream `develop` branch.
+3. Push that branch to the contributor's fork and open a pull request against
+   the upstream `develop` branch.
+4. Keep commits reviewable and update the branch when review or CI finds a
+   problem. CI runs for pull requests targeting `develop`, but ordinary direct
+   pushes to `develop` do not start a workflow.
+5. Maintainers periodically open a pull request from `develop` to `main`.
+   Merging that promotion runs CI on `main` and publishes the documentation.
+6. Create release tags only from commits contained in `main`. A `v*` tag starts
+   the release workflow, which rejects a tag whose commit is not in `main`.
+
+A maintainer may commit directly to `develop` when intentionally working
+without per-push Actions, but should still run the local verification commands
+below before pushing.
+
+For an urgent production fix, branch from `main`, open the fix pull request
+against `main`, release it, and then merge or cherry-pick the same fix back into
+`develop` so the branches do not diverge.
+
 ## Toolchain
 
 - Go 1.26.5
