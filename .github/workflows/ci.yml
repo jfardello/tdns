@@ -26,6 +26,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64,arm
+
       - name: Set up GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -42,7 +47,35 @@ jobs:
       - name: Verify generated files, tests, and web build
         run: ./tools/verify.sh
 
-      - name: Verify Linux release architectures
+      - name: Build Linux release snapshot
+        run: goreleaser release --snapshot --clean --skip=before,docker
+
+      - name: Verify Linux release artifacts
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o /tmp/tdns-amd64 .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o /tmp/tdns-arm64 .
+          set -eu
+
+          for target in x86_64 arm64 armv7; do
+            archive="tdns_Linux_${target}.tar.gz"
+            test -f "dist/${archive}"
+            grep -Fq "  ${archive}" dist/checksums.txt
+            mkdir "/tmp/tdns-${target}"
+            tar -xzf "dist/${archive}" -C "/tmp/tdns-${target}"
+          done
+
+          (
+            cd dist
+            sha256sum --check checksums.txt
+          )
+
+          file /tmp/tdns-x86_64/tdns | grep -q 'statically linked.*stripped'
+          file /tmp/tdns-arm64/tdns | grep -q 'statically linked.*stripped'
+          file /tmp/tdns-armv7/tdns | grep -q 'statically linked.*stripped'
+
+          go version -m /tmp/tdns-x86_64/tdns | grep -q 'GOARCH=amd64'
+          go version -m /tmp/tdns-arm64/tdns | grep -q 'GOARCH=arm64'
+          go version -m /tmp/tdns-armv7/tdns | grep -q 'GOARCH=arm'
+          go version -m /tmp/tdns-armv7/tdns | grep -q 'GOARM=7'
+
+          /tmp/tdns-x86_64/tdns --version | grep -q '^tdns version '
+          /tmp/tdns-arm64/tdns --version | grep -q '^tdns version '
+          /tmp/tdns-armv7/tdns --version | grep -q '^tdns version '

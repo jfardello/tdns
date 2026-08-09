@@ -30,6 +30,9 @@ builds:
     goarch:
       - amd64
       - arm64
+      - arm
+    goarm:
+      - "7"
 
 dockers:
   - id: tdns-amd64
@@ -105,6 +108,9 @@ archives:
           group: root
           mtime: "{{ .CommitDate }}"
           mode: 0644
+
+checksum:
+  name_template: checksums.txt
 
 release:
   github:
