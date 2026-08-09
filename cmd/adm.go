@@ -15,7 +15,7 @@ import (
 var manageCmd = &cobra.Command{
 	Use:   "adm",
 	Short: "TDNS management commands",
-	Long:  `Iteract with remote TDNS instances ReST API.`,
+	Long:  `Interact with remote TDNS instances through the REST API.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 	},

@@ -1,0 +1,7 @@
+# TDNS deliberately redistributes the statically linked, stripped upstream Go
+# release binary so every OBS target packages the exact verified artifact.
+tdns: statically-linked-binary [usr/bin/tdns]
+
+# OBS uploads are not submitted to the Debian archive and therefore have no
+# Debian BTS bug number to close for their initial release.
+tdns: initial-upload-closes-no-bugs

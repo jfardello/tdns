@@ -172,7 +172,7 @@ func (c *Cache) Get(k string) (string, bool) {
 func (c *Cache) Set(k string, m *dns.Msg) error {
 	logger := log.GetLogger("Cache", "Set")
 	if k == "" {
-		logger.Debugf("No cache key, skipping chache phase.")
+		logger.Debugf("No cache key, skipping cache phase.")
 		return nil
 	}
 	if len(m.Answer) == 0 || !cacheableAnswers(m.Answer) {
@@ -196,7 +196,7 @@ func (c *Cache) Set(k string, m *dns.Msg) error {
 		return err
 	}
 
-	logger.Debugf("Seting cache for %s", k)
+	logger.Debugf("Setting cache for %s", k)
 	return c.backend.Set(k, entry)
 }
 

@@ -1,0 +1,26 @@
+# TDNS Debian source assembly
+
+This recipe packages the architecture-specific static binaries from an
+immutable TDNS GitHub release. It does not compile the Go or Nuxt sources in a
+Debian build worker and it must not download anything while building.
+
+The `3.0 (quilt)` source package uses the regular TDNS source archive as its
+main original tarball and these additional original components:
+
+| Debian component | Unmodified GoReleaser artifact |
+| --- | --- |
+| `amd64` | `tdns_Linux_x86_64.tar.gz` |
+| `arm64` | `tdns_Linux_arm64.tar.gz` |
+| `armhf` | `tdns_Linux_armv7.tar.gz` |
+
+For version `0.1.9`, rename the release archives to
+`tdns_0.1.9.orig-amd64.tar.gz`, `tdns_0.1.9.orig-arm64.tar.gz`, and
+`tdns_0.1.9.orig-armhf.tar.gz`. Renaming does not change their bytes. Validate
+each archive against `tdns_0.1.9_checksums.txt` before constructing the source
+package. `dpkg-source` extracts them into `amd64/`, `arm64/`, and `armhf/`, and
+`debian/rules` selects the component matching `DEB_HOST_ARCH`.
+
+The OBS update tooling is responsible for downloading versioned artifacts,
+validating their upstream checksums, applying the Debian component names, and
+generating the signed `.dsc`. These steps must be complete before an OBS build;
+the package recipe intentionally has no network fallback.

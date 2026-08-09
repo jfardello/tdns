@@ -1,0 +1,20 @@
+Source: tdns
+Section: net
+Priority: optional
+Maintainer: Jose Fardello <jmfardello@gmail.com>
+Build-Depends: debhelper-compat (= 13), file
+Standards-Version: 4.7.2
+Rules-Requires-Root: no
+Homepage: https://github.com/jfardello/tdns
+Vcs-Browser: https://github.com/jfardello/tdns
+Vcs-Git: https://github.com/jfardello/tdns.git
+
+Package: tdns
+Architecture: amd64 arm64 armhf
+Depends: ${misc:Depends}, systemd
+Description: caching DNS server with encryption and network-wide policy
+ TDNS is a caching DNS server with encrypted upstream support, network-wide
+ domain filtering, split DNS, a management API, and an embedded web interface.
+ .
+ This package installs the static binary published by the matching upstream
+ release tag; it does not rebuild TDNS from source.

@@ -242,7 +242,7 @@ func (s *Server) CacheReplaceExcludes(excludes []string) []string {
 
 func (s *Server) resolve(ctx context.Context, m *dns.Msg) (*dns.Msg, error) {
 	logger := log.GetLogger("Server", "resolve")
-	logger.Debugf("Asking uppstream %s for %s", s.defaultUpstream.Upstreams[0].Address, m.Question[0].Name)
+	logger.Debugf("Asking upstream %s for %s", s.defaultUpstream.Upstreams[0].Address, m.Question[0].Name)
 
 	response, _, err := s.defaultUpstream.ResolveContext(ctx, m)
 

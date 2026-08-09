@@ -1,0 +1,7 @@
+tdns (0.1.9-1) unstable; urgency=medium
+
+  * Add the initial Debian, Ubuntu, and Raspbian binary package recipe.
+  * Install the shared hardened service, sysusers, and tmpfiles policy.
+  * Generate manual pages from the packaged TDNS command tree.
+
+ -- Jose Fardello <jmfardello@gmail.com>  Sun, 09 Aug 2026 22:00:00 +0200

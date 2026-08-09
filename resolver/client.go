@@ -91,7 +91,7 @@ func (c *Mux) ResolveContext(ctx context.Context, m *dns.Msg) (r *dns.Msg, rtt t
 		if err := ctx.Err(); err != nil {
 			return nil, c.globalTimeout, fmt.Errorf("reached global mux timeout: %w", err)
 		}
-		logger.Debugf("Quering %s about %s", u.Address, m.Question[0].Name)
+		logger.Debugf("Querying %s about %s", u.Address, m.Question[0].Name)
 		if exchanger, ok := u.Client.(ContextExchanger); ok {
 			r, rtt, err = exchanger.ExchangeContext(ctx, m, u.Address)
 		} else {

@@ -48,7 +48,7 @@ func (sr *StubResolver) Run(mess *Message) (*Message, error) {
 		for k, mux := range sr.Stubs {
 			match, _ := regexp.MatchString(`^.*\Q`+k+`\E\.`, domain)
 			if match {
-				logger.Debugf("Resove %s via server %s", domain, mux.Upstreams[0].Address)
+				logger.Debugf("Resolve %s via server %s", domain, mux.Upstreams[0].Address)
 				response, _, err := mux.ResolveContext(mess.Context(), m)
 				if err != nil {
 					return mess, err
@@ -144,12 +144,12 @@ func (sr *StubResolver) Status() StubResolverStatus {
 func ParseStubList(s []string, globalTimeOut int, upstreamTimeOut int) (map[string]*resolver.Mux, error) {
 	stubs := map[string]*resolver.Mux{}
 	for _, each := range s {
-		splitted := strings.Split(each, ",")
-		servers := splitted[1:]
+		parts := strings.Split(each, ",")
+		servers := parts[1:]
 		mux := resolver.NewClientMux(servers,
 			resolver.WithGlobalTimeout(time.Duration(globalTimeOut)*time.Millisecond),
 			resolver.WithMuxUpstreamOptions(resolver.WithTimeout(time.Duration(upstreamTimeOut)*time.Millisecond)))
-		stubs[splitted[0]] = mux
+		stubs[parts[0]] = mux
 	}
 	return stubs, nil
 

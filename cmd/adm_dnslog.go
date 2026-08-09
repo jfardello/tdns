@@ -26,7 +26,7 @@ var topCmd = &cobra.Command{
 
 	Use:   "top",
 	Short: "Get top queried DNS records",
-	Long:  `Get top queried DNS records grouped by consumin client.`,
+	Long:  `Get top queried DNS records grouped by consuming client.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		setPersistentOps()
 		initConfig()

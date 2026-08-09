@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+	systemd-sysusers /usr/lib/sysusers.d/tdns.conf
+fi
+
+#DEBHELPER#
+
+if [ "$1" = "configure" ]; then
+	systemd-tmpfiles --create /usr/lib/tmpfiles.d/tdns.conf
+	chown root:tdns /etc/tdns
+	chmod 0750 /etc/tdns
+
+	# An empty previous version means this is a fresh installation. Never start
+	# TDNS in that case; the administrator must bootstrap it explicitly first.
+	if [ -n "${2:-}" ] && deb-systemd-invoke is-active tdns.service >/dev/null 2>&1; then
+		deb-systemd-invoke try-restart tdns.service >/dev/null
+	fi
+fi
+
+exit 0
