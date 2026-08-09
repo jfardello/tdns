@@ -1,0 +1,7 @@
+-------------------------------------------------------------------
+Sun Aug  9 17:00:00 UTC 2026 - Jose Fardello <jmfardello@gmail.com>
+
+- Add the initial openSUSE and Fedora binary package recipe.
+- Install hardened systemd, sysusers, and tmpfiles assets.
+- Verify upstream checksums, binary architecture, and version.
+- Generate and install manual pages from the TDNS command tree.

@@ -62,6 +62,7 @@ func TestCLIStartupDoesNotEmitSQLiteEmbedWarning(t *testing.T) {
 	}{
 		{name: "version", args: []string{"--version"}, want: "tdns version test"},
 		{name: "help", args: []string{"--help"}, want: "Usage:"},
+		{name: "man", args: []string{"man"}, want: `.TH "TDNS" "1"`},
 	}
 
 	for _, tt := range tests {

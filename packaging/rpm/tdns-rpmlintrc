@@ -1,0 +1,13 @@
+# TDNS intentionally packages the statically linked, non-PIE upstream Go binary
+# so OBS can verify and redistribute the same artifact on every RPM target.
+addFilter("statically-linked-binary")
+addFilter("position-independent-executable-suggested")
+
+# The account is allocated dynamically from tdns.sysusers. These paths are
+# deliberately private instead of using rpmlint's general-purpose 0755 default.
+addFilter("non-standard-uid.*tdns")
+addFilter("non-standard-gid.*tdns")
+
+# Fedora reports the private 0750 modes; openSUSE reports persistent state as
+# outside transactional snapshots. Both are deliberate parts of the policy.
+addFilter("(non-standard-dir-perm.*750|dir-or-file-outside-snapshot.*/var/lib/tdns)")
