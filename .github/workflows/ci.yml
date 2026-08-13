@@ -36,7 +36,10 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.17.0
-          args: check
+          install-only: true
+
+      - name: Check GoReleaser configuration
+        run: goreleaser check
 
       - name: Install web and API generation dependencies
         run: npm --prefix web ci
