@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +71,23 @@ func TestGeneratedSystemdUnitUsesSelectedDataPath(t *testing.T) {
 		if !strings.Contains(unit, expected) {
 			t.Errorf("generated unit is missing %q", expected)
 		}
+	}
+}
+
+func TestPackagedSystemdUnitMatchesGeneratedUnit(t *testing.T) {
+	generatedPath := filepath.Join(t.TempDir(), "tdns.service")
+	createUnit("/usr/bin/tdns", "/etc/tdns/tdns.yaml", "/var/lib/tdns", generatedPath)
+
+	generated, err := os.ReadFile(generatedPath)
+	if err != nil {
+		t.Fatalf("read generated unit: %v", err)
+	}
+	packaged, err := os.ReadFile(filepath.Join("..", "packaging", "common", "tdns.service"))
+	if err != nil {
+		t.Fatalf("read packaged unit: %v", err)
+	}
+	if !bytes.Equal(packaged, generated) {
+		t.Fatal("packaged systemd unit has drifted from the generated unit security policy")
 	}
 }
 

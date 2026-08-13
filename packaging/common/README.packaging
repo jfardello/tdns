@@ -1,0 +1,56 @@
+# TDNS native package bootstrap
+
+The RPM and DEB packages wrap the static binaries published by the matching
+immutable GitHub release tag. They do not rebuild TDNS or its Nuxt application
+on the target distribution. The package build verifies the selected release
+archive against the release checksum file and rejects a binary for the wrong
+CPU architecture or version.
+
+The package installs `/usr/bin/tdns`, the `tdns:tdns` system account, a hardened
+systemd unit, `/etc/tdns`, and `/var/lib/tdns`. Package installation deliberately
+does not create configuration, certificates, private keys, passwords, or bearer
+tokens, and it does not enable or start the service.
+
+## Bootstrap
+
+After installation, generate the initial configuration explicitly:
+
+```sh
+sudo tdns config \
+  --output-dir /etc/tdns \
+  --basepath /etc/tdns \
+  --data-path /var/lib/tdns \
+  --systemd-unit=false
+```
+
+The command creates secrets, so restrict them before starting TDNS:
+
+```sh
+sudo chown root:tdns /etc/tdns/tdns.yaml /etc/tdns/tdns_key.pem
+sudo chmod 0640 /etc/tdns/tdns.yaml /etc/tdns/tdns_key.pem
+sudo chown root:root /etc/tdns/tdns_cert.pem
+sudo chmod 0644 /etc/tdns/tdns_cert.pem
+sudo chown root:tdns /etc/tdns/hostsfile_list
+sudo chmod 0640 /etc/tdns/hostsfile_list
+sudo systemctl enable --now tdns.service
+```
+
+Adjust certificate filenames if a different `--basename` was selected. Review
+the generated listeners, certificate hosts, and `dns_access.allowed_client_cidrs`
+before enabling a service reachable beyond loopback.
+
+## Package lifecycle
+
+An upgrade restarts TDNS only when the service was already running. Removal
+stops and disables the unit but does not delete operator-created files from
+`/etc/tdns` or runtime state from `/var/lib/tdns`. System accounts are retained
+according to the native distribution policy.
+
+The executable is intentionally static and non-PIE so the same upstream
+artifact can be verified and packaged across the supported RPM targets. The
+RPM lint configuration documents narrow exceptions for that binary model, the
+dynamic service account, and the private directory modes. Manual pages are
+generated from the binary's Cobra command tree while the native package is
+assembled. Fedora 43 and newer process the packaged sysusers declaration
+natively; openSUSE generates the equivalent pre-install script with its
+sysusers macro.

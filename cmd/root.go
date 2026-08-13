@@ -20,8 +20,9 @@ var (
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:   "tdns",
-	Short: "A DNSoT capable caching dns forwarder with black hole features.",
+	Use:               "tdns",
+	Short:             "A DNSoT capable caching dns forwarder with black hole features.",
+	DisableAutoGenTag: true,
 	Long: `TDNS is a dns forwarder, with scheduled black hole capabilities and ReST admin interface.
 
 It can change non primary "domain" stub servers on runtime, so that scripts that react to
