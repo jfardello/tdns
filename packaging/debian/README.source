@@ -13,10 +13,10 @@ main original tarball and these additional original components:
 | `arm64` | `tdns_Linux_arm64.tar.gz` |
 | `armhf` | `tdns_Linux_armv7.tar.gz` |
 
-For version `0.1.9`, rename the release archives to
-`tdns_0.1.9.orig-amd64.tar.gz`, `tdns_0.1.9.orig-arm64.tar.gz`, and
-`tdns_0.1.9.orig-armhf.tar.gz`. Renaming does not change their bytes. Validate
-each archive against `tdns_0.1.9_checksums.txt` before constructing the source
+For a release `X.Y.Z`, rename the release archives to
+`tdns_X.Y.Z.orig-amd64.tar.gz`, `tdns_X.Y.Z.orig-arm64.tar.gz`, and
+`tdns_X.Y.Z.orig-armhf.tar.gz`. Renaming does not change their bytes. Validate
+each archive against `tdns_X.Y.Z_checksums.txt` before constructing the source
 package. `dpkg-source` extracts them into `amd64/`, `arm64/`, and `armhf/`, and
 `debian/rules` selects the component matching `DEB_HOST_ARCH`.
 
