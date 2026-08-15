@@ -17,6 +17,26 @@ func readAsset(t *testing.T, path ...string) string {
 	return string(contents)
 }
 
+func TestReleaseChecksumNameMatchesPackagingRecipes(t *testing.T) {
+	releaseConfig := readAsset(t, "..", ".goreleaser.yaml")
+	if !strings.Contains(releaseConfig, `name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"`) {
+		t.Error("GoReleaser checksum name is not the versioned filename expected by packaging")
+	}
+	if !strings.Contains(releaseConfig, `version_template: "{{ incpatch .Version }}~dev.g{{ .ShortCommit }}"`) {
+		t.Error("GoReleaser snapshots do not use the package-safe development version")
+	}
+
+	spec := readAsset(t, "rpm", "tdns.spec")
+	if !strings.Contains(spec, "tdns_%{version}_checksums.txt") {
+		t.Error("RPM recipe does not use the versioned release checksum filename")
+	}
+
+	updater := readAsset(t, "obs", "update-package.sh")
+	if !strings.Contains(updater, "checksums=tdns_${version}_checksums.txt") {
+		t.Error("OBS updater does not use the versioned release checksum filename")
+	}
+}
+
 func TestAccountAndDirectoryAssets(t *testing.T) {
 	if got, want := strings.TrimSpace(readAsset(t, "common", "tdns.sysusers")),
 		"# Type Name ID GECOS Home directory Shell\nu tdns - \"TDNS DNS resolver\" /var/lib/tdns -"; got != want {

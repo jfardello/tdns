@@ -9,10 +9,16 @@ readonly DEFAULT_RELEASE_BASE=https://github.com/jfardello/tdns/releases/downloa
 
 usage() {
 	cat <<EOF
-Usage: $PROGRAM [--revision NUMBER] TAG OBS_PACKAGE_CHECKOUT
+Usage:
+  $PROGRAM [--revision NUMBER] TAG OBS_PACKAGE_CHECKOUT
+  $PROGRAM [--revision NUMBER] --local-dist DIR [--version VERSION] [--source-ref REF] OBS_PACKAGE_CHECKOUT
 
 Prepare a clean OBS package checkout from an immutable TDNS GitHub release.
 TAG must use the form vX.Y.Z. The package revision defaults to 1.
+
+With --local-dist, prepare the package from a GoReleaser snapshot in DIR and
+archive the clean Git tree at REF (default: HEAD). VERSION defaults to the value
+in DIR/metadata.json and must be safe for both RPM and Debian.
 EOF
 }
 
@@ -26,62 +32,123 @@ require_command() {
 }
 
 revision=1
-if [ "${1:-}" = "--revision" ]; then
-	[ "$#" -ge 2 ] || fail "--revision requires a value"
-	revision=$2
-	shift 2
+local_dist=
+source_ref=HEAD
+version=
+
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--revision)
+			[ "$#" -ge 2 ] || fail "--revision requires a value"
+			revision=$2
+			shift 2
+			;;
+		--local-dist)
+			[ "$#" -ge 2 ] || fail "--local-dist requires a directory"
+			local_dist=$2
+			shift 2
+			;;
+		--source-ref)
+			[ "$#" -ge 2 ] || fail "--source-ref requires a Git reference"
+			source_ref=$2
+			shift 2
+			;;
+		--version)
+			[ "$#" -ge 2 ] || fail "--version requires a value"
+			version=$2
+			shift 2
+			;;
+		-h|--help)
+			usage
+			exit 0
+			;;
+		--*) fail "unknown option: $1" ;;
+		*) break ;;
+	esac
+done
+
+if [ -n "$local_dist" ]; then
+	[ "$#" -eq 1 ] || {
+		usage >&2
+		exit 2
+	}
+	obs_dir=$1
+	tag=
+else
+	[ -z "$version" ] || fail "--version is only valid with --local-dist"
+	[ "$source_ref" = HEAD ] || fail "--source-ref is only valid with --local-dist"
+	[ "$#" -eq 2 ] || {
+		usage >&2
+		exit 2
+	}
+	tag=$1
+	obs_dir=$2
+	case "$tag" in
+		v[0-9]*.[0-9]*.[0-9]*) ;;
+		*) fail "tag must use the form vX.Y.Z" ;;
+	esac
+	version=${tag#v}
+	case "$version" in
+		*[!0-9.]*|*.*.*.*|.*|*.|*..*) fail "tag must use the form vX.Y.Z" ;;
+	esac
+	[ "$(printf '%s' "$version" | awk -F. '{ print NF }')" -eq 3 ] || fail "tag must use the form vX.Y.Z"
+	source_ref=$tag
 fi
-
-[ "$#" -eq 2 ] || {
-	usage >&2
-	exit 2
-}
-
-tag=$1
-obs_dir=$2
-
-case "$tag" in
-	v[0-9]*.[0-9]*.[0-9]*) ;;
-	*) fail "tag must use the form vX.Y.Z" ;;
-esac
-version=${tag#v}
-
-case "$version" in
-	*[!0-9.]*|*.*.*.*|.*|*.|*..*) fail "tag must use the form vX.Y.Z" ;;
-esac
-[ "$(printf '%s' "$version" | awk -F. '{ print NF }')" -eq 3 ] || fail "tag must use the form vX.Y.Z"
 
 case "$revision" in
 	''|*[!0-9]*) fail "revision must be a positive integer" ;;
 esac
 [ "$revision" -gt 0 ] || fail "revision must be a positive integer"
 
-for command_name in curl dpkg-source file git go gzip osc python3 sha256sum tar; do
+for command_name in dpkg-source file git go gzip osc python3 sha256sum tar; do
 	require_command "$command_name"
 done
+[ -n "$local_dist" ] || require_command curl
 
 script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null) || fail "the updater must run from a Git checkout"
 
 [ -z "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ] || fail "TDNS Git checkout is dirty"
-git -C "$repo_root" rev-parse --verify --quiet "refs/tags/$tag^{commit}" >/dev/null || fail "local Git tag not found: $tag"
+source_commit=$(git -C "$repo_root" rev-parse --verify "$source_ref^{commit}" 2>/dev/null) || fail "Git reference not found: $source_ref"
 
-git_url=${TDNS_GITHUB_GIT_URL:-$DEFAULT_GIT_URL}
-local_commit=$(git -C "$repo_root" rev-parse "refs/tags/$tag^{commit}")
-remote_refs=$(git ls-remote "$git_url" "refs/tags/$tag" "refs/tags/$tag^{}") || fail "could not resolve GitHub tag $tag"
-remote_commit=$(printf '%s\n' "$remote_refs" | awk '$2 ~ /\^\{\}$/ { print $1; found=1 } END { if (!found && NR == 1) print first } { if (NR == 1) first=$1 }')
-[ -n "$remote_commit" ] || fail "GitHub tag not found: $tag"
-[ "$local_commit" = "$remote_commit" ] || fail "local tag $tag does not match the GitHub tag commit"
+if [ -z "$local_dist" ]; then
+	git -C "$repo_root" rev-parse --verify --quiet "refs/tags/$tag^{commit}" >/dev/null || fail "local Git tag not found: $tag"
+	git_url=${TDNS_GITHUB_GIT_URL:-$DEFAULT_GIT_URL}
+	remote_refs=$(git ls-remote "$git_url" "refs/tags/$tag" "refs/tags/$tag^{}") || fail "could not resolve GitHub tag $tag"
+	remote_commit=$(printf '%s\n' "$remote_refs" | awk '$2 ~ /\^\{\}$/ { print $1; found=1 } END { if (!found && NR == 1) print first } { if (NR == 1) first=$1 }')
+	[ -n "$remote_commit" ] || fail "GitHub tag not found: $tag"
+	[ "$source_commit" = "$remote_commit" ] || fail "local tag $tag does not match the GitHub tag commit"
+else
+	[ -d "$local_dist" ] || fail "GoReleaser snapshot directory does not exist: $local_dist"
+	local_dist=$(CDPATH='' cd -- "$local_dist" && pwd)
+	if [ -z "$version" ]; then
+		metadata=$local_dist/metadata.json
+		[ -f "$metadata" ] || fail "GoReleaser snapshot metadata not found: $metadata"
+		version=$(python3 - "$metadata" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as metadata_file:
+    metadata = json.load(metadata_file)
+version = metadata.get("version")
+if not isinstance(version, str) or not version:
+    raise SystemExit("GoReleaser snapshot metadata does not contain a version")
+print(version)
+PY
+		) || fail "could not read the GoReleaser snapshot version"
+	fi
+	case "$version" in
+		[0-9]*) ;;
+		*) fail "development version must start with a digit" ;;
+	esac
+	case "$version" in
+		*[!0-9A-Za-z.+~]*) fail "development version may contain only letters, digits, dot, plus, and tilde" ;;
+	esac
+fi
 
 [ -d "$obs_dir" ] || fail "OBS package checkout does not exist: $obs_dir"
 [ -d "$obs_dir/.osc" ] || fail "destination is not an OBS package checkout: $obs_dir"
 [ -z "$(osc status "$obs_dir")" ] || fail "OBS package checkout is dirty"
-
-api_base=${TDNS_GITHUB_API_BASE:-$DEFAULT_API_BASE}
-release_base=${TDNS_RELEASE_BASE_URL:-$DEFAULT_RELEASE_BASE}
-case "$release_base" in
-	*latest*) fail "release base URL must not contain latest" ;;
-esac
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/tdns-obs-update.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
@@ -90,18 +157,30 @@ stage_dir=$work_dir/stage
 source_dir=$work_dir/tdns-$version
 mkdir -p "$download_dir" "$stage_dir" "$source_dir"
 
-release_json=$work_dir/release.json
-curl --fail --location --silent --show-error \
-	--output "$release_json" \
-	"$api_base/repos/jfardello/tdns/releases/tags/$tag"
-
 checksums=tdns_${version}_checksums.txt
 archive_x86_64=tdns_Linux_x86_64.tar.gz
 archive_arm64=tdns_Linux_arm64.tar.gz
 archive_armv7=tdns_Linux_armv7.tar.gz
 archives="$archive_x86_64 $archive_arm64 $archive_armv7"
 
-python3 - "$release_json" "$tag" "$checksums" "$archive_x86_64" "$archive_arm64" "$archive_armv7" <<'PY'
+if [ -n "$local_dist" ]; then
+	for asset in $checksums $archives; do
+		[ -f "$local_dist/$asset" ] || fail "GoReleaser snapshot is missing $asset"
+		cp "$local_dist/$asset" "$download_dir/"
+	done
+else
+	api_base=${TDNS_GITHUB_API_BASE:-$DEFAULT_API_BASE}
+	release_base=${TDNS_RELEASE_BASE_URL:-$DEFAULT_RELEASE_BASE}
+	case "$release_base" in
+		*latest*) fail "release base URL must not contain latest" ;;
+	esac
+
+	release_json=$work_dir/release.json
+	curl --fail --location --silent --show-error \
+		--output "$release_json" \
+		"$api_base/repos/jfardello/tdns/releases/tags/$tag"
+
+	python3 - "$release_json" "$tag" "$checksums" "$archive_x86_64" "$archive_arm64" "$archive_armv7" <<'PY'
 import json
 import sys
 
@@ -120,11 +199,12 @@ if missing:
     raise SystemExit("GitHub release is missing assets: " + ", ".join(missing))
 PY
 
-for asset in $checksums $archives; do
-	curl --fail --location --silent --show-error \
-		--output "$download_dir/$asset" \
-		"$release_base/$tag/$asset"
-done
+	for asset in $checksums $archives; do
+		curl --fail --location --silent --show-error \
+			--output "$download_dir/$asset" \
+			"$release_base/$tag/$asset"
+	done
+fi
 
 for archive in $archives; do
 	entry_count=$(awk -v archive="$archive" '$2 == archive { count++ } END { print count + 0 }' "$download_dir/$checksums")
@@ -160,7 +240,7 @@ validate_archive tdns_Linux_arm64.tar.gz arm64 arm64
 validate_archive tdns_Linux_armv7.tar.gz armhf arm 7
 
 amd64_binary=$work_dir/extract-amd64/tdns
-"$amd64_binary" --version | grep -Fq "tdns version $version" || fail "release binary version does not match $tag"
+"$amd64_binary" --version | grep -Fq "tdns version $version" || fail "binary version does not match package version $version"
 man_dir=$work_dir/man
 mkdir "$man_dir"
 "$amd64_binary" man --output-dir "$man_dir"
@@ -174,6 +254,12 @@ for asset in tdns.service tdns.sysusers tdns.tmpfiles README.packaging; do
 	cp "$repo_root/packaging/common/$asset" "$stage_dir/"
 done
 cp "$repo_root/packaging/rpm/tdns-rpmlintrc" "$stage_dir/"
+
+if [ -n "$local_dist" ]; then
+	change_summary="Package development snapshot $version from $source_ref ($source_commit)."
+else
+	change_summary="Package upstream release $version for OBS."
+fi
 
 python3 - "$repo_root/packaging/rpm/tdns.spec" "$stage_dir/tdns.spec" "$version" "$revision" <<'PY'
 import re
@@ -198,16 +284,16 @@ suse_date=$(date -u -d "@$timestamp" '+%a %b %e %H:%M:%S UTC %Y')
 deb_date=$(date -u -d "@$timestamp" --rfc-email)
 maintainer='Jose Fardello <jmfardello@gmail.com>'
 
-python3 - "$stage_dir/tdns.spec" "$rpm_date" "$maintainer" "$version" "$revision" <<'PY'
+python3 - "$stage_dir/tdns.spec" "$rpm_date" "$maintainer" "$version" "$revision" "$change_summary" <<'PY'
 import sys
 
-path, date, maintainer, version, revision = sys.argv[1:]
+path, date, maintainer, version, revision, summary = sys.argv[1:]
 with open(path, encoding="utf-8") as spec_file:
     contents = spec_file.read()
 marker = "%changelog\n"
 if marker not in contents:
     raise SystemExit("RPM spec does not contain %changelog")
-entry = f"* {date} {maintainer} - {version}-{revision}\n- Package upstream release {version} for OBS.\n"
+entry = f"* {date} {maintainer} - {version}-{revision}\n- {summary}\n"
 contents = contents.replace(marker, marker + entry, 1)
 with open(path, "w", encoding="utf-8") as spec_file:
     spec_file.write(contents)
@@ -216,23 +302,23 @@ PY
 {
 	printf '%s\n' '-------------------------------------------------------------------'
 	printf '%s - %s\n\n' "$suse_date" "$maintainer"
-	printf '%s\n\n' "- Package upstream release $version for OBS."
+	printf '%s\n\n' "- $change_summary"
 	cat "$repo_root/packaging/rpm/tdns.changes"
 } > "$stage_dir/tdns.changes"
 
-git -C "$repo_root" archive --format=tar --prefix="tdns-$version/" "$tag" | gzip -n > "$stage_dir/tdns_${version}.orig.tar.gz"
-git -C "$repo_root" archive --format=tar "$tag" | tar -x -C "$source_dir"
+git -C "$repo_root" archive --format=tar --prefix="tdns-$version/" "$source_commit" | gzip -n > "$stage_dir/tdns_${version}.orig.tar.gz"
+git -C "$repo_root" archive --format=tar "$source_commit" | tar -x -C "$source_dir"
 cp -R "$repo_root/packaging/debian" "$source_dir/debian"
 
-python3 - "$source_dir/debian/changelog" "$version" "$revision" "$maintainer" "$deb_date" <<'PY'
+python3 - "$source_dir/debian/changelog" "$version" "$revision" "$maintainer" "$deb_date" "$change_summary" <<'PY'
 import sys
 
-path, version, revision, maintainer, date = sys.argv[1:]
+path, version, revision, maintainer, date, summary = sys.argv[1:]
 with open(path, encoding="utf-8") as changelog_file:
     previous = changelog_file.read()
 entry = (
     f"tdns ({version}-{revision}) unstable; urgency=medium\n\n"
-    f"  * Package upstream release {version} for OBS.\n\n"
+    f"  * {summary}\n\n"
     f" -- {maintainer}  {date}\n\n"
 )
 with open(path, "w", encoding="utf-8") as changelog_file:

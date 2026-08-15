@@ -110,7 +110,10 @@ archives:
           mode: 0644
 
 checksum:
-  name_template: checksums.txt
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}~dev.g{{ .ShortCommit }}"
 
 release:
   github:

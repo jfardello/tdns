@@ -57,17 +57,21 @@ jobs:
         run: |
           set -eu
 
+          checksum_files=(dist/tdns_*_checksums.txt)
+          test "${#checksum_files[@]}" -eq 1
+          checksum_file="${checksum_files[0]}"
+
           for target in x86_64 arm64 armv7; do
             archive="tdns_Linux_${target}.tar.gz"
             test -f "dist/${archive}"
-            grep -Fq "  ${archive}" dist/checksums.txt
+            grep -Fq "  ${archive}" "${checksum_file}"
             mkdir "/tmp/tdns-${target}"
             tar -xzf "dist/${archive}" -C "/tmp/tdns-${target}"
           done
 
           (
             cd dist
-            sha256sum --check checksums.txt
+            sha256sum --check "$(basename "${checksum_file}")"
           )
 
           file /tmp/tdns-x86_64/tdns | grep -q 'statically linked.*stripped'
