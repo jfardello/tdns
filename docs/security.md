@@ -451,6 +451,13 @@ TDNS records the active modes and a non-secret key fingerprint; if retained
 data was produced with an incompatible mode or key, logging pauses and TDNS
 reports that the DNS-log data must be cleared.
 
+Read-only administrators may inspect DNS-log status. Start, stop, and complete
+deletion require read-write authorization and emit mutation audit events. Stop
+prevents new events from being accepted and synchronously flushes accepted
+events before returning. Complete deletion is rejected while logging is
+running; while stopped it removes queued events, stored events, aliases,
+dashboard aggregates, and sequence state in one serialized operation.
+
 Status: Implemented on 2026-08-16.
 
 ### Supported Deployment Topology

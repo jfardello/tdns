@@ -86,22 +86,20 @@ func WithUpstreams(u []string, globalTimeOut int, upstreamTimeOut int) func(*Ser
 
 func WithDNSLog() func(*Server) {
 	return func(s *Server) {
-		if s.Config.DNSLog.Enabled {
-			logger := log.GetLogger("serve", "config")
-			dl := &middleware.DNSLog{}
-			err := dl.Config(s.Config)
-			if err != nil {
-				logger.Error(err)
-				return
-			}
-			err = dl.Init()
-			if err != nil {
-				logger.Error(err)
-				return
-			}
-			n, _ := dl.Info()
-			s.Middlewares[n] = dl
+		logger := log.GetLogger("serve", "config")
+		dl := &middleware.DNSLog{}
+		err := dl.Config(s.Config)
+		if err != nil {
+			logger.Error(err)
+			return
 		}
+		err = dl.Init()
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+		n, _ := dl.Info()
+		s.Middlewares[n] = dl
 	}
 }
 

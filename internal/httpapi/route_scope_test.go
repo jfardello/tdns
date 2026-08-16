@@ -13,8 +13,8 @@ func TestManagementRoutesUseExpectedScope(t *testing.T) {
 	}
 	pattern := regexp.MustCompile(`registerRoute\(mux, "([A-Z]+ [^"]+)", [^,]+, (readOnly|readWrite),`)
 	matches := pattern.FindAllStringSubmatch(string(source), -1)
-	if len(matches) != 38 {
-		t.Fatalf("classified routes = %d, want 38", len(matches))
+	if len(matches) != 41 {
+		t.Fatalf("classified routes = %d, want 41", len(matches))
 	}
 	for _, match := range matches {
 		route, scope := match[1], match[2]

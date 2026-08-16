@@ -16,13 +16,20 @@ import (
 )
 
 const (
-	dnsLogPrivacyPlainMode = "plain"
-	dnsLogPrivacyHMACMode  = "hmac-sha256-v1"
-	dnsLogDomainContext    = "tdns/dnslog/domain/v1"
-	dnsLogClientContext    = "tdns/dnslog/client/v1"
-	dnsLogDomainToken      = "h1d_"
-	dnsLogClientToken      = "h1c_"
-	dnsLogMinimumKeyBytes  = 32
+	dnsLogPrivacyPlainMode   = "plain"
+	dnsLogPrivacyHMACMode    = "hmac-sha256-v1"
+	dnsLogDomainContext      = "tdns/dnslog/domain/v1"
+	dnsLogClientContext      = "tdns/dnslog/client/v1"
+	dnsLogDomainToken        = "h1d_"
+	dnsLogClientToken        = "h1c_"
+	dnsLogMinimumKeyBytes    = 32
+	dnsLogPrivacyStateUpsert = `
+INSERT INTO dnslog_privacy_state (singleton, domain_mode, client_mode, key_fingerprint)
+VALUES (1, ?, ?, ?)
+ON CONFLICT(singleton) DO UPDATE SET
+  domain_mode = excluded.domain_mode,
+  client_mode = excluded.client_mode,
+  key_fingerprint = excluded.key_fingerprint`
 )
 
 type DNSLogPrivacyStatus struct {
@@ -196,13 +203,7 @@ WHERE singleton = 1`).Scan(&storedDomainMode, &storedClientMode, &storedFingerpr
 		return nil
 	}
 
-	_, err = cs.se.SyncExec(`
-INSERT INTO dnslog_privacy_state (singleton, domain_mode, client_mode, key_fingerprint)
-VALUES (1, ?, ?, ?)
-ON CONFLICT(singleton) DO UPDATE SET
-  domain_mode = excluded.domain_mode,
-  client_mode = excluded.client_mode,
-  key_fingerprint = excluded.key_fingerprint`,
+	_, err = cs.se.SyncExec(dnsLogPrivacyStateUpsert,
 		[]any{desiredDomainMode, desiredClientMode, desiredFingerprint},
 	)
 	if err != nil {
@@ -210,6 +211,18 @@ ON CONFLICT(singleton) DO UPDATE SET
 	}
 	cs.setPrivacy(pseudonymizer, status)
 	return nil
+}
+
+func privacyStateArgs(status DNSLogPrivacyStatus, pseudonymizer *dnsLogPseudonymizer) []any {
+	fingerprint := ""
+	if pseudonymizer != nil {
+		fingerprint = pseudonymizer.fingerprint
+	}
+	return []any{
+		privacyMode(status.DomainsPseudonymized),
+		privacyMode(status.ClientsPseudonymized),
+		fingerprint,
+	}
 }
 
 func (cs *DNSLog) setPrivacy(pseudonymizer *dnsLogPseudonymizer, status DNSLogPrivacyStatus) {

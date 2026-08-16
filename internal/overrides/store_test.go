@@ -54,10 +54,12 @@ func TestApplyOverrides(t *testing.T) {
 		Cache: config.CacheConf{
 			Enabled: true,
 		},
+		DNSLog: config.DNSLogConf{Enabled: true},
 	}
 
 	rows := []Row{
 		{Kind: OverrideCacheEnabled, Value: "false"},
+		{Kind: OverrideDNSLogEnabled, Value: "false"},
 		{Kind: OverrideCacheExclude, Target: "LABEL:Kids"},
 		{Kind: OverrideStaticHost, Target: "ads.example.", Value: "0.0.0.0"},
 		{Kind: OverrideZenExclude, Target: "label:nozen"},
@@ -69,6 +71,9 @@ func TestApplyOverrides(t *testing.T) {
 
 	if conf.Cache.Enabled {
 		t.Fatal("expected cache enabled override to disable cache")
+	}
+	if conf.DNSLog.Enabled {
+		t.Fatal("expected DNS-log enabled override to disable DNS logging")
 	}
 	if len(conf.Cache.Excludes) != 1 || conf.Cache.Excludes[0] != "label:kids" {
 		t.Fatalf("unexpected cache excludes: %#v", conf.Cache.Excludes)

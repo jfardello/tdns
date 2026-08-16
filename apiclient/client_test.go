@@ -43,6 +43,46 @@ func TestClientUsesGeneratedPathQueryAndBearerAuth(t *testing.T) {
 	}
 }
 
+func TestDNSLogLifecycleClientUsesGeneratedOperations(t *testing.T) {
+	requests := make(chan *http.Request, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.Clone(r.Context())
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"kind":"api.tdns/dns-log/response","message":"Status OK"}`))
+	}))
+	defer server.Close()
+	client, err := New(server.URL, "secret-token", server.Client())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	operations := []struct {
+		name       string
+		call       func() error
+		wantMethod string
+		wantPath   string
+	}{
+		{name: "status", call: func() error { _, err := client.DNSLogStatus(context.Background()); return err }, wantMethod: http.MethodGet, wantPath: "/api/dns-log"},
+		{name: "start", call: func() error { _, err := client.DNSLogToggle(context.Background(), "start"); return err }, wantMethod: http.MethodPost, wantPath: "/api/dns-log/start"},
+		{name: "stop", call: func() error { _, err := client.DNSLogToggle(context.Background(), "stop"); return err }, wantMethod: http.MethodPost, wantPath: "/api/dns-log/stop"},
+		{name: "clear", call: func() error { _, err := client.DNSLogClear(context.Background()); return err }, wantMethod: http.MethodDelete, wantPath: "/api/dns-log"},
+	}
+	for _, operation := range operations {
+		t.Run(operation.name, func(t *testing.T) {
+			if err := operation.call(); err != nil {
+				t.Fatalf("operation: %v", err)
+			}
+			request := <-requests
+			if request.Method != operation.wantMethod || request.URL.Path != operation.wantPath {
+				t.Fatalf("request = %s %s, want %s %s", request.Method, request.URL.Path, operation.wantMethod, operation.wantPath)
+			}
+			if request.Header.Get("Authorization") != "Bearer secret-token" {
+				t.Fatalf("Authorization = %q", request.Header.Get("Authorization"))
+			}
+		})
+	}
+}
+
 func TestClientRejectsMalformedSuccessResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`not-json`))

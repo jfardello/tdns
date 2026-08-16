@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	contractapi "github.com/jfardello/tdns/api"
@@ -24,6 +25,7 @@ type v1 struct {
 	exchangeLimiter  *exchangeLimiter
 	passwordLimiter  *passwordLimiter
 	rememberLifetime time.Duration
+	dnsLogMutationMu sync.Mutex
 }
 
 func NewHandler(
@@ -75,6 +77,9 @@ func NewHandler(
 	registerRoute(mux, "GET /api/dns-log/dashboard", api.DNSLogDashboard, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "GET /api/dns-log", api.DNSLogStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "POST /api/dns-log/{action}", api.DNSLogToggle, readWrite, "dns_log_toggle", authManager, browserStore)
+	registerRoute(mux, "DELETE /api/dns-log", api.DNSLogClear, readWrite, "dns_log_clear", authManager, browserStore)
 	registerRoute(mux, "POST /api/dns-log/rotate", api.DNSLogRotate, readWrite, "dns_log_rotate", authManager, browserStore)
 	registerRoute(mux, "POST /api/dns-log/alias", api.DNSLogAlias, readWrite, "dns_log_alias", authManager, browserStore)
 	registerRoute(mux, "POST /api/zen-mode/start", api.ZenModeStart, readWrite, "zen_mode_start", authManager, browserStore)

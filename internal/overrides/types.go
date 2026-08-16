@@ -12,6 +12,7 @@ const (
 	OverrideBlacklistExclude
 	OverrideCacheEnabled
 	OverrideCacheExclude
+	OverrideDNSLogEnabled
 )
 
 type Op int

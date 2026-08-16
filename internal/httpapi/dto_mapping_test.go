@@ -62,6 +62,15 @@ func TestDTOMappingsPreserveJSON(t *testing.T) {
 				TotalQueries: 100, BlockedQueries: 25, AllowedQueries: 75, CacheHits: 40, CacheMisses: 60,
 			}),
 		},
+		{
+			name: "DNS-log status",
+			domain: middleware.DNSLogStatus{
+				Enabled: true, DomainsPseudonymized: true, KeyConfigured: true, QueuedEvents: 3,
+			},
+			dto: dnsLogStatusDTO(middleware.DNSLogStatus{
+				Enabled: true, DomainsPseudonymized: true, KeyConfigured: true, QueuedEvents: 3,
+			}),
+		},
 	}
 
 	for _, tt := range tests {

@@ -52,6 +52,82 @@ var aliasCmd = &cobra.Command{
 	},
 }
 
+var dnsLogCmd = &cobra.Command{
+	Use:   "dnslog",
+	Short: "Inspect and control DNS logging",
+}
+
+var dnsLogStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show DNS-log runtime and privacy status",
+	Run: func(cmd *cobra.Command, args []string) {
+		printDNSLogResponse(runDNSLogOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.DNSLogStatus(ctx)
+		}))
+	},
+}
+
+var dnsLogStartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Start DNS logging and persist the enabled state",
+	Run: func(cmd *cobra.Command, args []string) {
+		printDNSLogResponse(runDNSLogOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.DNSLogToggle(ctx, "start")
+		}))
+	},
+}
+
+var dnsLogStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop DNS logging after flushing accepted events",
+	Run: func(cmd *cobra.Command, args []string) {
+		printDNSLogResponse(runDNSLogOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.DNSLogToggle(ctx, "stop")
+		}))
+	},
+}
+
+var dnsLogClearCmd = &cobra.Command{
+	Use:   "clear",
+	Short: "Completely clear stopped DNS-log data",
+	Run: func(cmd *cobra.Command, args []string) {
+		printDNSLogResponse(runDNSLogOperation(cmd.Context(), func(ctx context.Context, client *apiclient.Client) (*apiclient.Response, error) {
+			return client.DNSLogClear(ctx)
+		}))
+	},
+}
+
+var dnsLogTopCmd = &cobra.Command{
+	Use:   "top",
+	Short: topCmd.Short,
+	Long:  topCmd.Long,
+	Run:   topCmd.Run,
+}
+
+var dnsLogAliasCmd = &cobra.Command{
+	Use:   "alias",
+	Short: aliasCmd.Short,
+	Long:  aliasCmd.Long,
+	Run:   aliasCmd.Run,
+}
+
+func runDNSLogOperation(ctx context.Context, operation managementOperation) (*apiclient.Response, error) {
+	return runManagementOperation(ctx, operation)
+}
+
+func printDNSLogResponse(response *apiclient.Response, err error) {
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	encoded, marshalErr := json.MarshalIndent(response, "", "  ")
+	if marshalErr != nil {
+		fmt.Println(marshalErr.Error())
+		return
+	}
+	fmt.Println(string(encoded))
+}
+
 func handleAlias(hostName, ipAddress string) error {
 	payLoad := apiclient.DNSLogAliasRequest{
 		Name: hostName,
@@ -75,6 +151,8 @@ func handleAlias(hostName, ipAddress string) error {
 func init() {
 	manageCmd.AddCommand(topCmd)
 	manageCmd.AddCommand(aliasCmd)
+	manageCmd.AddCommand(dnsLogCmd)
+	dnsLogCmd.AddCommand(dnsLogStatusCmd, dnsLogStartCmd, dnsLogStopCmd, dnsLogClearCmd, dnsLogTopCmd, dnsLogAliasCmd)
 	topCmd.Flags().StringVarP(&since, "since", "s", "1w", "Return logs newer than a relative duration like 5s, 2m, or 3h. (default 1w)")
 	topCmd.Flags().IntVarP(&topLimit, "limit", "l", 20, "Top query limit")
 	topCmd.Flags().StringVar(&topStatus, "status", "", "Filter by query status: blocked or allowed")
@@ -82,6 +160,13 @@ func init() {
 	topCmd.Flags().StringVar(&topClientMode, "client-mode", "", "Client filter mode: host or ip. If omitted it is inferred from the client value")
 	aliasCmd.Flags().StringVarP(&hostName, "hostname", "n", "", "hostname")
 	aliasCmd.Flags().StringVarP(&ipAddress, "address", "a", "", "hostname")
+	dnsLogTopCmd.Flags().StringVarP(&since, "since", "s", "1w", "Return logs newer than a relative duration like 5s, 2m, or 3h. (default 1w)")
+	dnsLogTopCmd.Flags().IntVarP(&topLimit, "limit", "l", 20, "Top query limit")
+	dnsLogTopCmd.Flags().StringVar(&topStatus, "status", "", "Filter by query status: blocked or allowed")
+	dnsLogTopCmd.Flags().StringVar(&topClient, "client", "", "Filter by client alias or IP address")
+	dnsLogTopCmd.Flags().StringVar(&topClientMode, "client-mode", "", "Client filter mode: host or ip. If omitted it is inferred from the client value")
+	dnsLogAliasCmd.Flags().StringVarP(&hostName, "hostname", "n", "", "hostname")
+	dnsLogAliasCmd.Flags().StringVarP(&ipAddress, "address", "a", "", "hostname")
 
 }
 

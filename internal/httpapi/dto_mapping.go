@@ -89,6 +89,14 @@ func cacheStatusDTO(value middleware.CacheStatus) *CacheStatus {
 	}
 }
 
+func dnsLogStatusDTO(value middleware.DNSLogStatus) *DNSLogStatus {
+	return &DNSLogStatus{
+		Enabled: value.Enabled, DomainsPseudonymized: value.DomainsPseudonymized,
+		ClientsPseudonymized: value.ClientsPseudonymized, KeyConfigured: value.KeyConfigured,
+		RequiresClear: value.RequiresClear, Reason: value.Reason, QueuedEvents: value.QueuedEvents,
+	}
+}
+
 func tagMemberDTOs(values []storage.TagMember) []TagMember {
 	result := make([]TagMember, len(values))
 	for i, value := range values {

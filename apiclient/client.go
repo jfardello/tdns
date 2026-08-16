@@ -34,6 +34,7 @@ type LogDetails = api.LogDetails
 type StubReplaceRequest = api.StubReplaceRequest
 type ZenReplaceRequest = api.ZenReplaceRequest
 type DNSLogAliasRequest = api.DNSLogAliasRequest
+type DNSLogStatus = api.DNSLogStatus
 type DNSLogTopParams = generated.DnsLogTopParams
 type DNSLogTopStatus = generated.DnsLogTopParamsStatus
 type DNSLogTopClientMode = generated.DnsLogTopParamsClientMode
@@ -132,6 +133,18 @@ func (c *Client) DNSLogAliasSet(ctx context.Context, request DNSLogAliasRequest)
 
 func (c *Client) DNSLogTop(ctx context.Context, top int, params *DNSLogTopParams) (*Response, error) {
 	return decode(c.generated.DnsLogTop(ctx, top, params))
+}
+
+func (c *Client) DNSLogStatus(ctx context.Context) (*Response, error) {
+	return decode(c.generated.DnsLogStatus(ctx))
+}
+
+func (c *Client) DNSLogToggle(ctx context.Context, action string) (*Response, error) {
+	return decode(c.generated.DnsLogToggle(ctx, generated.DnsLogToggleParamsAction(action)))
+}
+
+func (c *Client) DNSLogClear(ctx context.Context) (*Response, error) {
+	return decode(c.generated.DnsLogClear(ctx))
 }
 
 func decode(response *http.Response, requestErr error) (*Response, error) {

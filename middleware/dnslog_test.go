@@ -205,7 +205,7 @@ func TestDNSLog_DashboardCacheLifecycle(t *testing.T) {
 
 	se := syncsqlite.NewSyncExecutor(connString, 1)
 	t.Cleanup(se.Close)
-	cs := &DNSLog{se: se}
+	cs := &DNSLog{se: se, enabled: true}
 	now := time.Date(2026, time.August, 2, 16, 30, 0, 0, time.UTC)
 	currentBucket := dashboardHourBucket(now)
 

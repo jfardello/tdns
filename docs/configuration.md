@@ -231,7 +231,7 @@ as SQLite configuration overrides.
 | Key | Fallback | Description |
 | --- | --- | --- |
 | `database.file` | `/var/lib/tdns/tdns.sqlite` | Shared SQLite file for configuration overrides, DNS logs, aliases, and tagger data. |
-| `dns_log.enabled` | `true` | Enables DNS query logging. |
+| `dns_log.enabled` | `true` | Initial DNS query logging state. Runtime start/stop selections are persisted as configuration overrides. |
 | `dns_log.purge` | `30d` | Mandatory retention age used by the scheduled DNS-log purge. It must be greater than zero and cannot exceed `180d`. |
 | `dns_log.pseudonymization.domains` | `false` | Replaces canonical domain names with deterministic HMAC-SHA-256 tokens before queueing or logging. |
 | `dns_log.pseudonymization.clients` | `false` | Replaces normalized client IP addresses with independently scoped HMAC-SHA-256 tokens before queueing or logging. Exact IP filters and aliases continue to work. |
@@ -263,8 +263,23 @@ anonymous data. Protect the key and its backups as sensitive data.
 
 Changing the key or either pseudonymization mode makes existing DNS-log rows or
 aliases incompatible. TDNS reports that the DNS-log data must be cleared and
-pauses new DNS logging rather than mixing representations. After clearing the
-DNS-log rows and aliases, restart TDNS so it can record the new privacy state.
+pauses new DNS logging rather than mixing representations.
+
+Administrators can control DNS logging through the management API or CLI:
+
+```bash
+tdns adm dnslog status
+tdns adm dnslog stop
+tdns adm dnslog clear
+tdns adm dnslog start
+```
+
+Stop is a write barrier: every event accepted before it is flushed before the
+operation returns, and later queries are not queued. Clear is accepted only
+while logging is stopped and removes events, dashboard aggregates, aliases,
+queued events, and sequence state. It also records the currently configured
+pseudonymization mode and key, allowing logging to start without a restart.
+The selected start/stop state survives restart through `config_overrides`.
 
 ### Diagnostics
 

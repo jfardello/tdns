@@ -696,6 +696,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/dns-log": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Return runtime state, queued events, and pseudonymization readiness.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Get DNS-log status",
+                "operationId": "dnsLogStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Clear all DNS-log data",
+                "operationId": "dnsLogClear",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/dns-log/alias": {
             "post": {
                 "security": [
@@ -1047,6 +1133,75 @@ const docTemplate = `{
                         "description": "Forbidden",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dns-log/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Start or stop DNS logging",
+                "operationId": "dnsLogToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
                         }
                     }
                 }
@@ -2556,6 +2711,33 @@ const docTemplate = `{
                 }
             }
         },
+        "api.DNSLogStatus": {
+            "type": "object",
+            "properties": {
+                "clients_pseudonymized": {
+                    "type": "boolean"
+                },
+                "domains_pseudonymized": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "key_configured": {
+                    "type": "boolean"
+                },
+                "queued_events": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "requires_clear": {
+                    "type": "boolean"
+                }
+            }
+        },
         "api.DashboardHourlyPoint": {
             "type": "object",
             "properties": {
@@ -2692,6 +2874,9 @@ const docTemplate = `{
                 "current_status": {
                     "type": "string",
                     "example": "enabled"
+                },
+                "dns_log": {
+                    "$ref": "#/definitions/api.DNSLogStatus"
                 },
                 "hourly": {
                     "type": "array",

@@ -2,11 +2,141 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
+	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/middleware"
 )
+
+// Get DNS-log status.
+//
+//	@Summary		Get DNS-log status
+//	@Description	Return runtime state, queued events, and pseudonymization readiness.
+//	@Tags			dns-log
+//	@ID				dnsLogStatus
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Router			/api/dns-log [get]
+func (api *v1) DNSLogStatus(w http.ResponseWriter, _ *http.Request) {
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	status := p.Status()
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		DNSLog:        dnsLogStatusDTO(status),
+	}, w)
+}
+
+// Start or stop DNS logging.
+//
+//	@Summary		Start or stop DNS logging
+//	@Description	Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+//	@Tags			dns-log
+//	@ID				dnsLogToggle
+//	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Router			/api/dns-log/{action} [post]
+func (api *v1) DNSLogToggle(w http.ResponseWriter, r *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	state, err := actionToBool(r.PathValue("action"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	if state && p.Status().RequiresClear {
+		w.WriteHeader(http.StatusConflict)
+		api.writeDNSLogStatus(w, p, middleware.ErrDNSLogRequiresClear.Error())
+		return
+	}
+
+	store, err := api.overrideStore(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	defer func() { _ = store.Close() }()
+	if err := store.Upsert(r.Context(), overrides.OverrideDNSLogEnabled, overrides.OverrideSet, "enabled", strconv.FormatBool(state)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	if state {
+		err = p.StartLogging()
+	} else {
+		err = p.StopLogging()
+	}
+	if err != nil {
+		if state {
+			_ = store.Upsert(r.Context(), overrides.OverrideDNSLogEnabled, overrides.OverrideSet, "enabled", "false")
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	conf := config.GetRunningConfig()
+	conf.DNSLog.Enabled = state
+	config.SetRunningConfig(conf)
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+// Clear all DNS-log data.
+//
+//	@Summary		Clear all DNS-log data
+//	@Description	Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+//	@Tags			dns-log
+//	@ID				dnsLogClear
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Router			/api/dns-log [delete]
+func (api *v1) DNSLogClear(w http.ResponseWriter, _ *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	if err := p.Clear(); err != nil {
+		if errors.Is(err, middleware.ErrDNSLogRunning) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+func (api *v1) writeDNSLogStatus(w http.ResponseWriter, dnsLog *middleware.DNSLog, message string) {
+	status := dnsLog.Status()
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       message,
+		CurrentStatus: formatBool(status.Enabled),
+		DNSLog:        dnsLogStatusDTO(status),
+	}, w)
+}
 
 // Set a DNS client alias.
 //

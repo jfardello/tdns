@@ -108,6 +108,50 @@ func TestManageCommandsHitExpectedAPIPaths(t *testing.T) {
 			},
 		},
 		{
+			name: "dnslog status",
+			run: func(cmd *cobra.Command) {
+				dnsLogStatusCmd.Run(cmd, nil)
+			},
+			wantMethod: http.MethodGet,
+			wantPath:   "/api/dns-log",
+			handler: func(r *http.Request) apiclient.Response {
+				return apiclient.Response{Kind: apiclient.DNSLogResponseKind, Message: apiclient.MESSAGE_OK}
+			},
+		},
+		{
+			name: "dnslog start",
+			run: func(cmd *cobra.Command) {
+				dnsLogStartCmd.Run(cmd, nil)
+			},
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/dns-log/start",
+			handler: func(r *http.Request) apiclient.Response {
+				return apiclient.Response{Kind: apiclient.DNSLogResponseKind, Message: apiclient.MESSAGE_OK}
+			},
+		},
+		{
+			name: "dnslog stop",
+			run: func(cmd *cobra.Command) {
+				dnsLogStopCmd.Run(cmd, nil)
+			},
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/dns-log/stop",
+			handler: func(r *http.Request) apiclient.Response {
+				return apiclient.Response{Kind: apiclient.DNSLogResponseKind, Message: apiclient.MESSAGE_OK}
+			},
+		},
+		{
+			name: "dnslog clear",
+			run: func(cmd *cobra.Command) {
+				dnsLogClearCmd.Run(cmd, nil)
+			},
+			wantMethod: http.MethodDelete,
+			wantPath:   "/api/dns-log",
+			handler: func(r *http.Request) apiclient.Response {
+				return apiclient.Response{Kind: apiclient.DNSLogResponseKind, Message: apiclient.MESSAGE_OK}
+			},
+		},
+		{
 			name: "dnslog top",
 			run: func(cmd *cobra.Command) {
 				topLimit = 5

@@ -108,6 +108,11 @@ func (sq *SQLStmt) Build() (string, error) {
 
 var MaxDNSLogEntries int = 50
 
+var (
+	ErrDNSLogRunning       = errors.New("DNS logging must be stopped before it can be cleared")
+	ErrDNSLogRequiresClear = errors.New("DNS logging cannot start until incompatible stored data is cleared")
+)
+
 type LogEvent struct {
 	Timestamp time.Time
 	Client    string
@@ -119,14 +124,17 @@ type DNSLog struct {
 	se            *syncsqlite.SyncExecutor
 	duration      time.Duration
 	purge         chan time.Duration
-	done          chan bool
-	mustExit      chan bool
-	full          chan bool
-	incomingData  chan LogEvent
+	done          chan struct{}
+	mustExit      chan struct{}
+	full          chan struct{}
 	queue         []LogEvent
-	mu            sync.Mutex
-	qmu           sync.Mutex
+	queueMu       sync.Mutex
+	flushMu       sync.Mutex
 	dashboardMu   sync.Mutex
+	lifecycleMu   sync.RWMutex
+	enabled       bool
+	initialized   bool
+	shutdownOnce  sync.Once
 	privacyMu     sync.RWMutex
 	pseudonymizer *dnsLogPseudonymizer
 	privacy       DNSLogPrivacyStatus
@@ -135,7 +143,9 @@ type DNSLog struct {
 }
 
 func (cs *DNSLog) Run(mess *Message) (*Message, error) {
-	if cs.PrivacyStatus().RequiresClear {
+	cs.lifecycleMu.RLock()
+	defer cs.lifecycleMu.RUnlock()
+	if !cs.enabled || cs.PrivacyStatus().RequiresClear {
 		return mess, nil
 	}
 	m, err := mess.GetMsg()
@@ -151,7 +161,7 @@ func (cs *DNSLog) Run(mess *Message) (*Message, error) {
 			logger.Errorf("Cannot prepare DNS-log event: %s", err)
 			return mess, nil
 		}
-		cs.Append(event)
+		cs.appendEvent(event)
 	} else {
 		logger.Debug("DNS-log event has no client context")
 	}
@@ -159,31 +169,24 @@ func (cs *DNSLog) Run(mess *Message) (*Message, error) {
 }
 
 func (cs *DNSLog) Append(d LogEvent) {
-	logger := log.GetLogger("DNSLog", "Append")
-	logger.Debug("Append(): calling cs.put()")
-	if !cs.put(d) {
-		logger.Debug("Append(): cs.put() returned false, waiting")
-		//Notify that buffer is full
-		//<- will wait until space available
-		cs.full <- true
-		cs.incomingData <- d
-		logger.Debug("Append(): directly wrote to incomingData channel")
+	cs.lifecycleMu.RLock()
+	defer cs.lifecycleMu.RUnlock()
+	if !cs.enabled {
+		return
 	}
+	cs.appendEvent(d)
 }
 
-func (cs *DNSLog) put(d LogEvent) bool {
-	//Try to append the data
-	//If channel is full, do nothing, then return false
-	logger := log.GetLogger("DNSLog", "put")
-	logger.Debug("called")
-	select {
-	case cs.incomingData <- d:
-		logger.Debug("put() sent")
-		return true
-	default:
-		//channel is full
-		logger.Debug("put() failed, channel is full.")
-		return false
+func (cs *DNSLog) appendEvent(event LogEvent) {
+	cs.queueMu.Lock()
+	cs.queue = append(cs.queue, event)
+	full := len(cs.queue) >= 200
+	cs.queueMu.Unlock()
+	if full {
+		select {
+		case cs.full <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -277,6 +280,8 @@ type DashboardStats struct {
 }
 
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
+	cs.lifecycleMu.RLock()
+	defer cs.lifecycleMu.RUnlock()
 	client, err := cs.transformClient(addr)
 	if err != nil {
 		return err
@@ -439,62 +444,64 @@ LIMIT ?`
 	return dest, nil
 }
 
-func (cs *DNSLog) doInsert() {
+func (cs *DNSLog) doInsert() error {
 	logger := log.GetLogger("DNSLog", "doInsert")
-	if len(cs.queue) > 0 {
-		cs.mu.Lock()
-		stmts := make([]*syncsqlite.ExecStmt, 0, len(cs.queue))
-		for _, logEvent := range cs.queue {
-			logger.Debugf("Writing DNS-log event at %d", logEvent.Timestamp.UTC().UnixNano())
-			stmts = append(stmts, &syncsqlite.ExecStmt{
-				Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?, ?)",
-				Args:  []any{logEvent.Timestamp.UTC().UnixNano(), logEvent.Client, logEvent.Domain, logEvent.Blocked},
-			})
-		}
-		if err := cs.se.SyncExecBulk(stmts); err != nil {
-			logger.Error(err)
-			cs.mu.Unlock()
-			return
-		}
-		cs.queue = nil
-		cs.mu.Unlock()
-	}
-}
+	cs.flushMu.Lock()
+	defer cs.flushMu.Unlock()
 
-func (cs *DNSLog) append() {
-	logger := log.GetLogger("DNSLog", "append")
-	for {
-		logEvent, closed := <-cs.incomingData
-		logger.Debugf("append() got: %#v from channel", logEvent)
-
-		if !closed {
-			return
-		}
-		cs.qmu.Lock()
-		cs.queue = append(cs.queue, logEvent)
-		cs.qmu.Unlock()
+	cs.queueMu.Lock()
+	events := cs.queue
+	cs.queue = nil
+	cs.queueMu.Unlock()
+	if len(events) == 0 {
+		return nil
 	}
+
+	stmts := make([]*syncsqlite.ExecStmt, 0, len(events))
+	for _, logEvent := range events {
+		logger.Debugf("Writing DNS-log event at %d", logEvent.Timestamp.UTC().UnixNano())
+		stmts = append(stmts, &syncsqlite.ExecStmt{
+			Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'tdnslog') + 1, 1)), ?, ?, ?)",
+			Args:  []any{logEvent.Timestamp.UTC().UnixNano(), logEvent.Client, logEvent.Domain, logEvent.Blocked},
+		})
+	}
+	if err := cs.se.SyncExecBulk(stmts); err != nil {
+		cs.queueMu.Lock()
+		cs.queue = append(events, cs.queue...)
+		cs.queueMu.Unlock()
+		return err
+	}
+	return nil
 }
 
 func (cs *DNSLog) runAsync() {
 	logger := log.GetLogger("DNSLog", "runAsync")
 	defer func() {
 		logger.Debug("Writing last entries")
-		cs.doInsert()
+		if err := cs.doInsert(); err != nil {
+			logger.Error(err)
+		}
 		close(cs.done)
 	}()
 	timer := time.NewTimer(cs.duration)
-	time.Sleep(2 * time.Second)
+	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:
-			cs.doInsert()
+			if err := cs.doInsert(); err != nil {
+				logger.Error(err)
+			}
 			timer.Reset(cs.duration)
 		case <-cs.full:
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
-			cs.doInsert()
+			if err := cs.doInsert(); err != nil {
+				logger.Error(err)
+			}
 			timer.Reset(cs.duration)
 		case s := <-cs.purge:
 			err := cs.rotate(s)
@@ -517,10 +524,6 @@ func (cs *DNSLog) Info() (string, Stage) {
 }
 func (cs *DNSLog) Config(cf config.Config) error {
 	logger := log.GetLogger("DNSLog", "Config")
-	if !cf.DNSLog.Enabled {
-		logger.Debug("DNSLog disabled")
-		return nil
-	}
 	if cf.Database.File == "" {
 		return errors.New("database file is empty")
 	}
@@ -533,12 +536,12 @@ func (cs *DNSLog) Config(cf config.Config) error {
 		logger.Error(status.Reason)
 	}
 
-	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second
 	cs.purge = make(chan time.Duration, 1)
-	cs.full = make(chan bool)
-	cs.done = make(chan bool, 1)
-	cs.mustExit = make(chan bool, 1)
+	cs.full = make(chan struct{}, 1)
+	cs.done = make(chan struct{})
+	cs.mustExit = make(chan struct{})
+	cs.enabled = cf.DNSLog.Enabled && !cs.PrivacyStatus().RequiresClear
 	cs.ctx, cs.cancel = context.WithCancel(context.Background())
 
 	return nil
@@ -561,8 +564,8 @@ func (cs *DNSLog) rotate(since time.Duration) (returnErr error) {
 	defer func() {
 		recordDNSLogPurge(started, deleted, returnErr)
 	}()
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
+	cs.flushMu.Lock()
+	defer cs.flushMu.Unlock()
 
 	logger.Debug("Rotating db")
 	now := time.Now().UTC().UnixNano()
@@ -628,6 +631,9 @@ func (cs *DNSLog) Init() error {
 	dashboardTask := sched.Task{
 		Name: "DashboardStatsCache",
 		Fn: sched.FuzzyTask("DashboardStatsCache", cs.ctx, mf, func(context.Context) {
+			if !cs.IsEnabled() {
+				return
+			}
 			if err := cs.refreshDashboardCacheAt(time.Now()); err != nil {
 				log.GetLogger("DNSLog", "DashboardStatsCache").Error(err)
 			}
@@ -635,7 +641,7 @@ func (cs *DNSLog) Init() error {
 		Expr: "1 * * * *",
 	}
 	sched.Add(dashboardTask)
-	go cs.append()
+	cs.initialized = true
 	go cs.runAsync()
 	return nil
 }
@@ -643,10 +649,18 @@ func (cs *DNSLog) Init() error {
 func (cs *DNSLog) Stop() {
 	logger := log.GetLogger("DNSLog", "Stop")
 	logger.Info("Stopping dnslog storage")
-	if cs.mustExit != nil {
-		cs.mustExit <- true
+	if cs.cancel != nil {
+		cs.cancel()
 	}
-	time.Sleep(30 * time.Millisecond)
+	if err := cs.StopLogging(); err != nil {
+		logger.Error(err)
+	}
+	if cs.mustExit != nil {
+		cs.shutdownOnce.Do(func() { close(cs.mustExit) })
+	}
+	if cs.initialized {
+		<-cs.done
+	}
 	if cs.se != nil {
 		cs.se.Close()
 	}
