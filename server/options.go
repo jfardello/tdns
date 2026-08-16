@@ -1,11 +1,12 @@
 package server
 
 import (
-	"github.com/jfardello/tdns/config"
-	"github.com/jfardello/tdns/middleware"
+	"fmt"
 	"time"
 
+	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/resolver"
 )
 
@@ -87,20 +88,24 @@ func WithUpstreams(u []string, globalTimeOut int, upstreamTimeOut int) func(*Ser
 func WithDNSLog() func(*Server) {
 	return func(s *Server) {
 		logger := log.GetLogger("serve", "config")
-		dl := &middleware.DNSLog{}
-		err := dl.Config(s.Config)
-		if err != nil {
-			logger.Error(err)
-			return
+		if err := configureDNSLog(s); err != nil {
+			logger.Fatal(err)
 		}
-		err = dl.Init()
-		if err != nil {
-			logger.Error(err)
-			return
-		}
-		n, _ := dl.Info()
-		s.Middlewares[n] = dl
 	}
+}
+
+func configureDNSLog(s *Server) error {
+	dl := &middleware.DNSLog{}
+	if err := dl.Config(s.Config); err != nil {
+		return fmt.Errorf("initialize DNS-log middleware: %w", err)
+	}
+	if err := dl.Init(); err != nil {
+		dl.Stop()
+		return fmt.Errorf("initialize DNS-log middleware: %w", err)
+	}
+	n, _ := dl.Info()
+	s.Middlewares[n] = dl
+	return nil
 }
 
 func WithTagger() func(*Server) {

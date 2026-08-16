@@ -5471,6 +5471,8 @@ type DnsLogClearResponse struct {
 	JSON409 *ApiResponse
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5496,6 +5498,11 @@ func (r DnsLogClearResponse) GetJSON409() *ApiResponse {
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
 func (r DnsLogClearResponse) GetJSON500() *ApiResponse {
 	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogClearResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5536,6 +5543,8 @@ type DnsLogStatusResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5551,6 +5560,11 @@ func (r DnsLogStatusResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogStatusResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogStatusResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5591,6 +5605,8 @@ type DnsLogAliasSetResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5606,6 +5622,11 @@ func (r DnsLogAliasSetResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogAliasSetResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogAliasSetResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5646,6 +5667,8 @@ type DnsLogClientsSearchResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5661,6 +5684,11 @@ func (r DnsLogClientsSearchResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogClientsSearchResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogClientsSearchResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5701,6 +5729,8 @@ type DnsLogDashboardResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5716,6 +5746,11 @@ func (r DnsLogDashboardResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5756,6 +5791,8 @@ type DnsLogDashboardCurrentResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5771,6 +5808,11 @@ func (r DnsLogDashboardCurrentResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardCurrentResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardCurrentResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5811,6 +5853,8 @@ type DnsLogDashboardHistoryResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5826,6 +5870,11 @@ func (r DnsLogDashboardHistoryResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardHistoryResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardHistoryResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5866,6 +5915,8 @@ type DnsLogRotateResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5881,6 +5932,11 @@ func (r DnsLogRotateResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogRotateResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogRotateResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5921,6 +5977,8 @@ type DnsLogTopResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5936,6 +5994,11 @@ func (r DnsLogTopResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogTopResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogTopResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5982,6 +6045,8 @@ type DnsLogToggleResponse struct {
 	JSON409 *ApiResponse
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -6012,6 +6077,11 @@ func (r DnsLogToggleResponse) GetJSON409() *ApiResponse {
 // GetJSON500 returns the response for an HTTP 500 `application/json` response
 func (r DnsLogToggleResponse) GetJSON500() *ApiResponse {
 	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogToggleResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -9204,6 +9274,13 @@ func ParseDnsLogClearResponse(rsp *http.Response) (*DnsLogClearResponse, error) 
 		}
 		response.JSON500 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -9243,6 +9320,13 @@ func ParseDnsLogStatusResponse(rsp *http.Response) (*DnsLogStatusResponse, error
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -9284,6 +9368,13 @@ func ParseDnsLogAliasSetResponse(rsp *http.Response) (*DnsLogAliasSetResponse, e
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -9323,6 +9414,13 @@ func ParseDnsLogClientsSearchResponse(rsp *http.Response) (*DnsLogClientsSearchR
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -9364,6 +9462,13 @@ func ParseDnsLogDashboardResponse(rsp *http.Response) (*DnsLogDashboardResponse,
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -9403,6 +9508,13 @@ func ParseDnsLogDashboardCurrentResponse(rsp *http.Response) (*DnsLogDashboardCu
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -9444,6 +9556,13 @@ func ParseDnsLogDashboardHistoryResponse(rsp *http.Response) (*DnsLogDashboardHi
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -9484,6 +9603,13 @@ func ParseDnsLogRotateResponse(rsp *http.Response) (*DnsLogRotateResponse, error
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -9523,6 +9649,13 @@ func ParseDnsLogTopResponse(rsp *http.Response) (*DnsLogTopResponse, error) {
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -9584,6 +9717,13 @@ func ParseDnsLogToggleResponse(rsp *http.Response) (*DnsLogToggleResponse, error
 			return nil, err
 		}
 		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

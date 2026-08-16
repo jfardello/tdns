@@ -9,6 +9,7 @@ import {
 } from '~/lib/dashboardStats'
 
 const { clearCache, getDnsDashboardCurrent, getDnsDashboardHistory, getDnsLogTop } = useApi()
+const { dataRevision: dnsLogDataRevision } = useDnsLog()
 const toast = useToast()
 
 const EMPTY_SUMMARY: DashboardSummary = {
@@ -163,6 +164,10 @@ async function handleClearCache() {
 
 onMounted(() => {
   loadDashboardData()
+})
+
+watch(dnsLogDataRevision, () => {
+  void loadDashboardData()
 })
 </script>
 

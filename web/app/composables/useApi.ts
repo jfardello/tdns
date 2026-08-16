@@ -1,4 +1,7 @@
 import type { components } from '~/generated/api'
+import { normalizeDNSLogStatus, type DNSLogStatus } from '~/lib/dnsLogUi'
+
+export type { DNSLogStatus } from '~/lib/dnsLogUi'
 
 type Schema<Name extends keyof components['schemas']> = components['schemas'][Name]
 
@@ -230,6 +233,23 @@ export function useApi() {
     }
   }
 
+  async function getDnsLogStatus() {
+    const response = await execute(client.GET('/api/dns-log'))
+    return response && { ...response, dns_log: normalizeDNSLogStatus(response.dns_log as Partial<DNSLogStatus> | undefined) }
+  }
+
+  async function toggleDnsLog(action: 'start' | 'stop') {
+    const response = await execute(client.POST('/api/dns-log/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, dns_log: normalizeDNSLogStatus(response.dns_log as Partial<DNSLogStatus> | undefined) }
+  }
+
+  async function clearDnsLog() {
+    const response = await execute(client.DELETE('/api/dns-log'))
+    return response && { ...response, dns_log: normalizeDNSLogStatus(response.dns_log as Partial<DNSLogStatus> | undefined) }
+  }
+
   async function searchDnsLogClients(search = '', limit = 20) {
     const response = await execute(client.GET('/api/dns-log/clients', {
       params: { query: { search: search.trim() || undefined, limit } }
@@ -408,6 +428,9 @@ export function useApi() {
     getDnsDashboard,
     getDnsDashboardHistory,
     getDnsDashboardCurrent,
+    getDnsLogStatus,
+    toggleDnsLog,
+    clearDnsLog,
     getDnsLogTop,
     searchDnsLogClients,
     rotateDnsLog,

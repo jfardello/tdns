@@ -11,6 +11,24 @@ import (
 	"github.com/jfardello/tdns/middleware"
 )
 
+const dnsLogUnavailableMessage = "DNS-log middleware is unavailable"
+
+func (api *v1) dnsLogMiddleware(w http.ResponseWriter) (*middleware.DNSLog, bool) {
+	if api.server != nil {
+		if dnsLog, ok := api.server.Middlewares["dns-log"].(*middleware.DNSLog); ok && dnsLog != nil {
+			return dnsLog, true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       dnsLogUnavailableMessage,
+		CurrentStatus: "Unavailable",
+	}, w)
+	return nil, false
+}
+
 // Get DNS-log status.
 //
 //	@Summary		Get DNS-log status
@@ -22,9 +40,13 @@ import (
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log [get]
 func (api *v1) DNSLogStatus(w http.ResponseWriter, _ *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	status := p.Status()
 	writeJSON(Response{
 		Kind:          DNSLogResponseKind,
@@ -49,11 +71,15 @@ func (api *v1) DNSLogStatus(w http.ResponseWriter, _ *http.Request) {
 //	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		409	{object}	api.Response
 //	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/{action} [post]
 func (api *v1) DNSLogToggle(w http.ResponseWriter, r *http.Request) {
 	api.dnsLogMutationMu.Lock()
 	defer api.dnsLogMutationMu.Unlock()
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	state, err := actionToBool(r.PathValue("action"))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -111,11 +137,15 @@ func (api *v1) DNSLogToggle(w http.ResponseWriter, r *http.Request) {
 //	@Failure		403	{string}	string	"Forbidden"
 //	@Failure		409	{object}	api.Response
 //	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log [delete]
 func (api *v1) DNSLogClear(w http.ResponseWriter, _ *http.Request) {
 	api.dnsLogMutationMu.Lock()
 	defer api.dnsLogMutationMu.Unlock()
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	if err := p.Clear(); err != nil {
 		if errors.Is(err, middleware.ErrDNSLogRunning) {
 			w.WriteHeader(http.StatusConflict)
@@ -150,9 +180,13 @@ func (api *v1) writeDNSLogStatus(w http.ResponseWriter, dnsLog *middleware.DNSLo
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/alias [post]
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	jr := new(DNSLogAliasRequest)
 	err := json.NewDecoder(r.Body).Decode(jr)
@@ -194,9 +228,13 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/rotate [post]
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	since := r.URL.Query().Get("since")
@@ -234,9 +272,13 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/top/{top} [get]
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	top, err := strconv.Atoi(r.PathValue("top"))
 	since := r.URL.Query().Get("since")
@@ -282,9 +324,13 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/clients [get]
 func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	search := r.URL.Query().Get("search")
@@ -332,9 +378,13 @@ func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard [get]
 func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	hours := 24
@@ -375,9 +425,13 @@ func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard/history [get]
 func (api *v1) DNSLogDashboardHistory(w http.ResponseWriter, _ *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	stats, err := p.GetDashboardHistory()
 	if err != nil {
 		api.writeDNSLogDashboardError(w, err)
@@ -397,9 +451,13 @@ func (api *v1) DNSLogDashboardHistory(w http.ResponseWriter, _ *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard/current [get]
 func (api *v1) DNSLogDashboardCurrent(w http.ResponseWriter, _ *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	stats, err := p.GetDashboardCurrent()
 	if err != nil {
 		api.writeDNSLogDashboardError(w, err)

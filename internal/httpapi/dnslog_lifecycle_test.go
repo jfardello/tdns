@@ -100,3 +100,58 @@ func TestDNSLogLifecycleRoutesAuthorizeAndPersistState(t *testing.T) {
 		t.Fatalf("persisted restarted DNS-log override = %#v", row)
 	}
 }
+
+func TestDNSLogRoutesReturnServiceUnavailableWithoutMiddleware(t *testing.T) {
+	config.SetRunningConfig(&config.Config{Auth: config.AuthConf{Browser: config.BrowserAuthConf{
+		RememberDays: config.DefaultBrowserRememberDays,
+	}}})
+	dnsServer := &server.Server{Middlewares: make(map[string]middleware.Middleware)}
+	manager := testAuthManager(t)
+	handler, err := NewHandler(dnsServer, manager, nil)
+	if err != nil {
+		t.Fatalf("NewHandler: %v", err)
+	}
+	readToken := issueTestToken(t, manager, auth.ScopeRead)
+	writeToken := issueTestToken(t, manager, auth.ScopeWrite)
+
+	routes := []struct {
+		method string
+		path   string
+		token  string
+	}{
+		{http.MethodGet, "/api/dns-log", readToken},
+		{http.MethodGet, "/api/dns-log/top/10", readToken},
+		{http.MethodGet, "/api/dns-log/clients", readToken},
+		{http.MethodGet, "/api/dns-log/dashboard", readToken},
+		{http.MethodGet, "/api/dns-log/dashboard/history", readToken},
+		{http.MethodGet, "/api/dns-log/dashboard/current", readToken},
+		{http.MethodPost, "/api/dns-log/start", writeToken},
+		{http.MethodDelete, "/api/dns-log", writeToken},
+		{http.MethodPost, "/api/dns-log/rotate", writeToken},
+		{http.MethodPost, "/api/dns-log/alias", writeToken},
+	}
+
+	for _, route := range routes {
+		name := route.method + " " + route.path
+		t.Run(name, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, nil)
+			request.Header.Set("Authorization", "Bearer "+route.token)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d, want 503: %s", response.Code, response.Body.String())
+			}
+			if contentType := response.Header().Get("Content-Type"); contentType != "application/json" {
+				t.Fatalf("Content-Type = %q, want application/json", contentType)
+			}
+			var body contractapi.Response
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Message != dnsLogUnavailableMessage {
+				t.Fatalf("message = %q, want %q", body.Message, dnsLogUnavailableMessage)
+			}
+		})
+	}
+}

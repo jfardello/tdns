@@ -865,6 +865,10 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/api.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -887,6 +891,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -932,6 +940,10 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/api.Response'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -962,6 +974,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -997,6 +1013,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -1028,6 +1048,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -1051,6 +1075,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -1075,6 +1103,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -1103,6 +1135,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []
@@ -1156,6 +1192,10 @@ paths:
           description: Forbidden
           schema:
             type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.Response'
       security:
       - BearerAuth: []
       - CookieAuth: []

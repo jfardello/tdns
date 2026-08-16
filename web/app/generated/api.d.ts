@@ -1740,6 +1740,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogClear: {
@@ -1789,6 +1798,15 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1864,6 +1882,15 @@ export interface operations {
                     "application/json": components["schemas"]["api.Response"];
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogAliasSet: {
@@ -1905,6 +1932,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -1950,6 +1986,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboard: {
@@ -1991,6 +2036,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboardCurrent: {
@@ -2029,6 +2083,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboardHistory: {
@@ -2065,6 +2128,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -2106,6 +2178,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -2156,6 +2237,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
