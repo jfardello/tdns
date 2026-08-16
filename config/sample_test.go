@@ -76,6 +76,9 @@ func TestSampleConfigLoadsThroughViper(t *testing.T) {
 	if loaded.DNSLog.Purge != DefaultDNSLogRetention {
 		t.Fatalf("dns_log.purge = %q, want %q", loaded.DNSLog.Purge, DefaultDNSLogRetention)
 	}
+	if loaded.DNSLog.Pseudonymization.KeyEnvironment != "TDNS_DNS_LOG_PSEUDONYMIZATION_KEY" {
+		t.Fatalf("dns_log pseudonymization key environment = %q", loaded.DNSLog.Pseudonymization.KeyEnvironment)
+	}
 	if loaded.Diagnostics.ListenAddr != DefaultDiagnosticsAddress ||
 		!loaded.Diagnostics.MetricsEnabled || loaded.Diagnostics.PProfEnabled {
 		t.Fatalf("diagnostics did not load expected defaults: %#v", loaded.Diagnostics)

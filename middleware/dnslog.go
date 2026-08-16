@@ -110,27 +110,34 @@ var MaxDNSLogEntries int = 50
 
 type LogEvent struct {
 	Timestamp time.Time
-	CtxValue  config.CtxValue
-	Msg       *dns.Msg
+	Client    string
+	Domain    string
+	Blocked   int
 }
 
 type DNSLog struct {
-	se           *syncsqlite.SyncExecutor
-	duration     time.Duration
-	purge        chan time.Duration
-	done         chan bool
-	mustExit     chan bool
-	full         chan bool
-	incomingData chan LogEvent
-	queue        []LogEvent
-	mu           sync.Mutex
-	qmu          sync.Mutex
-	dashboardMu  sync.Mutex
-	ctx          context.Context
-	cancel       context.CancelFunc
+	se            *syncsqlite.SyncExecutor
+	duration      time.Duration
+	purge         chan time.Duration
+	done          chan bool
+	mustExit      chan bool
+	full          chan bool
+	incomingData  chan LogEvent
+	queue         []LogEvent
+	mu            sync.Mutex
+	qmu           sync.Mutex
+	dashboardMu   sync.Mutex
+	privacyMu     sync.RWMutex
+	pseudonymizer *dnsLogPseudonymizer
+	privacy       DNSLogPrivacyStatus
+	ctx           context.Context
+	cancel        context.CancelFunc
 }
 
 func (cs *DNSLog) Run(mess *Message) (*Message, error) {
+	if cs.PrivacyStatus().RequiresClear {
+		return mess, nil
+	}
 	m, err := mess.GetMsg()
 	if err != nil {
 		return mess, err
@@ -139,13 +146,14 @@ func (cs *DNSLog) Run(mess *Message) (*Message, error) {
 	logger := log.GetLogger("DNSLog", "Run")
 	cv, ok := ctx.Value(config.CtxKey).(config.CtxValue)
 	if ok {
-		cs.Append(LogEvent{
-			Timestamp: time.Now(),
-			CtxValue:  cv,
-			Msg:       m,
-		})
+		event, err := cs.newLogEvent(time.Now(), cv, m)
+		if err != nil {
+			logger.Errorf("Cannot prepare DNS-log event: %s", err)
+			return mess, nil
+		}
+		cs.Append(event)
 	} else {
-		logger.Debugf("#### Domain: %#v", m)
+		logger.Debug("DNS-log event has no client context")
 	}
 	return mess, nil
 }
@@ -179,18 +187,20 @@ func (cs *DNSLog) put(d LogEvent) bool {
 	}
 }
 
-func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
-	//Extract details from CtxValue and msg
+func eventDomain(m *dns.Msg) (string, error) {
+	if len(m.Question) == 0 {
+		return "", errors.New("DNS message has no question")
+	}
 	domain := m.Question[0].Name
-	ok := false
-	logger := log.GetLogger("DNSLog", "getEventDomain")
-	logger.Debugf("Getting  message: %#v", m)
 	if m.MsgHdr.Rcode == dns.RcodeSuccess {
 		if len(m.Answer) > 0 {
 			domain = m.Answer[0].Header().Name
-			ok = true
 		}
 	}
+	return dns.CanonicalName(domain), nil
+}
+
+func eventClient(c config.CtxValue) (string, error) {
 	var remote string
 	switch addr := c.RemoteAddr.(type) {
 	case *net.UDPAddr:
@@ -198,7 +208,39 @@ func getEventDomain(c config.CtxValue, m *dns.Msg) (string, string, bool) {
 	case *net.TCPAddr:
 		remote = addr.IP.String()
 	}
-	return remote, domain, ok
+	if remote == "" {
+		return "", errors.New("DNS-log event has no IP client address")
+	}
+	return remote, nil
+}
+
+func (cs *DNSLog) newLogEvent(timestamp time.Time, c config.CtxValue, m *dns.Msg) (LogEvent, error) {
+	domain, err := eventDomain(m)
+	if err != nil {
+		return LogEvent{}, err
+	}
+	client, err := eventClient(c)
+	if err != nil {
+		return LogEvent{}, err
+	}
+	client, err = cs.transformClient(client)
+	if err != nil {
+		return LogEvent{}, err
+	}
+	privacy, pseudonymizer := cs.privacySettings()
+	if privacy.DomainsPseudonymized {
+		if pseudonymizer == nil {
+			return LogEvent{}, errors.New("DNS-log domain pseudonymization key is not configured")
+		}
+		domain = pseudonymizer.domain(domain)
+	}
+	blocked := 0
+	if value, ok := c.Values["blocked"]; ok {
+		if parsed, parseErr := strconv.Atoi(value); parseErr == nil {
+			blocked = parsed
+		}
+	}
+	return LogEvent{Timestamp: timestamp, Client: client, Domain: domain, Blocked: blocked}, nil
 }
 
 type LogDetails struct {
@@ -235,14 +277,13 @@ type DashboardStats struct {
 }
 
 func (cs *DNSLog) AddAlias(alias string, addr string) error {
-	ip := net.ParseIP(addr)
-
-	if ip == nil {
-		return fmt.Errorf("invalid address: %s", addr)
+	client, err := cs.transformClient(addr)
+	if err != nil {
+		return err
 	}
 	sql := `INSERT INTO hosts (host, ipAddr) values (?, ?) ON CONFLICT DO UPDATE SET host=excluded.host`
 
-	_, err := cs.se.SyncExec(sql, []any{alias, ip.String()})
+	_, err = cs.se.SyncExec(sql, []any{alias, client})
 	if err != nil {
 		return fmt.Errorf("error adding alias, %w", err)
 	}
@@ -261,7 +302,7 @@ func normalizeTopClientMode(client, clientMode string) string {
 	case "host", "ip":
 		return clientMode
 	}
-	if net.ParseIP(client) != nil {
+	if net.ParseIP(client) != nil || validDNSLogToken(client, dnsLogClientToken) {
 		return "ip"
 	}
 	return "host"
@@ -292,8 +333,12 @@ func (cs *DNSLog) GetTop(top int, since string, status string, client string, cl
 	switch normalizeTopClientMode(client, clientMode) {
 	case "":
 	case "ip":
+		transformedClient, err := cs.transformClient(client)
+		if err != nil {
+			return nil, err
+		}
 		conditions = append(conditions, "d.client = ?")
-		args = append(args, client)
+		args = append(args, transformedClient)
 	case "host":
 		conditions = append(conditions, "h.host = ?")
 		args = append(args, client)
@@ -348,7 +393,8 @@ func (cs *DNSLog) SearchClients(search string, limit int) ([]ClientCandidate, er
 		limit = 100
 	}
 
-	search = strings.TrimSpace(strings.ToLower(search))
+	search = strings.TrimSpace(search)
+	normalizedSearch := strings.ToLower(search)
 	query := `
 SELECT clients.client AS address, COALESCE(h.host, '') AS host
 FROM (
@@ -358,10 +404,20 @@ FROM (
 LEFT JOIN hosts h ON clients.client = h.ipAddr`
 	args := []any{}
 	if search != "" {
-		query += `
+		pattern := "%" + normalizedSearch + "%"
+		if cs.PrivacyStatus().ClientsPseudonymized && (net.ParseIP(search) != nil || validDNSLogToken(search, dnsLogClientToken)) {
+			client, err := cs.transformClient(search)
+			if err != nil {
+				return nil, err
+			}
+			query += `
+WHERE clients.client = ? OR lower(COALESCE(h.host, '')) LIKE ?`
+			args = append(args, client, pattern)
+		} else {
+			query += `
 WHERE lower(clients.client) LIKE ? OR lower(COALESCE(h.host, '')) LIKE ?`
-		pattern := "%" + search + "%"
-		args = append(args, pattern, pattern)
+			args = append(args, pattern, pattern)
+		}
 	}
 	query += `
 ORDER BY CASE WHEN h.host IS NULL OR h.host = '' THEN 1 ELSE 0 END, lower(COALESCE(h.host, clients.client)), clients.client
@@ -389,24 +445,10 @@ func (cs *DNSLog) doInsert() {
 		cs.mu.Lock()
 		stmts := make([]*syncsqlite.ExecStmt, 0, len(cs.queue))
 		for _, logEvent := range cs.queue {
-			logger.Debugf("Incoming message: %#v", logEvent)
-			logger.Debugf("  Message unix nano: %d", logEvent.Timestamp.UTC().UnixNano())
-			client, domain, _ := getEventDomain(logEvent.CtxValue, logEvent.Msg)
-			blocked := 0
-			_blocked, ok := logEvent.CtxValue.Values["blocked"]
-			if ok {
-				var err error
-				blocked, err = strconv.Atoi(_blocked)
-				if err != nil {
-					logger.Errorf("Error parsing blocked value from context: %s", err)
-					blocked = 0
-				}
-			} else {
-				blocked = 0
-			}
+			logger.Debugf("Writing DNS-log event at %d", logEvent.Timestamp.UTC().UnixNano())
 			stmts = append(stmts, &syncsqlite.ExecStmt{
 				Query: "INSERT INTO tdnslog (dt, client, domain, blocked) VALUES (MAX(?, (SELECT seq FROM sqlite_sequence) + 1), ?, ?, ?)",
-				Args:  []any{logEvent.Timestamp.UTC().UnixNano(), client, domain, blocked},
+				Args:  []any{logEvent.Timestamp.UTC().UnixNano(), logEvent.Client, logEvent.Domain, logEvent.Blocked},
 			})
 		}
 		if err := cs.se.SyncExecBulk(stmts); err != nil {
@@ -483,6 +525,13 @@ func (cs *DNSLog) Config(cf config.Config) error {
 		return errors.New("database file is empty")
 	}
 	cs.se = syncsqlite.NewSyncExecutor(syncsqlite.ConnString(cf.Database.File), syncsqlite.MaxReadonlyConnections)
+	if err := cs.configurePrivacy(cf.DNSLog.Pseudonymization); err != nil {
+		cs.se.Close()
+		return fmt.Errorf("configure DNS-log pseudonymization: %w", err)
+	}
+	if status := cs.PrivacyStatus(); status.RequiresClear {
+		logger.Error(status.Reason)
+	}
 
 	cs.incomingData = make(chan LogEvent, 200)
 	cs.duration = 5 * time.Second

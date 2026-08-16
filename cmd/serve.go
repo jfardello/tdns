@@ -139,6 +139,7 @@ func init() {
 	viper.SetDefault("cors.enabled", false)
 	viper.SetDefault("dns_log.enabled", true)
 	viper.SetDefault("dns_log.purge", config.DefaultDNSLogRetention)
+	viper.SetDefault("dns_log.pseudonymization.key_environment", "TDNS_DNS_LOG_PSEUDONYMIZATION_KEY")
 	viper.SetDefault("diagnostics.listen_addr", config.DefaultDiagnosticsAddress)
 	viper.SetDefault("diagnostics.metrics_enabled", true)
 	viper.SetDefault("diagnostics.pprof_enabled", false)

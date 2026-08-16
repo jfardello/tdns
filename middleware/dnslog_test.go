@@ -3,15 +3,12 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/syncsqlite"
-	"github.com/miekg/dns"
 )
 
 func newTempConnString(t *testing.T) string {
@@ -21,20 +18,12 @@ func newTempConnString(t *testing.T) string {
 }
 
 func TestDNSLog_doInsert(t *testing.T) {
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn("www.google.com"), dns.TypeA)
-
-	addr, _ := net.ResolveUDPAddr("udp", "1.1.1.1:53")
-	ctx1 := config.CtxValue{
-		RemoteAddr: addr,
-		Values:     map[string]string{},
-	}
 	ts := time.Unix(1700000000, 123456789)
 	tests := []LogEvent{
 		{
 			Timestamp: ts,
-			Msg:       m,
-			CtxValue:  ctx1,
+			Client:    "1.1.1.1",
+			Domain:    "www.google.com.",
 		},
 	}
 

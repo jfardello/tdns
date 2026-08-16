@@ -436,6 +436,23 @@ Status: Implemented on 2026-08-02. TDNS validates configured and manual purge
 durations, reports bounded purge metrics, and protects SQLite artifacts with
 owner-only modes.
 
+### DNS-Log Pseudonymization
+
+Operators may independently pseudonymize logged domains and client addresses.
+TDNS canonicalizes each identifier and replaces it with a deterministic
+HMAC-SHA-256 token before asynchronous queueing or debug logging. Domain and
+client tokens use separate contexts, and the dedicated key is loaded from an
+environment variable or a restricted file. Client aliases and exact filters
+operate on the client token, so raw client addresses are not added to storage.
+
+Pseudonymization is not anonymization: low-entropy identifiers can still be
+tested by anyone who obtains the key. Key access must therefore be restricted.
+TDNS records the active modes and a non-secret key fingerprint; if retained
+data was produced with an incompatible mode or key, logging pauses and TDNS
+reports that the DNS-log data must be cleared.
+
+Status: Implemented on 2026-08-16.
+
 ### Supported Deployment Topology
 
 The supported production topology is one TDNS instance deployed inside a

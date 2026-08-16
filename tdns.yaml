@@ -18,6 +18,11 @@ cors:
 dns_log:
   enabled: true
   purge: 30d
+  pseudonymization:
+    domains: false
+    clients: false
+    key_file: ""
+    key_environment: TDNS_DNS_LOG_PSEUDONYMIZATION_KEY
 database:
   file: /var/lib/tdns/tdns.sqlite
 diagnostics:
