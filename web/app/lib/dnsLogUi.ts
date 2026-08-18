@@ -57,3 +57,25 @@ export function canConfirmDNSLogClear(status: DNSLogStatus, confirmation: string
   return canClearDNSLog(status) && confirmation.trim() === 'DELETE'
 }
 
+export type DNSLogPrivacyField = 'domains' | 'clients'
+
+export interface DNSLogPrivacyChange {
+  domainsPseudonymized: boolean
+  clientsPseudonymized: boolean
+  downgrade: boolean
+}
+
+export function proposeDNSLogPrivacyChange(
+  status: DNSLogStatus,
+  field: DNSLogPrivacyField,
+  enabled: boolean
+): DNSLogPrivacyChange {
+  const domainsPseudonymized = field === 'domains' ? enabled : status.domains_pseudonymized
+  const clientsPseudonymized = field === 'clients' ? enabled : status.clients_pseudonymized
+  return {
+    domainsPseudonymized,
+    clientsPseudonymized,
+    downgrade: (status.domains_pseudonymized && !domainsPseudonymized)
+      || (status.clients_pseudonymized && !clientsPseudonymized)
+  }
+}

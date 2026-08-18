@@ -148,7 +148,7 @@ func privacyMode(enabled bool) string {
 func (cs *DNSLog) configurePrivacy(conf config.DNSLogPseudonymizationConf) error {
 	pseudonymizer, err := newDNSLogPseudonymizer(conf)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrDNSLogPrivacyConfig, err)
 	}
 	desiredDomainMode := privacyMode(conf.Domains)
 	desiredClientMode := privacyMode(conf.Clients)

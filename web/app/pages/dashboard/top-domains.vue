@@ -6,7 +6,10 @@ import {
   canConfirmDNSLogClear,
   canStartDNSLog,
   isAliasableDNSLogClient,
-  isDNSLogClientToken
+  isDNSLogClientToken,
+  proposeDNSLogPrivacyChange,
+  type DNSLogPrivacyChange,
+  type DNSLogPrivacyField
 } from '~/lib/dnsLogUi'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -18,8 +21,10 @@ const {
   refreshing: dnsLogRefreshing,
   toggleLoading: dnsLogToggleLoading,
   clearLoading: dnsLogClearLoading,
+  privacyLoading: dnsLogPrivacyLoading,
   refresh: refreshDNSLogStatus,
   setEnabled: setDNSLogEnabled,
+  setPseudonymization: setDNSLogPseudonymization,
   clear: clearAllDNSLogData
 } = useDnsLog()
 const toast = useToast()
@@ -72,6 +77,50 @@ const clearConfirmationValid = computed(() => (
 const privacyUsesKey = computed(() => (
   dnsLogStatus.value.domains_pseudonymized || dnsLogStatus.value.clients_pseudonymized
 ))
+const showPrivacyModal = ref(false)
+const pendingPrivacyChange = ref<DNSLogPrivacyChange | null>(null)
+const privacyControlsDisabled = computed(() => (
+  dnsLogStatus.value.enabled
+  || dnsLogPrivacyLoading.value
+  || dnsLogToggleLoading.value
+  || dnsLogClearLoading.value
+))
+
+function requestPrivacyChange(field: DNSLogPrivacyField, enabled: boolean) {
+  if (privacyControlsDisabled.value) {
+    return
+  }
+  pendingPrivacyChange.value = proposeDNSLogPrivacyChange(dnsLogStatus.value, field, enabled)
+  showPrivacyModal.value = true
+}
+
+function closePrivacyModal() {
+  showPrivacyModal.value = false
+  pendingPrivacyChange.value = null
+}
+
+async function confirmPrivacyChange() {
+  const change = pendingPrivacyChange.value
+  if (!change) {
+    return
+  }
+  const response = await setDNSLogPseudonymization(
+    change.domainsPseudonymized,
+    change.clientsPseudonymized
+  )
+  if (!response) {
+    return
+  }
+  closePrivacyModal()
+  toast.add({
+    title: 'DNS-log privacy updated',
+    description: response.dns_log?.requires_clear
+      ? 'Delete all DNS-log data before logging can resume.'
+      : 'The new privacy settings will apply to future DNS-log events.',
+    color: response.dns_log?.requires_clear ? 'warning' : 'success',
+    icon: response.dns_log?.requires_clear ? 'i-lucide-triangle-alert' : 'i-lucide-check-circle'
+  })
+}
 
 async function loadLogs() {
   loading.value = true
@@ -406,7 +455,7 @@ watch(filterByClient, (enabled) => {
                 <p v-if="dnsLogStatus.enabled" class="text-sm text-muted">New DNS queries are being recorded.</p>
                 <p v-else class="text-sm text-muted">Historical data remains available until it is rotated or completely deleted.</p>
                 <p v-if="dnsLogStatus.enabled" class="text-sm text-warning">
-                  Stop DNS logging before completely deleting its stored data.
+                  Stop DNS logging before changing privacy settings or completely deleting stored data.
                 </p>
               </div>
 
@@ -418,6 +467,24 @@ watch(filterByClient, (enabled) => {
                     :loading="dnsLogToggleLoading"
                     :disabled="dnsLogStatus.requires_clear && !dnsLogStatus.enabled"
                     @update:model-value="handleLoggingToggle"
+                  />
+                </div>
+                <div class="flex items-center gap-3 rounded-lg border border-default px-3 py-2">
+                  <span class="text-sm font-medium">Pseudonymize domains</span>
+                  <USwitch
+                    :model-value="dnsLogStatus.domains_pseudonymized"
+                    :loading="dnsLogPrivacyLoading"
+                    :disabled="privacyControlsDisabled"
+                    @update:model-value="requestPrivacyChange('domains', $event)"
+                  />
+                </div>
+                <div class="flex items-center gap-3 rounded-lg border border-default px-3 py-2">
+                  <span class="text-sm font-medium">Pseudonymize clients</span>
+                  <USwitch
+                    :model-value="dnsLogStatus.clients_pseudonymized"
+                    :loading="dnsLogPrivacyLoading"
+                    :disabled="privacyControlsDisabled"
+                    @update:model-value="requestPrivacyChange('clients', $event)"
                   />
                 </div>
                 <UButton
@@ -543,6 +610,56 @@ watch(filterByClient, (enabled) => {
           <UButton type="submit" label="Set Alias" />
         </div>
       </UForm>
+    </template>
+  </UModal>
+
+  <!-- Privacy settings modal -->
+  <UModal
+    v-model:open="showPrivacyModal"
+    title="Change DNS-log Privacy"
+    description="Confirm how future DNS-log events will be stored"
+  >
+    <template #body>
+      <div v-if="pendingPrivacyChange" class="space-y-4">
+        <UAlert
+          :icon="pendingPrivacyChange.downgrade ? 'i-lucide-shield-alert' : 'i-lucide-shield-check'"
+          :color="pendingPrivacyChange.downgrade ? 'warning' : 'primary'"
+          :title="pendingPrivacyChange.downgrade ? 'This reduces privacy' : 'Enable pseudonymization'"
+          :description="pendingPrivacyChange.downgrade
+            ? 'Future values for the disabled category will be stored in plain form.'
+            : 'A configured pseudonymization key is required before this setting can be enabled.'"
+        />
+        <div class="space-y-2 rounded-lg border border-default p-4 text-sm">
+          <div class="flex items-center justify-between gap-4">
+            <span>Domains</span>
+            <UBadge
+              :label="pendingPrivacyChange.domainsPseudonymized ? 'Pseudonymized' : 'Plain'"
+              :color="pendingPrivacyChange.domainsPseudonymized ? 'primary' : 'neutral'"
+              variant="outline"
+            />
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <span>Clients</span>
+            <UBadge
+              :label="pendingPrivacyChange.clientsPseudonymized ? 'Pseudonymized' : 'Plain'"
+              :color="pendingPrivacyChange.clientsPseudonymized ? 'primary' : 'neutral'"
+              variant="outline"
+            />
+          </div>
+        </div>
+        <p class="text-sm text-muted">
+          Existing events and aliases are never converted. If they are incompatible with this choice, TDNS will require complete deletion before logging can restart.
+        </p>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" label="Cancel" :disabled="dnsLogPrivacyLoading" @click="closePrivacyModal" />
+          <UButton
+            label="Apply Privacy Settings"
+            :color="pendingPrivacyChange.downgrade ? 'warning' : 'primary'"
+            :loading="dnsLogPrivacyLoading"
+            @click="confirmPrivacyChange"
+          />
+        </div>
+      </div>
     </template>
   </UModal>
 

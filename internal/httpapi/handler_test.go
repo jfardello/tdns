@@ -104,6 +104,7 @@ func TestNewHandlerRegistersAPIRoutes(t *testing.T) {
 		{http.MethodPost, "/api/dns-log/rotate"},
 		{http.MethodPost, "/api/dns-log/alias"},
 		{http.MethodGet, "/api/dns-log"},
+		{http.MethodPut, "/api/dns-log/privacy"},
 		{http.MethodPost, "/api/dns-log/start"},
 		{http.MethodDelete, "/api/dns-log"},
 		{http.MethodPost, "/api/tagger/tags"},

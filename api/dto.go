@@ -128,6 +128,11 @@ type DNSLogStatus struct {
 	QueuedEvents         int    `json:"queued_events" minimum:"0"`
 }
 
+type DNSLogPrivacyRequest struct {
+	DomainsPseudonymized *bool `json:"domains_pseudonymized" binding:"required"`
+	ClientsPseudonymized *bool `json:"clients_pseudonymized" binding:"required"`
+}
+
 type TagMember struct {
 	Address      string `json:"address" example:"192.0.2.10"`
 	Host         string `json:"host,omitempty" example:"office"`

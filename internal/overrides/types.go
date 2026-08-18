@@ -13,6 +13,8 @@ const (
 	OverrideCacheEnabled
 	OverrideCacheExclude
 	OverrideDNSLogEnabled
+	OverrideDNSLogDomainsPseudonymized
+	OverrideDNSLogClientsPseudonymized
 )
 
 type Op int

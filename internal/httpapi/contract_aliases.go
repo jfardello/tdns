@@ -26,6 +26,7 @@ type StaticResponseStatus = contractapi.StaticResponseStatus
 type StubResolverStatus = contractapi.StubResolverStatus
 type CacheStatus = contractapi.CacheStatus
 type DNSLogStatus = contractapi.DNSLogStatus
+type DNSLogPrivacyRequest = contractapi.DNSLogPrivacyRequest
 type TagMember = contractapi.TagMember
 type KnownHost = contractapi.KnownHost
 type StubReplaceRequest = contractapi.StubReplaceRequest

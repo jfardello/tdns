@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/syncsqlite"
 )
@@ -124,6 +125,66 @@ func TestDNSLogClearResolvesPrivacyIncompatibility(t *testing.T) {
 	}
 	if err := cs.StartLogging(); err != nil {
 		t.Fatalf("StartLogging after clear: %v", err)
+	}
+}
+
+func TestDNSLogPrivacyCanChangeOnlyWhileStoppedAndClearAdoptsFinalModes(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations: %v", err)
+	}
+	const environment = "TDNS_TEST_RUNTIME_PRIVACY_KEY"
+	key := encodedDNSLogKey(0x24)
+	cs := configuredPrivacyDNSLog(t, connString, environment, key, true, true)
+	privacy := config.DNSLogPseudonymizationConf{KeyEnvironment: environment}
+	if err := cs.SetPseudonymization(privacy); !errors.Is(err, ErrDNSLogPrivacyRunning) {
+		t.Fatalf("SetPseudonymization while running = %v, want ErrDNSLogPrivacyRunning", err)
+	}
+	if err := cs.AddAlias("office", "192.0.2.1"); err != nil {
+		t.Fatalf("AddAlias: %v", err)
+	}
+	cs.Append(LogEvent{Timestamp: time.Now().UTC(), Client: "192.0.2.1", Domain: "example.com."})
+	if err := cs.StopLogging(); err != nil {
+		t.Fatalf("StopLogging: %v", err)
+	}
+	if err := cs.SetPseudonymization(privacy); err != nil {
+		t.Fatalf("disable pseudonymization: %v", err)
+	}
+	status := cs.Status()
+	if status.DomainsPseudonymized || status.ClientsPseudonymized || !status.RequiresClear {
+		t.Fatalf("status after privacy downgrade = %#v", status)
+	}
+	privacy.Domains = true
+	if err := cs.SetPseudonymization(privacy); err != nil {
+		t.Fatalf("change final privacy selection: %v", err)
+	}
+	if err := cs.Clear(); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+	status = cs.Status()
+	if !status.DomainsPseudonymized || status.ClientsPseudonymized || status.RequiresClear {
+		t.Fatalf("status after clear = %#v", status)
+	}
+	if err := cs.StartLogging(); err != nil {
+		t.Fatalf("StartLogging: %v", err)
+	}
+}
+
+func TestDNSLogPrivacyEnablingWithoutKeyLeavesSelectionUnchanged(t *testing.T) {
+	connString := newTempConnString(t)
+	if err := db.RunMigrations(context.Background(), connString, db.TargetDNSLog); err != nil {
+		t.Fatalf("RunMigrations: %v", err)
+	}
+	cs := configuredPrivacyDNSLog(t, connString, "TDNS_TEST_NO_RUNTIME_KEY", encodedDNSLogKey(0x25), false, false)
+	if err := cs.StopLogging(); err != nil {
+		t.Fatalf("StopLogging: %v", err)
+	}
+	err := cs.SetPseudonymization(config.DNSLogPseudonymizationConf{Domains: true})
+	if !errors.Is(err, ErrDNSLogPrivacyConfig) {
+		t.Fatalf("SetPseudonymization error = %v, want ErrDNSLogPrivacyConfig", err)
+	}
+	if status := cs.Status(); status.DomainsPseudonymized || status.ClientsPseudonymized {
+		t.Fatalf("selection changed after invalid configuration: %#v", status)
 	}
 }
 

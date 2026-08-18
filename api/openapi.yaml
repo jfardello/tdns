@@ -902,6 +902,66 @@ paths:
       summary: Get completed dashboard hours
       tags:
         - dns-log
+  /api/dns-log/privacy:
+    put:
+      description: Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+      operationId: dnsLogPrivacyUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.DNSLogPrivacyRequest"
+        description: Privacy settings
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Update DNS-log privacy settings
+      tags:
+        - dns-log
   /api/dns-log/rotate:
     post:
       description: Delete DNS log entries selected by a relative duration.
@@ -2221,6 +2281,16 @@ components:
         name:
           example: office
           type: string
+      type: object
+    api.DNSLogPrivacyRequest:
+      properties:
+        clients_pseudonymized:
+          type: boolean
+        domains_pseudonymized:
+          type: boolean
+      required:
+        - clients_pseudonymized
+        - domains_pseudonymized
       type: object
     api.DNSLogStatus:
       properties:

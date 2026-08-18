@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 
+	"github.com/jfardello/tdns/config"
 	"github.com/jfardello/tdns/syncsqlite"
 )
 
@@ -60,6 +61,15 @@ func (cs *DNSLog) StopLogging() error {
 		return fmt.Errorf("flush DNS-log queue while stopping: %w", err)
 	}
 	return nil
+}
+
+func (cs *DNSLog) SetPseudonymization(conf config.DNSLogPseudonymizationConf) error {
+	cs.lifecycleMu.Lock()
+	defer cs.lifecycleMu.Unlock()
+	if cs.enabled {
+		return ErrDNSLogPrivacyRunning
+	}
+	return cs.configurePrivacy(conf)
 }
 
 func (cs *DNSLog) discardQueued() {

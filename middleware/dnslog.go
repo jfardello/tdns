@@ -109,8 +109,10 @@ func (sq *SQLStmt) Build() (string, error) {
 var MaxDNSLogEntries int = 50
 
 var (
-	ErrDNSLogRunning       = errors.New("DNS logging must be stopped before it can be cleared")
-	ErrDNSLogRequiresClear = errors.New("DNS logging cannot start until incompatible stored data is cleared")
+	ErrDNSLogRunning        = errors.New("DNS logging must be stopped before it can be cleared")
+	ErrDNSLogRequiresClear  = errors.New("DNS logging cannot start until incompatible stored data is cleared")
+	ErrDNSLogPrivacyConfig  = errors.New("invalid DNS-log pseudonymization configuration")
+	ErrDNSLogPrivacyRunning = errors.New("DNS logging must be stopped before privacy settings can be changed")
 )
 
 type LogEvent struct {

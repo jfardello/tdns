@@ -7,7 +7,8 @@ import {
   canStartDNSLog,
   isAliasableDNSLogClient,
   isDNSLogClientToken,
-  normalizeDNSLogStatus
+  normalizeDNSLogStatus,
+  proposeDNSLogPrivacyChange
 } from './dnsLogUi.ts'
 
 const token = `h1c_${'A'.repeat(43)}`
@@ -21,6 +22,24 @@ test('normalizes an incomplete DNS-log status response', () => {
     queued_events: 3,
     reason: '',
     requires_clear: false
+  })
+})
+
+test('builds full privacy updates and identifies privacy downgrades', () => {
+  const status = normalizeDNSLogStatus({
+    domains_pseudonymized: true,
+    clients_pseudonymized: false
+  })
+
+  assert.deepEqual(proposeDNSLogPrivacyChange(status, 'clients', true), {
+    domainsPseudonymized: true,
+    clientsPseudonymized: true,
+    downgrade: false
+  })
+  assert.deepEqual(proposeDNSLogPrivacyChange(status, 'domains', false), {
+    domainsPseudonymized: false,
+    clientsPseudonymized: false,
+    downgrade: true
   })
 })
 
@@ -45,4 +64,3 @@ test('enforces lifecycle and destructive confirmation rules', () => {
   assert.equal(canConfirmDNSLogClear(stopped, 'delete'), false)
   assert.equal(canConfirmDNSLogClear(stopped, ' DELETE '), true)
 })
-

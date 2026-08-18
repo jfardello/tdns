@@ -2,13 +2,14 @@ import type { DNSLogStatus } from '~/lib/dnsLogUi'
 import { EMPTY_DNS_LOG_STATUS } from '~/lib/dnsLogUi'
 
 export function useDnsLog() {
-  const { clearDnsLog, getDnsLogStatus, toggleDnsLog } = useApi()
+  const { clearDnsLog, getDnsLogStatus, toggleDnsLog, updateDnsLogPrivacy } = useApi()
 
   const dnsLogStatus = useState<DNSLogStatus>('dns-log-status', () => ({ ...EMPTY_DNS_LOG_STATUS }))
   const initialized = useState<boolean>('dns-log-initialized', () => false)
   const refreshing = useState<boolean>('dns-log-refreshing', () => false)
   const toggleLoading = useState<boolean>('dns-log-toggle-loading', () => false)
   const clearLoading = useState<boolean>('dns-log-clear-loading', () => false)
+  const privacyLoading = useState<boolean>('dns-log-privacy-loading', () => false)
   const dataRevision = useState<number>('dns-log-data-revision', () => 0)
 
   function applyStatus(status: DNSLogStatus | undefined) {
@@ -60,15 +61,31 @@ export function useDnsLog() {
     }
   }
 
+  async function setPseudonymization(domains: boolean, clients: boolean) {
+    privacyLoading.value = true
+    try {
+      const response = await updateDnsLogPrivacy(domains, clients)
+      applyStatus(response?.dns_log)
+      if (response?.dns_log) {
+        dataRevision.value++
+      }
+      return response
+    } finally {
+      privacyLoading.value = false
+    }
+  }
+
   return {
     dnsLogStatus,
     initialized,
     refreshing,
     toggleLoading,
     clearLoading,
+    privacyLoading,
     dataRevision,
     refresh,
     setEnabled,
+    setPseudonymization,
     clear
   }
 }

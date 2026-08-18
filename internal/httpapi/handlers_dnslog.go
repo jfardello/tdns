@@ -3,6 +3,8 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -120,6 +122,92 @@ func (api *v1) DNSLogToggle(w http.ResponseWriter, r *http.Request) {
 	}
 	conf := config.GetRunningConfig()
 	conf.DNSLog.Enabled = state
+	config.SetRunningConfig(conf)
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+// Update DNS-log privacy settings.
+//
+//	@Summary		Update DNS-log privacy settings
+//	@Description	Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//	@Tags			dns-log
+//	@ID				dnsLogPrivacyUpdate
+//	@Param			request	body	api.DNSLogPrivacyRequest	true	"Privacy settings"
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
+//	@Router			/api/dns-log/privacy [put]
+func (api *v1) DNSLogPrivacyUpdate(w http.ResponseWriter, r *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
+	if p.Status().Enabled {
+		w.WriteHeader(http.StatusConflict)
+		api.writeDNSLogStatus(w, p, middleware.ErrDNSLogPrivacyRunning.Error())
+		return
+	}
+
+	request := new(DNSLogPrivacyRequest)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(request); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, "request body must contain one JSON object")
+		return
+	}
+	if request.DomainsPseudonymized == nil || request.ClientsPseudonymized == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, "domains_pseudonymized and clients_pseudonymized are required")
+		return
+	}
+
+	conf := config.GetRunningConfig()
+	previous := conf.DNSLog.Pseudonymization
+	desired := previous
+	desired.Domains = *request.DomainsPseudonymized
+	desired.Clients = *request.ClientsPseudonymized
+	if err := p.SetPseudonymization(desired); err != nil {
+		if errors.Is(err, middleware.ErrDNSLogPrivacyRunning) || errors.Is(err, middleware.ErrDNSLogPrivacyConfig) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	store, err := api.overrideStore(r.Context())
+	if err == nil {
+		defer func() { _ = store.Close() }()
+		err = store.UpsertBatch(r.Context(), []overrides.Row{
+			{Kind: overrides.OverrideDNSLogDomainsPseudonymized, Op: overrides.OverrideSet, Target: "enabled", Value: strconv.FormatBool(desired.Domains)},
+			{Kind: overrides.OverrideDNSLogClientsPseudonymized, Op: overrides.OverrideSet, Target: "enabled", Value: strconv.FormatBool(desired.Clients)},
+		})
+	}
+	if err != nil {
+		if rollbackErr := p.SetPseudonymization(previous); rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("restore DNS-log privacy settings: %w", rollbackErr))
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	conf.DNSLog.Pseudonymization = desired
 	config.SetRunningConfig(conf)
 	api.writeDNSLogStatus(w, p, MESSAGE_OK)
 }

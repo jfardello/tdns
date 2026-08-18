@@ -78,6 +78,7 @@ func NewHandler(
 	registerRoute(mux, "GET /api/dns-log/clients", api.DNSLogClients, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log/top/{top}", api.DNSLogTop, readOnly, "", authManager, browserStore)
 	registerRoute(mux, "GET /api/dns-log", api.DNSLogStatus, readOnly, "", authManager, browserStore)
+	registerRoute(mux, "PUT /api/dns-log/privacy", api.DNSLogPrivacyUpdate, readWrite, "dns_log_privacy", authManager, browserStore)
 	registerRoute(mux, "POST /api/dns-log/{action}", api.DNSLogToggle, readWrite, "dns_log_toggle", authManager, browserStore)
 	registerRoute(mux, "DELETE /api/dns-log", api.DNSLogClear, readWrite, "dns_log_clear", authManager, browserStore)
 	registerRoute(mux, "POST /api/dns-log/rotate", api.DNSLogRotate, readWrite, "dns_log_rotate", authManager, browserStore)

@@ -1050,6 +1050,79 @@
                 }
             }
         },
+        "/api/dns-log/privacy": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.",
+                "tags": [
+                    "dns-log"
+                ],
+                "summary": "Update DNS-log privacy settings",
+                "operationId": "dnsLogPrivacyUpdate",
+                "parameters": [
+                    {
+                        "description": "Privacy settings",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.DNSLogPrivacyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/dns-log/rotate": {
             "post": {
                 "security": [
@@ -2765,6 +2838,21 @@
                 "name": {
                     "type": "string",
                     "example": "office"
+                }
+            }
+        },
+        "api.DNSLogPrivacyRequest": {
+            "type": "object",
+            "required": [
+                "clients_pseudonymized",
+                "domains_pseudonymized"
+            ],
+            "properties": {
+                "clients_pseudonymized": {
+                    "type": "boolean"
+                },
+                "domains_pseudonymized": {
+                    "type": "boolean"
                 }
             }
         },

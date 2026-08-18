@@ -250,6 +250,16 @@ export function useApi() {
     return response && { ...response, dns_log: normalizeDNSLogStatus(response.dns_log as Partial<DNSLogStatus> | undefined) }
   }
 
+  async function updateDnsLogPrivacy(domainsPseudonymized: boolean, clientsPseudonymized: boolean) {
+    const response = await execute(client.PUT('/api/dns-log/privacy', {
+      body: {
+        domains_pseudonymized: domainsPseudonymized,
+        clients_pseudonymized: clientsPseudonymized
+      }
+    }))
+    return response && { ...response, dns_log: normalizeDNSLogStatus(response.dns_log as Partial<DNSLogStatus> | undefined) }
+  }
+
   async function searchDnsLogClients(search = '', limit = 20) {
     const response = await execute(client.GET('/api/dns-log/clients', {
       params: { query: { search: search.trim() || undefined, limit } }
@@ -431,6 +441,7 @@ export function useApi() {
     getDnsLogStatus,
     toggleDnsLog,
     clearDnsLog,
+    updateDnsLogPrivacy,
     getDnsLogTop,
     searchDnsLogClients,
     rotateDnsLog,
