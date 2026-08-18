@@ -146,6 +146,7 @@ ON CONFLICT(hour_bucket) DO UPDATE SET
 func (cs *DNSLog) loadDashboardHistoryAt(now time.Time) ([]DashboardHourlyPoint, error) {
 	currentBucket := dashboardHourBucket(now)
 	startBucket := currentBucket - dashboardHistoryHours
+	writeCache := cs.IsEnabled()
 
 	cs.dashboardMu.Lock()
 	defer cs.dashboardMu.Unlock()
@@ -161,6 +162,9 @@ func (cs *DNSLog) loadDashboardHistoryAt(now time.Time) ([]DashboardHourlyPoint,
 	points, err = cs.queryDashboardBuckets(startBucket, currentBucket)
 	if err != nil {
 		return nil, err
+	}
+	if !writeCache {
+		return points, nil
 	}
 	if err := cs.se.SyncExecBulk(dashboardCacheStatements(points, startBucket, currentBucket, now)); err != nil {
 		return nil, err

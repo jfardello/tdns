@@ -248,6 +248,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dns-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get DNS-log status
+         * @description Return runtime state, queued events, and pseudonymization readiness.
+         */
+        get: operations["dnsLogStatus"];
+        put?: never;
+        post?: never;
+        /**
+         * Clear all DNS-log data
+         * @description Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+         */
+        delete: operations["dnsLogClear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns-log/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start or stop DNS logging
+         * @description Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+         */
+        post: operations["dnsLogToggle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns-log/alias": {
         parameters: {
             query?: never;
@@ -341,6 +385,26 @@ export interface paths {
          */
         get: operations["dnsLogDashboardHistory"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns-log/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update DNS-log privacy settings
+         * @description Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+         */
+        put: operations["dnsLogPrivacyUpdate"];
         post?: never;
         delete?: never;
         options?: never;
@@ -805,6 +869,19 @@ export interface components {
             /** @example office */
             name?: string;
         };
+        "api.DNSLogPrivacyRequest": {
+            clients_pseudonymized: boolean;
+            domains_pseudonymized: boolean;
+        };
+        "api.DNSLogStatus": {
+            clients_pseudonymized?: boolean;
+            domains_pseudonymized?: boolean;
+            enabled?: boolean;
+            key_configured?: boolean;
+            queued_events?: number;
+            reason?: string;
+            requires_clear?: boolean;
+        };
         "api.DashboardHourlyPoint": {
             allowed_queries?: number;
             blocked_queries?: number;
@@ -856,6 +933,7 @@ export interface components {
             clients?: components["schemas"]["api.ClientCandidate"][];
             /** @example enabled */
             current_status?: string;
+            dns_log?: components["schemas"]["api.DNSLogStatus"];
             hourly?: components["schemas"]["api.DashboardHourlyPoint"][];
             items?: string[];
             /** @example api.tdns/cache/response */
@@ -1650,6 +1728,195 @@ export interface operations {
             };
         };
     };
+    dnsLogStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    dnsLogClear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    dnsLogToggle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Requested state */
+                action: "start" | "stop";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
     dnsLogAliasSet: {
         parameters: {
             query?: never;
@@ -1689,6 +1956,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -1734,6 +2010,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboard: {
@@ -1775,6 +2060,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboardCurrent: {
@@ -1813,6 +2107,15 @@ export interface operations {
                     "application/json": string;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
         };
     };
     dnsLogDashboardHistory: {
@@ -1849,6 +2152,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    dnsLogPrivacyUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Privacy settings */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["api.DNSLogPrivacyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -1890,6 +2281,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };
@@ -1940,6 +2340,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
         };

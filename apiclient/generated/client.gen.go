@@ -89,6 +89,24 @@ func (e DnsLogTopParamsClientMode) Valid() bool {
 	}
 }
 
+// Defines values for DnsLogToggleParamsAction.
+const (
+	DnsLogToggleParamsActionStart DnsLogToggleParamsAction = "start"
+	DnsLogToggleParamsActionStop  DnsLogToggleParamsAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the DnsLogToggleParamsAction enum.
+func (e DnsLogToggleParamsAction) Valid() bool {
+	switch e {
+	case DnsLogToggleParamsActionStart:
+		return true
+	case DnsLogToggleParamsActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StaticResponseToggleParamsAction.
 const (
 	StaticResponseToggleParamsActionStart StaticResponseToggleParamsAction = "start"
@@ -221,6 +239,23 @@ type ApiDNSLogAliasRequest struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// ApiDNSLogPrivacyRequest defines model for api.DNSLogPrivacyRequest.
+type ApiDNSLogPrivacyRequest struct {
+	ClientsPseudonymized bool `json:"clients_pseudonymized"`
+	DomainsPseudonymized bool `json:"domains_pseudonymized"`
+}
+
+// ApiDNSLogStatus defines model for api.DNSLogStatus.
+type ApiDNSLogStatus struct {
+	ClientsPseudonymized *bool   `json:"clients_pseudonymized,omitempty"`
+	DomainsPseudonymized *bool   `json:"domains_pseudonymized,omitempty"`
+	Enabled              *bool   `json:"enabled,omitempty"`
+	KeyConfigured        *bool   `json:"key_configured,omitempty"`
+	QueuedEvents         *int    `json:"queued_events,omitempty"`
+	Reason               *string `json:"reason,omitempty"`
+	RequiresClear        *bool   `json:"requires_clear,omitempty"`
+}
+
 // ApiDashboardHourlyPoint defines model for api.DashboardHourlyPoint.
 type ApiDashboardHourlyPoint struct {
 	AllowedQueries *int    `json:"allowed_queries,omitempty"`
@@ -294,6 +329,7 @@ type ApiResponse struct {
 
 	// CurrentStatus Example: enabled
 	CurrentStatus *string                    `json:"current_status,omitempty"`
+	DnsLog        *ApiDNSLogStatus           `json:"dns_log,omitempty"`
 	Hourly        *[]ApiDashboardHourlyPoint `json:"hourly,omitempty"`
 	Items         *[]string                  `json:"items,omitempty"`
 
@@ -423,6 +459,9 @@ type DnsLogTopParamsStatus string
 // DnsLogTopParamsClientMode defines parameters for DnsLogTop.
 type DnsLogTopParamsClientMode string
 
+// DnsLogToggleParamsAction defines parameters for DnsLogToggle.
+type DnsLogToggleParamsAction string
+
 // StaticResponseToggleParamsAction defines parameters for StaticResponseToggle.
 type StaticResponseToggleParamsAction string
 
@@ -458,6 +497,9 @@ type CacheExcludesReplaceJSONRequestBody = ApiCacheExcludeRequest
 
 // DnsLogAliasSetJSONRequestBody defines body for DnsLogAliasSet for application/json ContentType.
 type DnsLogAliasSetJSONRequestBody = ApiDNSLogAliasRequest
+
+// DnsLogPrivacyUpdateJSONRequestBody defines body for DnsLogPrivacyUpdate for application/json ContentType.
+type DnsLogPrivacyUpdateJSONRequestBody = ApiDNSLogPrivacyRequest
 
 // StaticResponseReplaceJSONRequestBody defines body for StaticResponseReplace for application/json ContentType.
 type StaticResponseReplaceJSONRequestBody = ApiStaticReplaceRequest
@@ -723,6 +765,20 @@ type ClientInterface interface {
 	// Corresponds with POST /api/cache/{action} (the `CacheToggle` operationId).
 	CacheToggle(ctx context.Context, action CacheToggleParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DnsLogClear Clear all DNS-log data
+	//
+	// Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+	//
+	// Corresponds with DELETE /api/dns-log (the `DnsLogClear` operationId).
+	DnsLogClear(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DnsLogStatus Get DNS-log status
+	//
+	// Return runtime state, queued events, and pseudonymization readiness.
+	//
+	// Corresponds with GET /api/dns-log (the `DnsLogStatus` operationId).
+	DnsLogStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DnsLogAliasSetWithBody Set a DNS client alias
 	//
 	// Associate a client IP address with a display name.
@@ -769,6 +825,24 @@ type ClientInterface interface {
 	// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
 	DnsLogDashboardHistory(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DnsLogPrivacyUpdateWithBody Update DNS-log privacy settings
+	//
+	// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+	DnsLogPrivacyUpdateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DnsLogPrivacyUpdate Update DNS-log privacy settings
+	//
+	// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+	DnsLogPrivacyUpdate(ctx context.Context, body DnsLogPrivacyUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DnsLogRotate Rotate DNS log entries
 	//
 	// Delete DNS log entries selected by a relative duration.
@@ -782,6 +856,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /api/dns-log/top/{top} (the `DnsLogTop` operationId).
 	DnsLogTop(ctx context.Context, top int, params *DnsLogTopParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DnsLogToggle Start or stop DNS logging
+	//
+	// Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+	//
+	// Corresponds with POST /api/dns-log/{action} (the `DnsLogToggle` operationId).
+	DnsLogToggle(ctx context.Context, action DnsLogToggleParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StaticResponseStatus Get static response status
 	//
@@ -1406,6 +1487,40 @@ func (c *Client) CacheToggle(ctx context.Context, action CacheToggleParamsAction
 	return c.Client.Do(req)
 }
 
+// DnsLogClear Clear all DNS-log data
+//
+// Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+//
+// Corresponds with DELETE /api/dns-log (the `DnsLogClear` operationId).
+func (c *Client) DnsLogClear(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogClearRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DnsLogStatus Get DNS-log status
+//
+// Return runtime state, queued events, and pseudonymization readiness.
+//
+// Corresponds with GET /api/dns-log (the `DnsLogStatus` operationId).
+func (c *Client) DnsLogStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DnsLogAliasSetWithBody Set a DNS client alias
 //
 // Associate a client IP address with a display name.
@@ -1512,6 +1627,44 @@ func (c *Client) DnsLogDashboardHistory(ctx context.Context, reqEditors ...Reque
 	return c.Client.Do(req)
 }
 
+// DnsLogPrivacyUpdateWithBody Update DNS-log privacy settings
+//
+// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+func (c *Client) DnsLogPrivacyUpdateWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogPrivacyUpdateRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DnsLogPrivacyUpdate Update DNS-log privacy settings
+//
+// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+func (c *Client) DnsLogPrivacyUpdate(ctx context.Context, body DnsLogPrivacyUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogPrivacyUpdateRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DnsLogRotate Rotate DNS log entries
 //
 // Delete DNS log entries selected by a relative duration.
@@ -1536,6 +1689,23 @@ func (c *Client) DnsLogRotate(ctx context.Context, params *DnsLogRotateParams, r
 // Corresponds with GET /api/dns-log/top/{top} (the `DnsLogTop` operationId).
 func (c *Client) DnsLogTop(ctx context.Context, top int, params *DnsLogTopParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDnsLogTopRequest(c.Server, top, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DnsLogToggle Start or stop DNS logging
+//
+// Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+//
+// Corresponds with POST /api/dns-log/{action} (the `DnsLogToggle` operationId).
+func (c *Client) DnsLogToggle(ctx context.Context, action DnsLogToggleParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDnsLogToggleRequest(c.Server, action)
 	if err != nil {
 		return nil, err
 	}
@@ -2594,6 +2764,60 @@ func NewCacheToggleRequest(server string, action CacheToggleParamsAction) (*http
 	return req, nil
 }
 
+// NewDnsLogClearRequest constructs an http.Request for the DnsLogClear method
+func NewDnsLogClearRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDnsLogStatusRequest constructs an http.Request for the DnsLogStatus method
+func NewDnsLogStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDnsLogAliasSetRequest calls the generic DnsLogAliasSet builder with application/json body
 func NewDnsLogAliasSetRequest(server string, body DnsLogAliasSetJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2808,6 +3032,46 @@ func NewDnsLogDashboardHistoryRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewDnsLogPrivacyUpdateRequest calls the generic DnsLogPrivacyUpdate builder with application/json body
+func NewDnsLogPrivacyUpdateRequest(server string, body DnsLogPrivacyUpdateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDnsLogPrivacyUpdateRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewDnsLogPrivacyUpdateRequestWithBody constructs an http.Request for the DnsLogPrivacyUpdate method, with any body, and a specified content type
+func NewDnsLogPrivacyUpdateRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log/privacy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDnsLogRotateRequest constructs an http.Request for the DnsLogRotate method
 func NewDnsLogRotateRequest(server string, params *DnsLogRotateParams) (*http.Request, error) {
 	var err error
@@ -2952,6 +3216,40 @@ func NewDnsLogTopRequest(server string, top int, params *DnsLogTopParams) (*http
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDnsLogToggleRequest constructs an http.Request for the DnsLogToggle method
+func NewDnsLogToggleRequest(server string, action DnsLogToggleParamsAction) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "action", action, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/dns-log/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4013,6 +4311,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /api/cache/{action} (the `CacheToggle` operationId).
 	CacheToggleWithResponse(ctx context.Context, action CacheToggleParamsAction, reqEditors ...RequestEditorFn) (*CacheToggleResponse, error)
 
+	// DnsLogClearWithResponse Clear all DNS-log data
+	//
+	// Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /api/dns-log (the `DnsLogClear` operationId).
+	DnsLogClearWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogClearResponse, error)
+
+	// DnsLogStatusWithResponse Get DNS-log status
+	//
+	// Return runtime state, queued events, and pseudonymization readiness.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/dns-log (the `DnsLogStatus` operationId).
+	DnsLogStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogStatusResponse, error)
+
 	// DnsLogAliasSetWithBodyWithResponse Set a DNS client alias
 	//
 	// Associate a client IP address with a display name.
@@ -4067,6 +4383,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/dns-log/dashboard/history (the `DnsLogDashboardHistory` operationId).
 	DnsLogDashboardHistoryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogDashboardHistoryResponse, error)
 
+	// DnsLogPrivacyUpdateWithBodyWithResponse Update DNS-log privacy settings
+	//
+	// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+	DnsLogPrivacyUpdateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DnsLogPrivacyUpdateResponse, error)
+
+	// DnsLogPrivacyUpdateWithResponse Update DNS-log privacy settings
+	//
+	// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+	DnsLogPrivacyUpdateWithResponse(ctx context.Context, body DnsLogPrivacyUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*DnsLogPrivacyUpdateResponse, error)
+
 	// DnsLogRotateWithResponse Rotate DNS log entries
 	//
 	// Delete DNS log entries selected by a relative duration.
@@ -4084,6 +4418,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /api/dns-log/top/{top} (the `DnsLogTop` operationId).
 	DnsLogTopWithResponse(ctx context.Context, top int, params *DnsLogTopParams, reqEditors ...RequestEditorFn) (*DnsLogTopResponse, error)
+
+	// DnsLogToggleWithResponse Start or stop DNS logging
+	//
+	// Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/dns-log/{action} (the `DnsLogToggle` operationId).
+	DnsLogToggleWithResponse(ctx context.Context, action DnsLogToggleParamsAction, reqEditors ...RequestEditorFn) (*DnsLogToggleResponse, error)
 
 	// StaticResponseStatusWithResponse Get static response status
 	//
@@ -5238,6 +5581,144 @@ func (r CacheToggleResponse) ContentType() string {
 	return ""
 }
 
+type DnsLogClearResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ApiResponse
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogClearResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogClearResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogClearResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DnsLogClearResponse) GetJSON409() *ApiResponse {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DnsLogClearResponse) GetJSON500() *ApiResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogClearResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogClearResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogClearResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogClearResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogClearResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DnsLogStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogStatusResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogStatusResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogStatusResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogStatusResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogStatusResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogStatusResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DnsLogAliasSetResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5247,6 +5728,8 @@ type DnsLogAliasSetResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5262,6 +5745,11 @@ func (r DnsLogAliasSetResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogAliasSetResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogAliasSetResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5302,6 +5790,8 @@ type DnsLogClientsSearchResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5317,6 +5807,11 @@ func (r DnsLogClientsSearchResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogClientsSearchResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogClientsSearchResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5357,6 +5852,8 @@ type DnsLogDashboardResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5372,6 +5869,11 @@ func (r DnsLogDashboardResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5412,6 +5914,8 @@ type DnsLogDashboardCurrentResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5427,6 +5931,11 @@ func (r DnsLogDashboardCurrentResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardCurrentResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardCurrentResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5467,6 +5976,8 @@ type DnsLogDashboardHistoryResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5482,6 +5993,11 @@ func (r DnsLogDashboardHistoryResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogDashboardHistoryResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogDashboardHistoryResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5513,6 +6029,89 @@ func (r DnsLogDashboardHistoryResponse) ContentType() string {
 	return ""
 }
 
+type DnsLogPrivacyUpdateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ApiResponse
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON400() *ApiResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON409() *ApiResponse {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON500() *ApiResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogPrivacyUpdateResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogPrivacyUpdateResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogPrivacyUpdateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogPrivacyUpdateResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogPrivacyUpdateResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DnsLogRotateResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5522,6 +6121,8 @@ type DnsLogRotateResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5537,6 +6138,11 @@ func (r DnsLogRotateResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogRotateResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogRotateResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5577,6 +6183,8 @@ type DnsLogTopResponse struct {
 	JSON401 *string
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -5592,6 +6200,11 @@ func (r DnsLogTopResponse) GetJSON401() *string {
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
 func (r DnsLogTopResponse) GetJSON403() *string {
 	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogTopResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -5617,6 +6230,89 @@ func (r DnsLogTopResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DnsLogTopResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DnsLogToggleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ApiResponse
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DnsLogToggleResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DnsLogToggleResponse) GetJSON400() *ApiResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DnsLogToggleResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DnsLogToggleResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DnsLogToggleResponse) GetJSON409() *ApiResponse {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DnsLogToggleResponse) GetJSON500() *ApiResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DnsLogToggleResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DnsLogToggleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DnsLogToggleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DnsLogToggleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DnsLogToggleResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7412,6 +8108,36 @@ func (c *ClientWithResponses) CacheToggleWithResponse(ctx context.Context, actio
 	return ParseCacheToggleResponse(rsp)
 }
 
+// DnsLogClearWithResponse Clear all DNS-log data
+//
+// Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /api/dns-log (the `DnsLogClear` operationId).
+func (c *ClientWithResponses) DnsLogClearWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogClearResponse, error) {
+	rsp, err := c.DnsLogClear(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogClearResponse(rsp)
+}
+
+// DnsLogStatusWithResponse Get DNS-log status
+//
+// Return runtime state, queued events, and pseudonymization readiness.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/dns-log (the `DnsLogStatus` operationId).
+func (c *ClientWithResponses) DnsLogStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*DnsLogStatusResponse, error) {
+	rsp, err := c.DnsLogStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogStatusResponse(rsp)
+}
+
 // DnsLogAliasSetWithBodyWithResponse Set a DNS client alias
 //
 // Associate a client IP address with a display name.
@@ -7502,6 +8228,36 @@ func (c *ClientWithResponses) DnsLogDashboardHistoryWithResponse(ctx context.Con
 	return ParseDnsLogDashboardHistoryResponse(rsp)
 }
 
+// DnsLogPrivacyUpdateWithBodyWithResponse Update DNS-log privacy settings
+//
+// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+func (c *ClientWithResponses) DnsLogPrivacyUpdateWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DnsLogPrivacyUpdateResponse, error) {
+	rsp, err := c.DnsLogPrivacyUpdateWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogPrivacyUpdateResponse(rsp)
+}
+
+// DnsLogPrivacyUpdateWithResponse Update DNS-log privacy settings
+//
+// Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/dns-log/privacy (the `DnsLogPrivacyUpdate` operationId).
+func (c *ClientWithResponses) DnsLogPrivacyUpdateWithResponse(ctx context.Context, body DnsLogPrivacyUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*DnsLogPrivacyUpdateResponse, error) {
+	rsp, err := c.DnsLogPrivacyUpdate(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogPrivacyUpdateResponse(rsp)
+}
+
 // DnsLogRotateWithResponse Rotate DNS log entries
 //
 // Delete DNS log entries selected by a relative duration.
@@ -7530,6 +8286,21 @@ func (c *ClientWithResponses) DnsLogTopWithResponse(ctx context.Context, top int
 		return nil, err
 	}
 	return ParseDnsLogTopResponse(rsp)
+}
+
+// DnsLogToggleWithResponse Start or stop DNS logging
+//
+// Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/dns-log/{action} (the `DnsLogToggle` operationId).
+func (c *ClientWithResponses) DnsLogToggleWithResponse(ctx context.Context, action DnsLogToggleParamsAction, reqEditors ...RequestEditorFn) (*DnsLogToggleResponse, error) {
+	rsp, err := c.DnsLogToggle(ctx, action, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDnsLogToggleResponse(rsp)
 }
 
 // StaticResponseStatusWithResponse Get static response status
@@ -8690,6 +9461,114 @@ func ParseCacheToggleResponse(rsp *http.Response) (*CacheToggleResponse, error) 
 	return response, nil
 }
 
+// ParseDnsLogClearResponse parses an HTTP response from a DnsLogClearWithResponse call
+func ParseDnsLogClearResponse(rsp *http.Response) (*DnsLogClearResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogClearResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDnsLogStatusResponse parses an HTTP response from a DnsLogStatusWithResponse call
+func ParseDnsLogStatusResponse(rsp *http.Response) (*DnsLogStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDnsLogAliasSetResponse parses an HTTP response from a DnsLogAliasSetWithResponse call
 func ParseDnsLogAliasSetResponse(rsp *http.Response) (*DnsLogAliasSetResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8724,6 +9603,13 @@ func ParseDnsLogAliasSetResponse(rsp *http.Response) (*DnsLogAliasSetResponse, e
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -8765,6 +9651,13 @@ func ParseDnsLogClientsSearchResponse(rsp *http.Response) (*DnsLogClientsSearchR
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -8804,6 +9697,13 @@ func ParseDnsLogDashboardResponse(rsp *http.Response) (*DnsLogDashboardResponse,
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -8845,6 +9745,13 @@ func ParseDnsLogDashboardCurrentResponse(rsp *http.Response) (*DnsLogDashboardCu
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -8884,6 +9791,81 @@ func ParseDnsLogDashboardHistoryResponse(rsp *http.Response) (*DnsLogDashboardHi
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDnsLogPrivacyUpdateResponse parses an HTTP response from a DnsLogPrivacyUpdateWithResponse call
+func ParseDnsLogPrivacyUpdateResponse(rsp *http.Response) (*DnsLogPrivacyUpdateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogPrivacyUpdateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 
@@ -8925,6 +9907,13 @@ func ParseDnsLogRotateResponse(rsp *http.Response) (*DnsLogRotateResponse, error
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -8964,6 +9953,81 @@ func ParseDnsLogTopResponse(rsp *http.Response) (*DnsLogTopResponse, error) {
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDnsLogToggleResponse parses an HTTP response from a DnsLogToggleWithResponse call
+func ParseDnsLogToggleResponse(rsp *http.Response) (*DnsLogToggleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DnsLogToggleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
 
 	}
 

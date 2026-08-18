@@ -271,6 +271,9 @@ func newConf() *config.Config {
 		DNSLog: config.DNSLogConf{
 			Enabled: true,
 			Purge:   config.DefaultDNSLogRetention,
+			Pseudonymization: config.DNSLogPseudonymizationConf{
+				KeyEnvironment: "TDNS_DNS_LOG_PSEUDONYMIZATION_KEY",
+			},
 		},
 		Diagnostics: config.DiagnosticsConf{
 			ListenAddr:     config.DefaultDiagnosticsAddress,

@@ -58,6 +58,24 @@ func TestParseDNSLogRetention(t *testing.T) {
 	}
 }
 
+func TestValidateDNSLogPseudonymizationKeySource(t *testing.T) {
+	base := Config{Auth: AuthConf{Browser: BrowserAuthConf{RememberDays: DefaultBrowserRememberDays}}}
+	base.DNSLog.Pseudonymization.Domains = true
+	if err := Validate(&base); err == nil {
+		t.Fatal("Validate accepted pseudonymization without a key source")
+	}
+
+	base.DNSLog.Pseudonymization.KeyEnvironment = "TDNS_DNS_LOG_PSEUDONYMIZATION_KEY"
+	if err := Validate(&base); err != nil {
+		t.Fatalf("Validate rejected environment key source: %v", err)
+	}
+
+	base.DNSLog.Pseudonymization.KeyEnvironment = "KEY=value"
+	if err := Validate(&base); err == nil {
+		t.Fatal("Validate accepted an environment assignment instead of a variable name")
+	}
+}
+
 func TestValidateDiagnosticsAddress(t *testing.T) {
 	for _, test := range []struct {
 		value string

@@ -94,16 +94,33 @@ ORDER BY target, id`, int(kind))
 }
 
 func (s *Store) Upsert(ctx context.Context, kind Kind, op Op, target string, value string) error {
+	return s.UpsertBatch(ctx, []Row{{Kind: kind, Op: op, Target: target, Value: value}})
+}
+
+func (s *Store) UpsertBatch(ctx context.Context, rows []Row) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	now := time.Now().UTC().Unix()
-	_, err := s.conn.ExecContext(ctx, `
+	for _, row := range rows {
+		if _, err := tx.ExecContext(ctx, `
 INSERT INTO config_overrides (kind, op, target, value, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(kind, target) DO UPDATE SET
   op = excluded.op,
   value = excluded.value,
   updated_at = excluded.updated_at`,
-		int(kind), int(op), target, value, now, now)
-	return err
+			int(row.Kind), int(row.Op), row.Target, row.Value, now, now); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Delete(ctx context.Context, kind Kind, target string) error {

@@ -60,6 +60,24 @@ func Apply(conf *config.Config, rows []Row) error {
 				continue
 			}
 			conf.Cache.Excludes = appendUnique(conf.Cache.Excludes, target)
+		case OverrideDNSLogEnabled:
+			enabled, err := strconv.ParseBool(strings.TrimSpace(row.Value))
+			if err != nil {
+				return err
+			}
+			conf.DNSLog.Enabled = enabled
+		case OverrideDNSLogDomainsPseudonymized:
+			enabled, err := strconv.ParseBool(strings.TrimSpace(row.Value))
+			if err != nil {
+				return err
+			}
+			conf.DNSLog.Pseudonymization.Domains = enabled
+		case OverrideDNSLogClientsPseudonymized:
+			enabled, err := strconv.ParseBool(strings.TrimSpace(row.Value))
+			if err != nil {
+				return err
+			}
+			conf.DNSLog.Pseudonymization.Clients = enabled
 		}
 	}
 	return nil

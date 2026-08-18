@@ -68,3 +68,51 @@ python3 -m http.server 3000 --directory docs
 
 Then open `http://127.0.0.1:3000`. Docsify renders the Markdown in the browser;
 there is no documentation build step.
+
+## Test OBS Packages From Develop
+
+Development packages use a GoReleaser snapshot and a local `osc` build. Start
+from a clean, committed `develop` checkout because the OBS source archive is
+created from `HEAD`:
+
+```bash
+git switch develop
+git pull --ff-only
+goreleaser release --snapshot --clean --skip=docker
+```
+
+Keep the GoReleaser `before` hooks enabled so the API and embedded web assets
+are regenerated. Snapshot versions have the form
+`0.2.1~dev.g3aab283`; `~dev` makes them sort before the corresponding final
+release in RPM and Debian package managers.
+
+The updater reads the version from `dist/metadata.json`. Prepare a clean OBS
+package checkout with:
+
+```bash
+./packaging/obs/update-package.sh \
+  --local-dist dist \
+  --source-ref HEAD \
+  /path/to/obs/tdns
+```
+
+The updater consumes only local GoReleaser artifacts in this mode, verifies
+them, creates both RPM and Debian source inputs, and runs `osc addremove`. It
+does not contact GitHub, require a release tag, or commit to OBS.
+
+List the repositories configured by the OBS project and build the desired
+targets locally:
+
+```bash
+cd /path/to/obs/tdns
+osc repositories
+osc build openSUSE_Tumbleweed x86_64 tdns.spec
+osc build Fedora_Rawhide x86_64 tdns.spec
+osc build Debian_13 x86_64 'tdns_0.2.1~dev.g3aab283-1.dsc'
+```
+
+Replace the example repository names and snapshot version with the values from
+your checkout. Building ARM targets on a different host requires QEMU/binfmt or
+equivalent emulation because package validation executes the target binary.
+More updater details are in the
+[OBS packaging guide](../../packaging/obs/README.md).

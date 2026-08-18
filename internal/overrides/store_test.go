@@ -27,6 +27,21 @@ func TestStoreUpsertListAndDeleteByKind(t *testing.T) {
 	if err := store.Upsert(context.Background(), OverrideCacheExclude, OverrideUpsert, "label:kids", ""); err != nil {
 		t.Fatalf("Upsert cache exclude error: %v", err)
 	}
+	if err := store.UpsertBatch(context.Background(), []Row{
+		{Kind: OverrideDNSLogDomainsPseudonymized, Op: OverrideSet, Target: "enabled", Value: "true"},
+		{Kind: OverrideDNSLogClientsPseudonymized, Op: OverrideSet, Target: "enabled", Value: "false"},
+	}); err != nil {
+		t.Fatalf("UpsertBatch DNS-log privacy error: %v", err)
+	}
+	for kind, want := range map[Kind]string{
+		OverrideDNSLogDomainsPseudonymized: "true",
+		OverrideDNSLogClientsPseudonymized: "false",
+	} {
+		row, err := store.GetValue(context.Background(), kind, "enabled")
+		if err != nil || row == nil || row.Value != want {
+			t.Fatalf("privacy override %d = %#v, %v; want %q", kind, row, err, want)
+		}
+	}
 
 	rows, err := store.ListByKind(context.Background(), OverrideCacheExclude)
 	if err != nil {
@@ -54,10 +69,14 @@ func TestApplyOverrides(t *testing.T) {
 		Cache: config.CacheConf{
 			Enabled: true,
 		},
+		DNSLog: config.DNSLogConf{Enabled: true},
 	}
 
 	rows := []Row{
 		{Kind: OverrideCacheEnabled, Value: "false"},
+		{Kind: OverrideDNSLogEnabled, Value: "false"},
+		{Kind: OverrideDNSLogDomainsPseudonymized, Value: "true"},
+		{Kind: OverrideDNSLogClientsPseudonymized, Value: "false"},
 		{Kind: OverrideCacheExclude, Target: "LABEL:Kids"},
 		{Kind: OverrideStaticHost, Target: "ads.example.", Value: "0.0.0.0"},
 		{Kind: OverrideZenExclude, Target: "label:nozen"},
@@ -69,6 +88,12 @@ func TestApplyOverrides(t *testing.T) {
 
 	if conf.Cache.Enabled {
 		t.Fatal("expected cache enabled override to disable cache")
+	}
+	if conf.DNSLog.Enabled {
+		t.Fatal("expected DNS-log enabled override to disable DNS logging")
+	}
+	if !conf.DNSLog.Pseudonymization.Domains || conf.DNSLog.Pseudonymization.Clients {
+		t.Fatalf("unexpected DNS-log pseudonymization overrides: %#v", conf.DNSLog.Pseudonymization)
 	}
 	if len(conf.Cache.Excludes) != 1 || conf.Cache.Excludes[0] != "label:kids" {
 		t.Fatalf("unexpected cache excludes: %#v", conf.Cache.Excludes)

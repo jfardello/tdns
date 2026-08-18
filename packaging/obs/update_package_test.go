@@ -21,6 +21,7 @@ const fixtureVersion = "1.2.3"
 
 type fixtureRelease struct {
 	root         string
+	version      string
 	apiBase      string
 	releaseBase  string
 	checksums    string
@@ -56,6 +57,51 @@ func TestUpdatePackage(t *testing.T) {
 				t.Errorf("expected OBS source %s: %v", name, err)
 			}
 		}
+	})
+
+	t.Run("prepares a local GoReleaser snapshot without a release tag", func(t *testing.T) {
+		const developmentVersion = "1.2.4~dev.gabcdef0"
+		localSnapshot := createFixtureReleaseWithVersion(t, developmentVersion)
+		repo, obsDir, env := createCheckout(t, localSnapshot)
+		localDist := filepath.Join(localSnapshot.root, "releases", "download", "v"+developmentVersion)
+		output, err := runUpdater(
+			repo,
+			obsDir,
+			env,
+			"--local-dist", localDist,
+			"--source-ref", "HEAD",
+			"--revision", "3",
+		)
+		if err != nil {
+			t.Fatalf("update package from local snapshot: %v\n%s", err, output)
+		}
+
+		assertContains(t, filepath.Join(obsDir, "tdns.spec"), "Version:        "+developmentVersion)
+		assertContains(t, filepath.Join(obsDir, "tdns.spec"), "Release:        3%{?dist}")
+		assertContains(t, filepath.Join(obsDir, "tdns.spec"), "Package development snapshot "+developmentVersion+" from HEAD")
+		assertContains(t, filepath.Join(obsDir, "tdns_"+developmentVersion+"-3.dsc"), "Version: "+developmentVersion+"-3")
+		assertContains(t, filepath.Join(obsDir, "tdns_"+developmentVersion+"_checksums.txt"), "tdns_Linux_x86_64.tar.gz")
+	})
+
+	t.Run("rejects a local snapshot whose binary version differs", func(t *testing.T) {
+		repo, obsDir, env := createCheckout(t, release)
+		localDist := t.TempDir()
+		copyTree(t, filepath.Join(release.root, "releases", "download", "v"+fixtureVersion), localDist)
+		if err := os.Rename(
+			filepath.Join(localDist, "tdns_"+fixtureVersion+"_checksums.txt"),
+			filepath.Join(localDist, "tdns_1.2.4~dev.gabcdef0_checksums.txt"),
+		); err != nil {
+			t.Fatal(err)
+		}
+		assertRejectedWithoutDestinationChange(
+			t,
+			repo,
+			obsDir,
+			env,
+			"binary version does not match package version 1.2.4~dev.gabcdef0",
+			"--local-dist", localDist,
+			"--version", "1.2.4~dev.gabcdef0",
+		)
 	})
 
 	t.Run("rejects a dirty TDNS checkout", func(t *testing.T) {
@@ -164,9 +210,13 @@ func TestUpdatePackage(t *testing.T) {
 }
 
 func createFixtureRelease(t *testing.T) fixtureRelease {
+	return createFixtureReleaseWithVersion(t, fixtureVersion)
+}
+
+func createFixtureReleaseWithVersion(t *testing.T, version string) fixtureRelease {
 	t.Helper()
 	root := t.TempDir()
-	downloadDir := filepath.Join(root, "releases", "download", "v"+fixtureVersion)
+	downloadDir := filepath.Join(root, "releases", "download", "v"+version)
 	if err := os.MkdirAll(downloadDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +230,7 @@ import (
 )
 func main() {
     if len(os.Args) == 2 && os.Args[1] == "--version" {
-        fmt.Println("tdns version `+fixtureVersion+`")
+        fmt.Println("tdns version `+version+`")
         return
     }
     if len(os.Args) == 4 && os.Args[1] == "man" && os.Args[2] == "--output-dir" {
@@ -218,7 +268,7 @@ func main() {
 		archivePaths[target.archive] = archivePath
 	}
 
-	checksums := "tdns_" + fixtureVersion + "_checksums.txt"
+	checksums := "tdns_" + version + "_checksums.txt"
 	names := make([]string, 0, len(archivePaths))
 	for name := range archivePaths {
 		names = append(names, name)
@@ -234,9 +284,15 @@ func main() {
 		fmt.Fprintf(&manifest, "%s  %s\n", hex.EncodeToString(digest[:]), name)
 	}
 	writeFile(t, filepath.Join(downloadDir, checksums), manifest.String(), 0o644)
+	metadata, err := json.Marshal(map[string]string{"version": version})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(downloadDir, "metadata.json"), string(metadata), 0o644)
 
 	release := fixtureRelease{
 		root:         root,
+		version:      version,
 		apiBase:      "file://" + root,
 		releaseBase:  "file://" + filepath.Join(root, "releases", "download"),
 		checksums:    checksums,
@@ -248,7 +304,7 @@ func main() {
 
 func writeReleaseJSON(t *testing.T, release fixtureRelease, assets []string) {
 	t.Helper()
-	apiPath := filepath.Join(release.root, "repos", "jfardello", "tdns", "releases", "tags", "v"+fixtureVersion)
+	apiPath := filepath.Join(release.root, "repos", "jfardello", "tdns", "releases", "tags", "v"+release.version)
 	if err := os.MkdirAll(filepath.Dir(apiPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +315,7 @@ func writeReleaseJSON(t *testing.T, release fixtureRelease, assets []string) {
 		TagName string  `json:"tag_name"`
 		Draft   bool    `json:"draft"`
 		Assets  []asset `json:"assets"`
-	}{TagName: "v" + fixtureVersion}
+	}{TagName: "v" + release.version}
 	for _, name := range assets {
 		payload.Assets = append(payload.Assets, asset{Name: name})
 	}
@@ -276,6 +332,7 @@ func cloneFixtureRelease(t *testing.T, source fixtureRelease) fixtureRelease {
 	copyTree(t, source.root, destination)
 	return fixtureRelease{
 		root:         destination,
+		version:      source.version,
 		apiBase:      "file://" + destination,
 		releaseBase:  "file://" + filepath.Join(destination, "releases", "download"),
 		checksums:    source.checksums,
@@ -301,7 +358,9 @@ func createCheckout(t *testing.T, release fixtureRelease) (string, string, []str
 	run(t, repo, nil, "git", "config", "user.email", "test@example.invalid")
 	run(t, repo, nil, "git", "add", ".")
 	run(t, repo, nil, "git", "commit", "-qm", "fixture")
-	run(t, repo, nil, "git", "tag", "v"+fixtureVersion)
+	if !strings.Contains(release.version, "~") {
+		run(t, repo, nil, "git", "tag", "v"+release.version)
+	}
 
 	obsDir := filepath.Join(t.TempDir(), "obs")
 	if err := os.MkdirAll(filepath.Join(obsDir, ".osc"), 0o755); err != nil {

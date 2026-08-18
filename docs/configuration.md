@@ -231,8 +231,12 @@ as SQLite configuration overrides.
 | Key | Fallback | Description |
 | --- | --- | --- |
 | `database.file` | `/var/lib/tdns/tdns.sqlite` | Shared SQLite file for configuration overrides, DNS logs, aliases, and tagger data. |
-| `dns_log.enabled` | `true` | Enables DNS query logging. |
+| `dns_log.enabled` | `true` | Initial DNS query logging state. Runtime start/stop selections are persisted as configuration overrides. |
 | `dns_log.purge` | `30d` | Mandatory retention age used by the scheduled DNS-log purge. It must be greater than zero and cannot exceed `180d`. |
+| `dns_log.pseudonymization.domains` | `false` | Replaces canonical domain names with deterministic HMAC-SHA-256 tokens before queueing or logging. |
+| `dns_log.pseudonymization.clients` | `false` | Replaces normalized client IP addresses with independently scoped HMAC-SHA-256 tokens before queueing or logging. Exact IP filters and aliases continue to work. |
+| `dns_log.pseudonymization.key_environment` | `TDNS_DNS_LOG_PSEUDONYMIZATION_KEY` | Environment variable containing a base64-encoded key of at least 32 bytes. It takes precedence over `key_file`. |
+| `dns_log.pseudonymization.key_file` | empty | File containing the base64-encoded key. It must be a regular file with no group write/execute or access for other users; `0600` or `0640` are suitable modes. |
 | `tagger.enabled` | `true` | Enables address/host labels used by scoped middleware rules. |
 
 TDNS creates the configured database and applies migrations during
@@ -250,6 +254,32 @@ the last successful purge. Verify that the success timestamp advances and that
 backups expire no later than the selected DNS-log retention period. Backups and
 discarded database media must be disposed of so retained DNS activity cannot be
 recovered through ordinary file access.
+
+Domain and client pseudonymization can be enabled independently. Generate a
+dedicated key, for example with `openssl rand -base64 32`, and do not reuse an
+authentication or TLS key. HMAC tokens are deterministic so grouping, exact
+client filters, and aliases remain useful, but they are pseudonyms rather than
+anonymous data. Protect the key and its backups as sensitive data.
+
+Changing the key or either pseudonymization mode makes existing DNS-log rows or
+aliases incompatible. TDNS reports that the DNS-log data must be cleared and
+pauses new DNS logging rather than mixing representations.
+
+Administrators can control DNS logging through the management API or CLI:
+
+```bash
+tdns adm dnslog status
+tdns adm dnslog stop
+tdns adm dnslog clear
+tdns adm dnslog start
+```
+
+Stop is a write barrier: every event accepted before it is flushed before the
+operation returns, and later queries are not queued. Clear is accepted only
+while logging is stopped and removes events, dashboard aggregates, aliases,
+queued events, and sequence state. It also records the currently configured
+pseudonymization mode and key, allowing logging to start without a restart.
+The selected start/stop state survives restart through `config_overrides`.
 
 ### Diagnostics
 

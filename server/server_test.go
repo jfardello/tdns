@@ -1,16 +1,51 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/db"
 	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/resolver"
 	"github.com/miekg/dns"
 )
+
+func TestConfigureDNSLogRejectsUnavailablePseudonymizationKey(t *testing.T) {
+	dbPath, err := db.Bootstrap(context.Background(), filepath.Join(t.TempDir(), "tdns.sqlite"))
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	const environment = "TDNS_TEST_MISSING_DNS_LOG_KEY"
+	t.Setenv(environment, "")
+	s := &Server{
+		Config: config.Config{
+			Database: config.DatabaseConf{File: dbPath},
+			DNSLog: config.DNSLogConf{
+				Enabled: true,
+				Pseudonymization: config.DNSLogPseudonymizationConf{
+					Domains:        true,
+					Clients:        true,
+					KeyEnvironment: environment,
+				},
+			},
+		},
+		Middlewares: make(map[string]middleware.Middleware),
+	}
+
+	err = configureDNSLog(s)
+	if err == nil || !strings.Contains(err.Error(), "pseudonymization environment variable") {
+		t.Fatalf("configureDNSLog error = %v, want unavailable key error", err)
+	}
+	if _, exists := s.Middlewares["dns-log"]; exists {
+		t.Fatal("failed DNS-log initialization registered the middleware")
+	}
+}
 
 type orderedTestMiddleware struct {
 	name  string

@@ -129,6 +129,15 @@ func Validate(c *Config) error {
 			return err
 		}
 	}
+	privacy := c.DNSLog.Pseudonymization
+	if privacy.Domains || privacy.Clients {
+		if strings.TrimSpace(privacy.KeyFile) == "" && strings.TrimSpace(privacy.KeyEnvironment) == "" {
+			return fmt.Errorf("dns_log.pseudonymization requires key_file or key_environment")
+		}
+		if strings.ContainsRune(privacy.KeyEnvironment, '=') {
+			return fmt.Errorf("dns_log.pseudonymization.key_environment must be an environment variable name")
+		}
+	}
 	if c.Diagnostics.MetricsEnabled || c.Diagnostics.PProfEnabled {
 		if err := ValidateDiagnosticsAddress(c.Diagnostics.ListenAddr); err != nil {
 			return err
@@ -194,8 +203,16 @@ type TaggerConf struct {
 }
 
 type DNSLogConf struct {
-	Enabled bool   `mapstructure:"enabled" yaml:"enabled,omitempty"`
-	Purge   string `mapstructure:"purge" yaml:"purge,omitempty"`
+	Enabled          bool                       `mapstructure:"enabled" yaml:"enabled,omitempty"`
+	Purge            string                     `mapstructure:"purge" yaml:"purge,omitempty"`
+	Pseudonymization DNSLogPseudonymizationConf `mapstructure:"pseudonymization" yaml:"pseudonymization,omitempty"`
+}
+
+type DNSLogPseudonymizationConf struct {
+	Domains        bool   `mapstructure:"domains" yaml:"domains,omitempty"`
+	Clients        bool   `mapstructure:"clients" yaml:"clients,omitempty"`
+	KeyFile        string `mapstructure:"key_file" yaml:"key_file,omitempty"`
+	KeyEnvironment string `mapstructure:"key_environment" yaml:"key_environment,omitempty"`
 }
 
 type DiagnosticsConf struct {

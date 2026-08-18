@@ -29,6 +29,7 @@ type Response struct {
 	Static        *StaticResponseStatus  `json:"static_response,omitempty"`
 	StubResolver  *StubResolverStatus    `json:"stub_resolver,omitempty"`
 	Cache         *CacheStatus           `json:"cache,omitempty"`
+	DNSLog        *DNSLogStatus          `json:"dns_log,omitempty"`
 	TagMembers    []TagMember            `json:"tag_members,omitempty"`
 	KnownHosts    []KnownHost            `json:"known_hosts,omitempty"`
 }
@@ -115,6 +116,21 @@ type CacheStatus struct {
 	Excludes []string `json:"excludes,omitempty"`
 	Hits     int64    `json:"hits"`
 	Misses   int64    `json:"misses"`
+}
+
+type DNSLogStatus struct {
+	Enabled              bool   `json:"enabled"`
+	DomainsPseudonymized bool   `json:"domains_pseudonymized"`
+	ClientsPseudonymized bool   `json:"clients_pseudonymized"`
+	KeyConfigured        bool   `json:"key_configured"`
+	RequiresClear        bool   `json:"requires_clear"`
+	Reason               string `json:"reason,omitempty"`
+	QueuedEvents         int    `json:"queued_events" minimum:"0"`
+}
+
+type DNSLogPrivacyRequest struct {
+	DomainsPseudonymized *bool `json:"domains_pseudonymized" binding:"required"`
+	ClientsPseudonymized *bool `json:"clients_pseudonymized" binding:"required"`
 }
 
 type TagMember struct {

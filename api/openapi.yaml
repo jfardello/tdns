@@ -553,6 +553,150 @@ paths:
       summary: Replace cache exclusions
       tags:
         - cache
+  /api/dns-log:
+    delete:
+      description: Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+      operationId: dnsLogClear
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Clear all DNS-log data
+      tags:
+        - dns-log
+    get:
+      description: Return runtime state, queued events, and pseudonymization readiness.
+      operationId: dnsLogStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Get DNS-log status
+      tags:
+        - dns-log
+  "/api/dns-log/{action}":
+    post:
+      description: Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+      operationId: dnsLogToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Start or stop DNS logging
+      tags:
+        - dns-log
   /api/dns-log/alias:
     post:
       description: Associate a client IP address with a display name.
@@ -583,6 +727,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -626,6 +776,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -664,6 +820,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -693,6 +855,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -722,10 +890,76 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
       summary: Get completed dashboard hours
+      tags:
+        - dns-log
+  /api/dns-log/privacy:
+    put:
+      description: Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+      operationId: dnsLogPrivacyUpdate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.DNSLogPrivacyRequest"
+        description: Privacy settings
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Update DNS-log privacy settings
       tags:
         - dns-log
   /api/dns-log/rotate:
@@ -757,6 +991,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -821,6 +1061,12 @@ paths:
             application/json:
               schema:
                 type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
       security:
         - BearerAuth: []
         - CookieAuth: []
@@ -2036,6 +2282,34 @@ components:
           example: office
           type: string
       type: object
+    api.DNSLogPrivacyRequest:
+      properties:
+        clients_pseudonymized:
+          type: boolean
+        domains_pseudonymized:
+          type: boolean
+      required:
+        - clients_pseudonymized
+        - domains_pseudonymized
+      type: object
+    api.DNSLogStatus:
+      properties:
+        clients_pseudonymized:
+          type: boolean
+        domains_pseudonymized:
+          type: boolean
+        enabled:
+          type: boolean
+        key_configured:
+          type: boolean
+        queued_events:
+          minimum: 0
+          type: integer
+        reason:
+          type: string
+        requires_clear:
+          type: boolean
+      type: object
     api.DashboardHourlyPoint:
       properties:
         allowed_queries:
@@ -2128,6 +2402,8 @@ components:
         current_status:
           example: enabled
           type: string
+        dns_log:
+          $ref: "#/components/schemas/api.DNSLogStatus"
         hourly:
           items:
             $ref: "#/components/schemas/api.DashboardHourlyPoint"

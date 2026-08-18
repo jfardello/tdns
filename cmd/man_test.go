@@ -36,7 +36,7 @@ func TestRenderRootManPage(t *testing.T) {
 	}
 }
 
-func TestGenerateManTree(t *testing.T) {
+func TestGenerateConsolidatedManPages(t *testing.T) {
 	t.Setenv("SOURCE_DATE_EPOCH", "1786233600")
 	outputDir := t.TempDir()
 
@@ -46,9 +46,10 @@ func TestGenerateManTree(t *testing.T) {
 
 	for _, name := range []string{
 		"tdns.1",
+		"tdns-adm.1",
+		"tdns-config.1",
 		"tdns-man.1",
 		"tdns-serve.1",
-		"tdns-adm-start-stub-resolver.1",
 	} {
 		contents, err := os.ReadFile(filepath.Join(outputDir, name))
 		if err != nil {
@@ -58,6 +59,31 @@ func TestGenerateManTree(t *testing.T) {
 		if len(contents) == 0 {
 			t.Errorf("generated page %s is empty", name)
 		}
+	}
+
+	if _, err := os.Stat(filepath.Join(outputDir, "tdns-adm-start-stub-resolver.1")); !os.IsNotExist(err) {
+		t.Errorf("nested subcommand has a separate manual page: %v", err)
+	}
+	admPage, err := os.ReadFile(filepath.Join(outputDir, "tdns-adm.1"))
+	if err != nil {
+		t.Fatalf("read consolidated adm page: %v", err)
+	}
+	for _, expected := range []string{
+		`.TH "TDNS-ADM" "1" "Aug 2026"`,
+		".SH SUBCOMMANDS",
+		"tdns-adm-password-set",
+		"tdns-adm-start-stub-resolver",
+		"tdns-adm-stop-static-response",
+	} {
+		if !strings.Contains(string(admPage), expected) {
+			t.Errorf("consolidated adm page is missing %q", expected)
+		}
+	}
+	if strings.Contains(string(admPage), "tdns-adm-start-stub-resolver(1)") {
+		t.Error("consolidated adm page links to a manual page that is no longer generated")
+	}
+	if count := strings.Count(string(admPage), ".TH "); count != 1 {
+		t.Errorf("consolidated adm page contains %d document headers, want 1", count)
 	}
 
 	if err := generateManTree(rootCmd, manHeader(), outputDir, false); err == nil || !strings.Contains(err.Error(), "already exists") {

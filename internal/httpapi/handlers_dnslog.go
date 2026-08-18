@@ -2,11 +2,259 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
+	"github.com/jfardello/tdns/config"
+	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/middleware"
 )
+
+const dnsLogUnavailableMessage = "DNS-log middleware is unavailable"
+
+func (api *v1) dnsLogMiddleware(w http.ResponseWriter) (*middleware.DNSLog, bool) {
+	if api.server != nil {
+		if dnsLog, ok := api.server.Middlewares["dns-log"].(*middleware.DNSLog); ok && dnsLog != nil {
+			return dnsLog, true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       dnsLogUnavailableMessage,
+		CurrentStatus: "Unavailable",
+	}, w)
+	return nil, false
+}
+
+// Get DNS-log status.
+//
+//	@Summary		Get DNS-log status
+//	@Description	Return runtime state, queued events, and pseudonymization readiness.
+//	@Tags			dns-log
+//	@ID				dnsLogStatus
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
+//	@Router			/api/dns-log [get]
+func (api *v1) DNSLogStatus(w http.ResponseWriter, _ *http.Request) {
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
+	status := p.Status()
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       MESSAGE_OK,
+		CurrentStatus: formatBool(status.Enabled),
+		DNSLog:        dnsLogStatusDTO(status),
+	}, w)
+}
+
+// Start or stop DNS logging.
+//
+//	@Summary		Start or stop DNS logging
+//	@Description	Change the runtime state and persist it as a configuration override. Stop flushes all accepted events before returning.
+//	@Tags			dns-log
+//	@ID				dnsLogToggle
+//	@Param			action	path	string	true	"Requested state"	Enums(start,stop)
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
+//	@Router			/api/dns-log/{action} [post]
+func (api *v1) DNSLogToggle(w http.ResponseWriter, r *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
+	state, err := actionToBool(r.PathValue("action"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	if state && p.Status().RequiresClear {
+		w.WriteHeader(http.StatusConflict)
+		api.writeDNSLogStatus(w, p, middleware.ErrDNSLogRequiresClear.Error())
+		return
+	}
+
+	store, err := api.overrideStore(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	defer func() { _ = store.Close() }()
+	if err := store.Upsert(r.Context(), overrides.OverrideDNSLogEnabled, overrides.OverrideSet, "enabled", strconv.FormatBool(state)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	if state {
+		err = p.StartLogging()
+	} else {
+		err = p.StopLogging()
+	}
+	if err != nil {
+		if state {
+			_ = store.Upsert(r.Context(), overrides.OverrideDNSLogEnabled, overrides.OverrideSet, "enabled", "false")
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	conf := config.GetRunningConfig()
+	conf.DNSLog.Enabled = state
+	config.SetRunningConfig(conf)
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+// Update DNS-log privacy settings.
+//
+//	@Summary		Update DNS-log privacy settings
+//	@Description	Persist independent domain and client pseudonymization settings. DNS logging must be stopped; incompatible stored data must be cleared before logging resumes.
+//	@Tags			dns-log
+//	@ID				dnsLogPrivacyUpdate
+//	@Param			request	body	api.DNSLogPrivacyRequest	true	"Privacy settings"
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		400	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
+//	@Router			/api/dns-log/privacy [put]
+func (api *v1) DNSLogPrivacyUpdate(w http.ResponseWriter, r *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
+	if p.Status().Enabled {
+		w.WriteHeader(http.StatusConflict)
+		api.writeDNSLogStatus(w, p, middleware.ErrDNSLogPrivacyRunning.Error())
+		return
+	}
+
+	request := new(DNSLogPrivacyRequest)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(request); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, "request body must contain one JSON object")
+		return
+	}
+	if request.DomainsPseudonymized == nil || request.ClientsPseudonymized == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		api.writeDNSLogStatus(w, p, "domains_pseudonymized and clients_pseudonymized are required")
+		return
+	}
+
+	conf := config.GetRunningConfig()
+	previous := conf.DNSLog.Pseudonymization
+	desired := previous
+	desired.Domains = *request.DomainsPseudonymized
+	desired.Clients = *request.ClientsPseudonymized
+	if err := p.SetPseudonymization(desired); err != nil {
+		if errors.Is(err, middleware.ErrDNSLogPrivacyRunning) || errors.Is(err, middleware.ErrDNSLogPrivacyConfig) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	store, err := api.overrideStore(r.Context())
+	if err == nil {
+		defer func() { _ = store.Close() }()
+		err = store.UpsertBatch(r.Context(), []overrides.Row{
+			{Kind: overrides.OverrideDNSLogDomainsPseudonymized, Op: overrides.OverrideSet, Target: "enabled", Value: strconv.FormatBool(desired.Domains)},
+			{Kind: overrides.OverrideDNSLogClientsPseudonymized, Op: overrides.OverrideSet, Target: "enabled", Value: strconv.FormatBool(desired.Clients)},
+		})
+	}
+	if err != nil {
+		if rollbackErr := p.SetPseudonymization(previous); rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("restore DNS-log privacy settings: %w", rollbackErr))
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+
+	conf.DNSLog.Pseudonymization = desired
+	config.SetRunningConfig(conf)
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+// Clear all DNS-log data.
+//
+//	@Summary		Clear all DNS-log data
+//	@Description	Delete events, dashboard aggregates, aliases, sequence state, and queued data. DNS logging must be stopped first.
+//	@Tags			dns-log
+//	@ID				dnsLogClear
+//	@Security		BearerAuth
+//	@Security		CookieAuth
+//	@Success		200	{object}	api.Response
+//	@Failure		401	{string}	string	"Unauthorized"
+//	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		409	{object}	api.Response
+//	@Failure		500	{object}	api.Response
+//	@Failure		503	{object}	api.Response
+//	@Router			/api/dns-log [delete]
+func (api *v1) DNSLogClear(w http.ResponseWriter, _ *http.Request) {
+	api.dnsLogMutationMu.Lock()
+	defer api.dnsLogMutationMu.Unlock()
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
+	if err := p.Clear(); err != nil {
+		if errors.Is(err, middleware.ErrDNSLogRunning) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		api.writeDNSLogStatus(w, p, err.Error())
+		return
+	}
+	api.writeDNSLogStatus(w, p, MESSAGE_OK)
+}
+
+func (api *v1) writeDNSLogStatus(w http.ResponseWriter, dnsLog *middleware.DNSLog, message string) {
+	status := dnsLog.Status()
+	writeJSON(Response{
+		Kind:          DNSLogResponseKind,
+		Message:       message,
+		CurrentStatus: formatBool(status.Enabled),
+		DNSLog:        dnsLogStatusDTO(status),
+	}, w)
+}
 
 // Set a DNS client alias.
 //
@@ -20,9 +268,13 @@ import (
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/alias [post]
 func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	jr := new(DNSLogAliasRequest)
 	err := json.NewDecoder(r.Body).Decode(jr)
@@ -64,9 +316,13 @@ func (api *v1) DNSLogAlias(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/rotate [post]
 func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	since := r.URL.Query().Get("since")
@@ -104,9 +360,13 @@ func (api *v1) DNSLogRotate(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/top/{top} [get]
 func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	top, err := strconv.Atoi(r.PathValue("top"))
 	since := r.URL.Query().Get("since")
@@ -152,9 +412,13 @@ func (api *v1) DNSLogTop(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/clients [get]
 func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	search := r.URL.Query().Get("search")
@@ -202,9 +466,13 @@ func (api *v1) DNSLogClients(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard [get]
 func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	hours := 24
@@ -245,9 +513,13 @@ func (api *v1) DNSLogDashboard(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard/history [get]
 func (api *v1) DNSLogDashboardHistory(w http.ResponseWriter, _ *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	stats, err := p.GetDashboardHistory()
 	if err != nil {
 		api.writeDNSLogDashboardError(w, err)
@@ -267,9 +539,13 @@ func (api *v1) DNSLogDashboardHistory(w http.ResponseWriter, _ *http.Request) {
 //	@Success		200	{object}	api.Response
 //	@Failure		401	{string}	string	"Unauthorized"
 //	@Failure		403	{string}	string	"Forbidden"
+//	@Failure		503	{object}	api.Response
 //	@Router			/api/dns-log/dashboard/current [get]
 func (api *v1) DNSLogDashboardCurrent(w http.ResponseWriter, _ *http.Request) {
-	p := api.server.Middlewares["dns-log"].(*middleware.DNSLog)
+	p, ok := api.dnsLogMiddleware(w)
+	if !ok {
+		return
+	}
 	stats, err := p.GetDashboardCurrent()
 	if err != nil {
 		api.writeDNSLogDashboardError(w, err)
