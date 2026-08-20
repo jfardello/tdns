@@ -1,8 +1,12 @@
 # TDNS
 
 TDNS is a DNS forwarder with encrypted upstreams, caching, network-wide
-blocklists, split DNS, a management API, and an embedded web interface. The
+blocklist, split DNS, a management API, and an embedded web interface. The
 server, administration client, and web interface ship as one Go binary.
+
+| When running as a resolver in single host mode (by listenning on localhost:53), 
+| it can be reconfigured with stub servers, eg. matching servers through VPN 
+| for certain domains. 
 
 ## Install A Release
 

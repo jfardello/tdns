@@ -10,6 +10,16 @@ cache:
   enabled: true
   ttl: 5
   excludes: []
+wildcard:
+  enabled: false
+  primary_domain: tdns.home.arpa
+  available_extra_domains:
+    - nip.io
+    - sslip.io
+    - xip.io
+  enabled_extra_domains: []
+  allow_public_addresses: false
+  ttl: 60
 cors:
   enabled: false
   allowed_origins:

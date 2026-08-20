@@ -69,6 +69,7 @@ type Config struct {
 	EnableAPI       bool               `mapstructure:"enable_api" yaml:"enable_api,omitempty"`
 	Upstreams       []string           `mapstructure:"upstreams" yaml:"upstreams,omitempty"`
 	Cache           CacheConf          `mapstructure:"cache" yaml:"cache,omitempty"`
+	Wildcard        WildcardConf       `mapstructure:"wildcard" yaml:"wildcard,omitempty"`
 	CORS            CORSConf           `mapstructure:"cors" yaml:"cors,omitempty"`
 	Blacklist       BlacklistConfig    `mapstructure:"blacklist" yaml:"blacklist,omitempty"`
 	StaticResponse  StaticResponseConf `mapstructure:"static_response" yaml:"static_response,omitempty"`
@@ -225,6 +226,15 @@ type CacheConf struct {
 	Enabled  bool     `mapstructure:"enabled" yaml:"enabled" json:"enabled"`
 	Ttl      int      `mapstructure:"ttl" yaml:"ttl,omitempty" json:"ttl,omitempty"`
 	Excludes []string `mapstructure:"excludes" yaml:"excludes,omitempty" json:"excludes,omitempty"`
+}
+
+type WildcardConf struct {
+	Enabled               bool     `mapstructure:"enabled" yaml:"enabled"`
+	PrimaryDomain         string   `mapstructure:"primary_domain" yaml:"primary_domain"`
+	AvailableExtraDomains []string `mapstructure:"available_extra_domains" yaml:"available_extra_domains"`
+	EnabledExtraDomains   []string `mapstructure:"enabled_extra_domains" yaml:"enabled_extra_domains"`
+	AllowPublicAddresses  bool     `mapstructure:"allow_public_addresses" yaml:"allow_public_addresses"`
+	TTL                   uint32   `mapstructure:"ttl" yaml:"ttl"`
 }
 type BlacklistConfig struct {
 	Enabled            bool     `mapstructure:"enabled" yaml:"enabled"`

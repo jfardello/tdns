@@ -55,6 +55,22 @@ func WithStatus() func(*Server) {
 	}
 }
 
+func WithWildcard() func(*Server) {
+	return func(s *Server) {
+		logger := log.GetLogger("serve", "config")
+		wildcard := &middleware.Wildcard{}
+		if err := wildcard.Config(s.Config); err != nil {
+			logger.Fatal(err)
+		}
+		if err := wildcard.Init(); err != nil {
+			logger.Fatal(err)
+		}
+		name, _ := wildcard.Info()
+		s.Middlewares[name] = wildcard
+		logger.Infof("Loaded wildcard DNS middleware for %s", wildcard.Status().PrimaryDomain)
+	}
+}
+
 func WithZenMode() func(*Server) {
 
 	return func(s *Server) {

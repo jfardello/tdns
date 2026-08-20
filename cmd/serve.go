@@ -23,6 +23,7 @@ import (
 	"github.com/jfardello/tdns/internal/httpapi"
 	"github.com/jfardello/tdns/internal/overrides"
 	"github.com/jfardello/tdns/log"
+	"github.com/jfardello/tdns/middleware"
 	"github.com/jfardello/tdns/sched"
 	"github.com/jfardello/tdns/server"
 	webui "github.com/jfardello/tdns/web"
@@ -158,6 +159,12 @@ func init() {
 	viper.SetDefault("auth.browser.remember_days", config.DefaultBrowserRememberDays)
 	viper.SetDefault("tagger.enabled", true)
 	viper.SetDefault("cache.enabled", true)
+	viper.SetDefault("wildcard.enabled", false)
+	viper.SetDefault("wildcard.primary_domain", middleware.DefaultWildcardDomain)
+	viper.SetDefault("wildcard.available_extra_domains", []string{"nip.io", "sslip.io", "xip.io"})
+	viper.SetDefault("wildcard.enabled_extra_domains", []string{})
+	viper.SetDefault("wildcard.allow_public_addresses", false)
+	viper.SetDefault("wildcard.ttl", middleware.DefaultWildcardTTL)
 
 	viper.SetDefault("loglevel", "INFO")
 
@@ -249,6 +256,7 @@ func run() {
 	diagnosticsServer := startDiagnosticsServer(c.Diagnostics)
 	newServer := server.NewServer(
 		server.WithStaticResponse(),
+		server.WithWildcard(),
 		server.WithUpstreams(c.Upstreams, c.Timeout, c.UpstreamTimeout),
 		server.WithStubs(c.StubResolver.Stubs, c.Timeout, c.UpstreamTimeout),
 		server.WithBlacklist(),

@@ -57,6 +57,17 @@ type blockingExchanger struct {
 	release chan struct{}
 }
 
+type countingExchanger struct {
+	calls int
+}
+
+func (c *countingExchanger) Exchange(message *dns.Msg, _ string) (*dns.Msg, time.Duration, error) {
+	c.calls++
+	response := new(dns.Msg)
+	response.SetReply(message)
+	return response, 0, nil
+}
+
 func (b *blockingExchanger) Exchange(message *dns.Msg, _ string) (*dns.Msg, time.Duration, error) {
 	b.started <- struct{}{}
 	<-b.release
@@ -120,15 +131,17 @@ func TestGetIndexesOrdersPreRoutingDeterministically(t *testing.T) {
 	s := &Server{
 		Middlewares: map[string]middleware.Middleware{
 			"cacheget":        orderedTestMiddleware{name: "cacheget", stage: middleware.PreRouting},
+			"wildcard":        orderedTestMiddleware{name: "wildcard", stage: middleware.PreRouting},
 			"zen-mode":        orderedTestMiddleware{name: "zen-mode", stage: middleware.PreRouting},
 			"blacklist":       orderedTestMiddleware{name: "blacklist", stage: middleware.PreRouting},
 			"tagger":          orderedTestMiddleware{name: "tagger", stage: middleware.PreRouting},
+			"status":          orderedTestMiddleware{name: "status", stage: middleware.PreRouting},
 			"static-response": orderedTestMiddleware{name: "static-response", stage: middleware.PreRouting},
 		},
 	}
 
 	got := s.getIndexes()
-	want := []string{"tagger", "blacklist", "zen-mode", "static-response", "cacheget"}
+	want := []string{"tagger", "status", "wildcard", "blacklist", "zen-mode", "static-response", "cacheget"}
 	if len(got.preRouting) != len(want) {
 		t.Fatalf("preRouting length got %d, want %d", len(got.preRouting), len(want))
 	}
@@ -136,5 +149,57 @@ func TestGetIndexesOrdersPreRoutingDeterministically(t *testing.T) {
 		if got.preRouting[i] != want[i] {
 			t.Fatalf("preRouting[%d] got %q, want %q", i, got.preRouting[i], want[i])
 		}
+	}
+}
+
+func TestWildcardManagedFailureDoesNotReachUpstream(t *testing.T) {
+	wildcard := &middleware.Wildcard{}
+	if err := wildcard.Config(config.Config{Wildcard: config.WildcardConf{Enabled: true}}); err != nil {
+		t.Fatalf("configure wildcard: %v", err)
+	}
+	exchanger := &countingExchanger{}
+	s := &Server{
+		Middlewares: map[string]middleware.Middleware{"wildcard": wildcard},
+		defaultUpstream: resolver.Mux{Upstreams: []*resolver.Upstream{{
+			Address: "upstream.invalid:53",
+			Client:  exchanger,
+		}}},
+		upstreamSlots: make(chan struct{}, 1),
+	}
+	request := new(dns.Msg)
+	request.SetQuestion("invalid.tdns.home.arpa.", dns.TypeA)
+	response, err := s.Handler(request, &net.UDPAddr{IP: net.ParseIP("192.0.2.1")})
+	if err != nil {
+		t.Fatalf("Handler: %v", err)
+	}
+	if exchanger.calls != 0 {
+		t.Fatalf("upstream calls = %d, want 0", exchanger.calls)
+	}
+	if response.Rcode != dns.RcodeNameError {
+		t.Fatalf("rcode = %s, want NXDOMAIN", dns.RcodeToString[response.Rcode])
+	}
+}
+
+func TestDisabledWildcardContinuesToUpstream(t *testing.T) {
+	wildcard := &middleware.Wildcard{}
+	if err := wildcard.Config(config.Config{}); err != nil {
+		t.Fatalf("configure wildcard: %v", err)
+	}
+	exchanger := &countingExchanger{}
+	s := &Server{
+		Middlewares: map[string]middleware.Middleware{"wildcard": wildcard},
+		defaultUpstream: resolver.Mux{Upstreams: []*resolver.Upstream{{
+			Address: "upstream.invalid:53",
+			Client:  exchanger,
+		}}},
+		upstreamSlots: make(chan struct{}, 1),
+	}
+	request := new(dns.Msg)
+	request.SetQuestion("10-0-0-8.tdns.home.arpa.", dns.TypeA)
+	if _, err := s.Handler(request, &net.UDPAddr{IP: net.ParseIP("192.0.2.1")}); err != nil {
+		t.Fatalf("Handler: %v", err)
+	}
+	if exchanger.calls != 1 {
+		t.Fatalf("upstream calls = %d, want 1", exchanger.calls)
 	}
 }

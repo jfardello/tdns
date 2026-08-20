@@ -103,7 +103,7 @@ install -d -m 0750 %{buildroot}%{_sharedstatedir}/tdns
 %license LICENSE
 %doc README.md README.packaging
 %{_bindir}/tdns
-%{_mandir}/man1/tdns*.1%{?ext_man}
+%{_mandir}/man1/tdns*.1*
 %{_unitdir}/tdns.service
 %{_sysusersdir}/tdns.conf
 %{_tmpfilesdir}/tdns.conf

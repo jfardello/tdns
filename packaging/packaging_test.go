@@ -65,7 +65,7 @@ func TestRPMRecipePolicy(t *testing.T) {
 		"%systemd_postun_with_restart tdns.service",
 		"%attr(0750,root,tdns) %{_sysconfdir}/tdns",
 		"%attr(0750,tdns,tdns) %{_sharedstatedir}/tdns",
-		"%{_mandir}/man1/tdns*.1%{?ext_man}",
+		"%{_mandir}/man1/tdns*.1*",
 	} {
 		if !strings.Contains(spec, expected) {
 			t.Errorf("RPM recipe is missing %q", expected)

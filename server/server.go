@@ -82,6 +82,8 @@ func middlewareOrder(stage middleware.Stage, name string) int {
 			return 0
 		case "status":
 			return 10
+		case "wildcard":
+			return 15
 		case "blacklist":
 			return 20
 		case "zen-mode":
