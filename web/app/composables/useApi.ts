@@ -11,6 +11,7 @@ export type DashboardSummary = Required<Schema<'api.DashboardSummary'>>
 export type DashboardHourlyPoint = Required<Schema<'api.DashboardHourlyPoint'>>
 export type BlacklistState = Required<Schema<'api.BlacklistStatus'>>
 export type CacheState = Required<Schema<'api.CacheStatus'>>
+export type WildcardState = Required<Schema<'api.WildcardStatus'>>
 export type HostEntry = Required<Schema<'api.HostEntry'>>
 export type TagMember = Required<Schema<'api.TagMember'>>
 export type KnownHostCandidate = Required<Schema<'api.KnownHost'>>
@@ -80,6 +81,17 @@ function normalizeCacheState(state: Schema<'api.CacheStatus'> | undefined): Cach
     excludes: normalizeStringArray(state?.excludes),
     hits: state?.hits ?? 0,
     misses: state?.misses ?? 0
+  }
+}
+
+function normalizeWildcardState(state: Schema<'api.WildcardStatus'> | undefined): WildcardState {
+  return {
+    enabled: state?.enabled ?? false,
+    primary_domain: state?.primary_domain ?? '',
+    available_extra_domains: normalizeStringArray(state?.available_extra_domains),
+    enabled_extra_domains: normalizeStringArray(state?.enabled_extra_domains),
+    allow_public_addresses: state?.allow_public_addresses ?? false,
+    ttl: state?.ttl ?? 0
   }
 }
 
@@ -359,6 +371,23 @@ export function useApi() {
     return response && { ...response, cache: normalizeCacheState(response.cache) }
   }
 
+  async function getWildcard() {
+    const response = await execute(client.GET('/api/wildcard'))
+    return response && { ...response, wildcard: normalizeWildcardState(response.wildcard) }
+  }
+
+  async function toggleWildcard(action: 'start' | 'stop') {
+    const response = await execute(client.POST('/api/wildcard/{action}', {
+      params: { path: { action } }
+    }))
+    return response && { ...response, wildcard: normalizeWildcardState(response.wildcard) }
+  }
+
+  async function replaceWildcardDomains(domains: string[]) {
+    const response = await execute(client.PUT('/api/wildcard/domains', { body: { domains } }))
+    return response && { ...response, wildcard: normalizeWildcardState(response.wildcard) }
+  }
+
   async function getTags() {
     return execute(client.GET('/api/tagger/tags'))
   }
@@ -453,6 +482,9 @@ export function useApi() {
     getCache,
     toggleCache,
     replaceCacheExcludes,
+    getWildcard,
+    toggleWildcard,
+    replaceWildcardDomains,
     clearCache,
     getTags,
     createTag,

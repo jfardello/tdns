@@ -39,6 +39,11 @@ export function useDashboardNavigation() {
         to: '/dashboard/static-response'
       },
       {
+        label: 'Wildcard DNS',
+        icon: 'i-lucide-network',
+        to: '/dashboard/wildcard'
+      },
+      {
         label: 'Cache',
         icon: 'i-lucide-database-zap',
         to: '/dashboard/cache'

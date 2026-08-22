@@ -385,7 +385,7 @@ watch(dnsLogDataRevision, () => {
             <h3 class="font-semibold">Quick Actions</h3>
           </template>
 
-          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
             <NuxtLink to="/dashboard/tags">
               <UButton
                 icon="i-lucide-tags"
@@ -417,6 +417,15 @@ watch(dnsLogDataRevision, () => {
               <UButton
                 icon="i-lucide-git-branch"
                 label="Stub Resolver"
+                color="neutral"
+                variant="outline"
+                block
+              />
+            </NuxtLink>
+            <NuxtLink to="/dashboard/wildcard">
+              <UButton
+                icon="i-lucide-network"
+                label="Wildcard DNS"
                 color="neutral"
                 variant="outline"
                 block
