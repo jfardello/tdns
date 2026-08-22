@@ -2,7 +2,9 @@ package overrides
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/jfardello/tdns/config"
@@ -77,6 +79,8 @@ func TestApplyOverrides(t *testing.T) {
 		{Kind: OverrideDNSLogEnabled, Value: "false"},
 		{Kind: OverrideDNSLogDomainsPseudonymized, Value: "true"},
 		{Kind: OverrideDNSLogClientsPseudonymized, Value: "false"},
+		{Kind: OverrideWildcardEnabled, Value: "true"},
+		{Kind: OverrideWildcardDomains, Value: `["NIP.IO.","xip.io"]`},
 		{Kind: OverrideCacheExclude, Target: "LABEL:Kids"},
 		{Kind: OverrideStaticHost, Target: "ads.example.", Value: "0.0.0.0"},
 		{Kind: OverrideZenExclude, Target: "label:nozen"},
@@ -95,6 +99,12 @@ func TestApplyOverrides(t *testing.T) {
 	if !conf.DNSLog.Pseudonymization.Domains || conf.DNSLog.Pseudonymization.Clients {
 		t.Fatalf("unexpected DNS-log pseudonymization overrides: %#v", conf.DNSLog.Pseudonymization)
 	}
+	if !conf.Wildcard.Enabled {
+		t.Fatal("expected wildcard enabled override to enable wildcard resolution")
+	}
+	if got, want := conf.Wildcard.EnabledExtraDomains, []string{"nip.io", "xip.io"}; !slices.Equal(got, want) {
+		t.Fatalf("wildcard domains = %#v, want %#v", got, want)
+	}
 	if len(conf.Cache.Excludes) != 1 || conf.Cache.Excludes[0] != "label:kids" {
 		t.Fatalf("unexpected cache excludes: %#v", conf.Cache.Excludes)
 	}
@@ -103,5 +113,16 @@ func TestApplyOverrides(t *testing.T) {
 	}
 	if len(conf.ZenMode.PersistedExcludes) != 1 || conf.ZenMode.PersistedExcludes[0] != "label:nozen" {
 		t.Fatalf("unexpected zen excludes: %#v", conf.ZenMode.PersistedExcludes)
+	}
+}
+
+func TestApplyWildcardDomainsRejectsInvalidJSON(t *testing.T) {
+	conf := &config.Config{}
+	err := Apply(conf, []Row{{Kind: OverrideWildcardDomains, Value: "not-json"}})
+	if err == nil {
+		t.Fatal("Apply accepted invalid wildcard domains JSON")
+	}
+	if json.Valid([]byte("not-json")) {
+		t.Fatal("test fixture unexpectedly contains valid JSON")
 	}
 }

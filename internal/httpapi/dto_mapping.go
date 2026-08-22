@@ -89,6 +89,15 @@ func cacheStatusDTO(value middleware.CacheStatus) *CacheStatus {
 	}
 }
 
+func wildcardStatusDTO(value middleware.WildcardStatus) *WildcardStatus {
+	return &WildcardStatus{
+		Enabled: value.Enabled, PrimaryDomain: value.PrimaryDomain,
+		AvailableExtraDomains: copyStrings(value.AvailableExtraDomains),
+		EnabledExtraDomains:   copyStrings(value.EnabledExtraDomains),
+		AllowPublicAddresses:  value.AllowPublicAddresses, TTL: value.TTL,
+	}
+}
+
 func dnsLogStatusDTO(value middleware.DNSLogStatus) *DNSLogStatus {
 	return &DNSLogStatus{
 		Enabled: value.Enabled, DomainsPseudonymized: value.DomainsPseudonymized,

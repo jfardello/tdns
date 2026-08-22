@@ -1892,6 +1892,152 @@ paths:
       summary: Remove a tag member
       tags:
         - tagger
+  /api/wildcard:
+    get:
+      description: Return the wildcard middleware state and configured domains.
+      operationId: wildcardStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Get wildcard DNS status
+      tags:
+        - wildcard
+  "/api/wildcard/{action}":
+    post:
+      description: Enable or disable wildcard DNS resolution and persist the selected state.
+      operationId: wildcardToggle
+      parameters:
+        - description: Requested state
+          in: path
+          name: action
+          required: true
+          schema:
+            type: string
+            enum:
+              - start
+              - stop
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Toggle wildcard DNS resolution
+      tags:
+        - wildcard
+  /api/wildcard/domains:
+    put:
+      description: Replace and persist the additional wildcard domains enabled from the configured allowlist.
+      operationId: wildcardDomainsReplace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.WildcardDomainsRequest"
+        description: Enabled additional domains
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.Response"
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      summary: Replace enabled wildcard domains
+      tags:
+        - wildcard
   /api/zen-mode:
     get:
       description: Return zen mode configuration, runtime state, and timing.
@@ -2436,6 +2582,8 @@ components:
           items:
             $ref: "#/components/schemas/api.TagMember"
           type: array
+        wildcard:
+          $ref: "#/components/schemas/api.WildcardStatus"
         window_hours:
           maximum: 336
           minimum: 1
@@ -2503,6 +2651,32 @@ components:
         host:
           example: office
           type: string
+      type: object
+    api.WildcardDomainsRequest:
+      properties:
+        domains:
+          items:
+            type: string
+          type: array
+      type: object
+    api.WildcardStatus:
+      properties:
+        allow_public_addresses:
+          type: boolean
+        available_extra_domains:
+          items:
+            type: string
+          type: array
+        enabled:
+          type: boolean
+        enabled_extra_domains:
+          items:
+            type: string
+          type: array
+        primary_domain:
+          type: string
+        ttl:
+          type: integer
       type: object
     api.ZenExcludesRequest:
       properties:

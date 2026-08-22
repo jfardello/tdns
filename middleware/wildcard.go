@@ -167,6 +167,39 @@ func (w *Wildcard) SetEnabled(enabled bool) {
 	w.mu.Unlock()
 }
 
+func (w *Wildcard) ValidateEnabledExtraDomains(values []string) ([]string, error) {
+	enabled, err := normalizeWildcardDomains(values)
+	if err != nil {
+		return nil, err
+	}
+
+	w.mu.RLock()
+	available := append([]string(nil), w.availableExtraDomains...)
+	w.mu.RUnlock()
+	for _, domain := range enabled {
+		if !slices.Contains(available, domain) {
+			return nil, fmt.Errorf("wildcard domain %q is not available", domain)
+		}
+	}
+	return enabled, nil
+}
+
+func (w *Wildcard) ReplaceEnabledExtraDomains(values []string) error {
+	enabled, err := w.ValidateEnabledExtraDomains(values)
+	if err != nil {
+		return err
+	}
+
+	w.mu.Lock()
+	w.enabledExtraDomains = enabled
+	w.managedDomains = append([]string{w.primaryDomain}, enabled...)
+	slices.SortFunc(w.managedDomains, func(left, right string) int {
+		return len(right) - len(left)
+	})
+	w.mu.Unlock()
+	return nil
+}
+
 func (w *Wildcard) IsEnabled() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()

@@ -9,6 +9,7 @@ const (
 	DNSLogResponseKind       = "api.tdns/dns-log/response"
 	TaggerResponseKind       = "api.tdns/tagger/response"
 	CacheResponseKind        = "api.tdns/cache/response"
+	WildcardResponseKind     = "api.tdns/wildcard/response"
 )
 
 // MESSAGE_OK is retained for compatibility with existing API consumers.
@@ -29,6 +30,7 @@ type Response struct {
 	Static        *StaticResponseStatus  `json:"static_response,omitempty"`
 	StubResolver  *StubResolverStatus    `json:"stub_resolver,omitempty"`
 	Cache         *CacheStatus           `json:"cache,omitempty"`
+	Wildcard      *WildcardStatus        `json:"wildcard,omitempty"`
 	DNSLog        *DNSLogStatus          `json:"dns_log,omitempty"`
 	TagMembers    []TagMember            `json:"tag_members,omitempty"`
 	KnownHosts    []KnownHost            `json:"known_hosts,omitempty"`
@@ -116,6 +118,19 @@ type CacheStatus struct {
 	Excludes []string `json:"excludes,omitempty"`
 	Hits     int64    `json:"hits"`
 	Misses   int64    `json:"misses"`
+}
+
+type WildcardStatus struct {
+	Enabled               bool     `json:"enabled"`
+	PrimaryDomain         string   `json:"primary_domain"`
+	AvailableExtraDomains []string `json:"available_extra_domains"`
+	EnabledExtraDomains   []string `json:"enabled_extra_domains"`
+	AllowPublicAddresses  bool     `json:"allow_public_addresses"`
+	TTL                   uint32   `json:"ttl"`
+}
+
+type WildcardDomainsRequest struct {
+	Domains []string `json:"domains"`
 }
 
 type DNSLogStatus struct {

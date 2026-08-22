@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/jfardello/tdns/config"
@@ -63,6 +64,29 @@ func TestWildcardConfigUsesSecureDefaultsAndValidatesExtraDomains(t *testing.T) 
 	}})
 	if err == nil {
 		t.Fatal("Config accepted an enabled domain outside available_extra_domains")
+	}
+}
+
+func TestWildcardReplaceEnabledExtraDomainsIsAtomic(t *testing.T) {
+	wildcard := &Wildcard{}
+	if err := wildcard.Config(config.Config{Wildcard: config.WildcardConf{
+		AvailableExtraDomains: []string{"nip.io", "xip.io"},
+		EnabledExtraDomains:   []string{"nip.io"},
+	}}); err != nil {
+		t.Fatalf("Config: %v", err)
+	}
+
+	if err := wildcard.ReplaceEnabledExtraDomains([]string{"XIP.IO.", "xip.io"}); err != nil {
+		t.Fatalf("ReplaceEnabledExtraDomains: %v", err)
+	}
+	if got := wildcard.Status().EnabledExtraDomains; !slices.Equal(got, []string{"xip.io"}) {
+		t.Fatalf("enabled domains = %#v", got)
+	}
+	if err := wildcard.ReplaceEnabledExtraDomains([]string{"example.com"}); err == nil {
+		t.Fatal("ReplaceEnabledExtraDomains accepted a domain outside the allowlist")
+	}
+	if got := wildcard.Status().EnabledExtraDomains; !slices.Equal(got, []string{"xip.io"}) {
+		t.Fatalf("failed replacement changed enabled domains to %#v", got)
 	}
 }
 

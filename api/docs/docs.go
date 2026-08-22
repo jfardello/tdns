@@ -2365,6 +2365,186 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/wildcard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Return the wildcard middleware state and configured domains.",
+                "tags": [
+                    "wildcard"
+                ],
+                "summary": "Get wildcard DNS status",
+                "operationId": "wildcardStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wildcard/domains": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Replace and persist the additional wildcard domains enabled from the configured allowlist.",
+                "tags": [
+                    "wildcard"
+                ],
+                "summary": "Replace enabled wildcard domains",
+                "operationId": "wildcardDomainsReplace",
+                "parameters": [
+                    {
+                        "description": "Enabled additional domains",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.WildcardDomainsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/wildcard/{action}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Enable or disable wildcard DNS resolution and persist the selected state.",
+                "tags": [
+                    "wildcard"
+                ],
+                "summary": "Toggle wildcard DNS resolution",
+                "operationId": "wildcardToggle",
+                "parameters": [
+                    {
+                        "enum": [
+                            "start",
+                            "stop"
+                        ],
+                        "type": "string",
+                        "description": "Requested state",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/api.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/zen-mode": {
             "get": {
                 "security": [
@@ -3073,6 +3253,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/api.TagMember"
                     }
                 },
+                "wildcard": {
+                    "$ref": "#/definitions/api.WildcardStatus"
+                },
                 "window_hours": {
                     "type": "integer",
                     "maximum": 336,
@@ -3173,6 +3356,46 @@ const docTemplate = `{
                 "host": {
                     "type": "string",
                     "example": "office"
+                }
+            }
+        },
+        "api.WildcardDomainsRequest": {
+            "type": "object",
+            "properties": {
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "api.WildcardStatus": {
+            "type": "object",
+            "properties": {
+                "allow_public_addresses": {
+                    "type": "boolean"
+                },
+                "available_extra_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "enabled_extra_domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "primary_domain": {
+                    "type": "string"
+                },
+                "ttl": {
+                    "type": "integer"
                 }
             }
         },

@@ -1,6 +1,7 @@
 package overrides
 
 import (
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -78,6 +79,18 @@ func Apply(conf *config.Config, rows []Row) error {
 				return err
 			}
 			conf.DNSLog.Pseudonymization.Clients = enabled
+		case OverrideWildcardEnabled:
+			enabled, err := strconv.ParseBool(strings.TrimSpace(row.Value))
+			if err != nil {
+				return err
+			}
+			conf.Wildcard.Enabled = enabled
+		case OverrideWildcardDomains:
+			var domains []string
+			if err := json.Unmarshal([]byte(row.Value), &domains); err != nil {
+				return err
+			}
+			conf.Wildcard.EnabledExtraDomains = NormalizeDomains(domains)
 		}
 	}
 	return nil

@@ -12,6 +12,7 @@ const (
 	DNSLogResponseKind       = contractapi.DNSLogResponseKind
 	TaggerResponseKind       = contractapi.TaggerResponseKind
 	CacheResponseKind        = contractapi.CacheResponseKind
+	WildcardResponseKind     = contractapi.WildcardResponseKind
 )
 
 type Response = contractapi.Response
@@ -25,6 +26,8 @@ type HostEntry = contractapi.HostEntry
 type StaticResponseStatus = contractapi.StaticResponseStatus
 type StubResolverStatus = contractapi.StubResolverStatus
 type CacheStatus = contractapi.CacheStatus
+type WildcardStatus = contractapi.WildcardStatus
+type WildcardDomainsRequest = contractapi.WildcardDomainsRequest
 type DNSLogStatus = contractapi.DNSLogStatus
 type DNSLogPrivacyRequest = contractapi.DNSLogPrivacyRequest
 type TagMember = contractapi.TagMember

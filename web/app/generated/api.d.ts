@@ -712,6 +712,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/wildcard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get wildcard DNS status
+         * @description Return the wildcard middleware state and configured domains.
+         */
+        get: operations["wildcardStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wildcard/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Toggle wildcard DNS resolution
+         * @description Enable or disable wildcard DNS resolution and persist the selected state.
+         */
+        post: operations["wildcardToggle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wildcard/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace enabled wildcard domains
+         * @description Replace and persist the additional wildcard domains enabled from the configured allowlist.
+         */
+        put: operations["wildcardDomainsReplace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zen-mode": {
         parameters: {
             query?: never;
@@ -946,6 +1006,7 @@ export interface components {
             stub_resolver?: components["schemas"]["api.StubResolverStatus"];
             summary?: components["schemas"]["api.DashboardSummary"];
             tag_members?: components["schemas"]["api.TagMember"][];
+            wildcard?: components["schemas"]["api.WildcardStatus"];
             window_hours?: number;
             zen_mode?: components["schemas"]["api.ZenModeStatus"];
         };
@@ -974,6 +1035,17 @@ export interface components {
             has_host_alias?: boolean;
             /** @example office */
             host?: string;
+        };
+        "api.WildcardDomainsRequest": {
+            domains?: string[];
+        };
+        "api.WildcardStatus": {
+            allow_public_addresses?: boolean;
+            available_extra_domains?: string[];
+            enabled?: boolean;
+            enabled_extra_domains?: string[];
+            primary_domain?: string;
+            ttl?: number;
         };
         "api.ZenExcludesRequest": {
             excludes?: string[];
@@ -3353,6 +3425,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    wildcardStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    wildcardToggle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Requested state */
+                action: "start" | "stop";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+        };
+    };
+    wildcardDomainsReplace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Enabled additional domains */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["api.WildcardDomainsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["api.Response"];
                 };
             };
             /** @description Service Unavailable */

@@ -15,6 +15,8 @@ const (
 	OverrideDNSLogEnabled
 	OverrideDNSLogDomainsPseudonymized
 	OverrideDNSLogClientsPseudonymized
+	OverrideWildcardEnabled
+	OverrideWildcardDomains
 )
 
 type Op int

@@ -143,6 +143,24 @@ func (e StubResolverToggleParamsAction) Valid() bool {
 	}
 }
 
+// Defines values for WildcardToggleParamsAction.
+const (
+	WildcardToggleParamsActionStart WildcardToggleParamsAction = "start"
+	WildcardToggleParamsActionStop  WildcardToggleParamsAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the WildcardToggleParamsAction enum.
+func (e WildcardToggleParamsAction) Valid() bool {
+	switch e {
+	case WildcardToggleParamsActionStart:
+		return true
+	case WildcardToggleParamsActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
 // ApiAddMemberRequest defines model for api.AddMemberRequest.
 type ApiAddMemberRequest struct {
 	Members *[]string `json:"members,omitempty"`
@@ -344,6 +362,7 @@ type ApiResponse struct {
 	StubResolver   *ApiStubResolverStatus   `json:"stub_resolver,omitempty"`
 	Summary        *ApiDashboardSummary     `json:"summary,omitempty"`
 	TagMembers     *[]ApiTagMember          `json:"tag_members,omitempty"`
+	Wildcard       *ApiWildcardStatus       `json:"wildcard,omitempty"`
 	WindowHours    *int                     `json:"window_hours,omitempty"`
 	ZenMode        *ApiZenModeStatus        `json:"zen_mode,omitempty"`
 }
@@ -383,6 +402,21 @@ type ApiTagMember struct {
 
 	// Host Example: office
 	Host *string `json:"host,omitempty"`
+}
+
+// ApiWildcardDomainsRequest defines model for api.WildcardDomainsRequest.
+type ApiWildcardDomainsRequest struct {
+	Domains *[]string `json:"domains,omitempty"`
+}
+
+// ApiWildcardStatus defines model for api.WildcardStatus.
+type ApiWildcardStatus struct {
+	AllowPublicAddresses  *bool     `json:"allow_public_addresses,omitempty"`
+	AvailableExtraDomains *[]string `json:"available_extra_domains,omitempty"`
+	Enabled               *bool     `json:"enabled,omitempty"`
+	EnabledExtraDomains   *[]string `json:"enabled_extra_domains,omitempty"`
+	PrimaryDomain         *string   `json:"primary_domain,omitempty"`
+	Ttl                   *int      `json:"ttl,omitempty"`
 }
 
 // ApiZenExcludesRequest defines model for api.ZenExcludesRequest.
@@ -477,6 +511,9 @@ type TaggerKnownHostsSearchParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// WildcardToggleParamsAction defines parameters for WildcardToggle.
+type WildcardToggleParamsAction string
+
 // BrowserCodeExchangeJSONRequestBody defines body for BrowserCodeExchange for application/json ContentType.
 type BrowserCodeExchangeJSONRequestBody = ApiBrowserCodeExchangeRequest
 
@@ -524,6 +561,9 @@ type TaggerTagCreateJSONRequestBody = ApiAddTagRequest
 
 // TaggerTagMembersAddJSONRequestBody defines body for TaggerTagMembersAdd for application/json ContentType.
 type TaggerTagMembersAddJSONRequestBody = ApiAddMemberRequest
+
+// WildcardDomainsReplaceJSONRequestBody defines body for WildcardDomainsReplace for application/json ContentType.
+type WildcardDomainsReplaceJSONRequestBody = ApiWildcardDomainsRequest
 
 // ZenModeDomainsReplaceJSONRequestBody defines body for ZenModeDomainsReplace for application/json ContentType.
 type ZenModeDomainsReplaceJSONRequestBody = ApiZenReplaceRequest
@@ -1070,6 +1110,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /api/tagger/tags/{tagName}/{address} (the `TaggerTagMemberDelete` operationId).
 	TaggerTagMemberDelete(ctx context.Context, tagName string, address string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WildcardStatus Get wildcard DNS status
+	//
+	// Return the wildcard middleware state and configured domains.
+	//
+	// Corresponds with GET /api/wildcard (the `WildcardStatus` operationId).
+	WildcardStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WildcardDomainsReplaceWithBody Replace enabled wildcard domains
+	//
+	// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+	WildcardDomainsReplaceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WildcardDomainsReplace Replace enabled wildcard domains
+	//
+	// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+	WildcardDomainsReplace(ctx context.Context, body WildcardDomainsReplaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WildcardToggle Toggle wildcard DNS resolution
+	//
+	// Enable or disable wildcard DNS resolution and persist the selected state.
+	//
+	// Corresponds with POST /api/wildcard/{action} (the `WildcardToggle` operationId).
+	WildcardToggle(ctx context.Context, action WildcardToggleParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ZenModeStatus Get zen mode status
 	//
@@ -2163,6 +2235,78 @@ func (c *Client) TaggerTagMembersAdd(ctx context.Context, tagName string, body T
 // Corresponds with DELETE /api/tagger/tags/{tagName}/{address} (the `TaggerTagMemberDelete` operationId).
 func (c *Client) TaggerTagMemberDelete(ctx context.Context, tagName string, address string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTaggerTagMemberDeleteRequest(c.Server, tagName, address)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WildcardStatus Get wildcard DNS status
+//
+// Return the wildcard middleware state and configured domains.
+//
+// Corresponds with GET /api/wildcard (the `WildcardStatus` operationId).
+func (c *Client) WildcardStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWildcardStatusRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WildcardDomainsReplaceWithBody Replace enabled wildcard domains
+//
+// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+func (c *Client) WildcardDomainsReplaceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWildcardDomainsReplaceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WildcardDomainsReplace Replace enabled wildcard domains
+//
+// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+func (c *Client) WildcardDomainsReplace(ctx context.Context, body WildcardDomainsReplaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWildcardDomainsReplaceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WildcardToggle Toggle wildcard DNS resolution
+//
+// Enable or disable wildcard DNS resolution and persist the selected state.
+//
+// Corresponds with POST /api/wildcard/{action} (the `WildcardToggle` operationId).
+func (c *Client) WildcardToggle(ctx context.Context, action WildcardToggleParamsAction, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWildcardToggleRequest(c.Server, action)
 	if err != nil {
 		return nil, err
 	}
@@ -3922,6 +4066,107 @@ func NewTaggerTagMemberDeleteRequest(server string, tagName string, address stri
 	return req, nil
 }
 
+// NewWildcardStatusRequest constructs an http.Request for the WildcardStatus method
+func NewWildcardStatusRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/wildcard")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewWildcardDomainsReplaceRequest calls the generic WildcardDomainsReplace builder with application/json body
+func NewWildcardDomainsReplaceRequest(server string, body WildcardDomainsReplaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewWildcardDomainsReplaceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewWildcardDomainsReplaceRequestWithBody constructs an http.Request for the WildcardDomainsReplace method, with any body, and a specified content type
+func NewWildcardDomainsReplaceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/wildcard/domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewWildcardToggleRequest constructs an http.Request for the WildcardToggle method
+func NewWildcardToggleRequest(server string, action WildcardToggleParamsAction) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "action", action, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/wildcard/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewZenModeStatusRequest constructs an http.Request for the ZenModeStatus method
 func NewZenModeStatusRequest(server string) (*http.Request, error) {
 	var err error
@@ -4652,6 +4897,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /api/tagger/tags/{tagName}/{address} (the `TaggerTagMemberDelete` operationId).
 	TaggerTagMemberDeleteWithResponse(ctx context.Context, tagName string, address string, reqEditors ...RequestEditorFn) (*TaggerTagMemberDeleteResponse, error)
+
+	// WildcardStatusWithResponse Get wildcard DNS status
+	//
+	// Return the wildcard middleware state and configured domains.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/wildcard (the `WildcardStatus` operationId).
+	WildcardStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*WildcardStatusResponse, error)
+
+	// WildcardDomainsReplaceWithBodyWithResponse Replace enabled wildcard domains
+	//
+	// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+	WildcardDomainsReplaceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WildcardDomainsReplaceResponse, error)
+
+	// WildcardDomainsReplaceWithResponse Replace enabled wildcard domains
+	//
+	// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+	WildcardDomainsReplaceWithResponse(ctx context.Context, body WildcardDomainsReplaceJSONRequestBody, reqEditors ...RequestEditorFn) (*WildcardDomainsReplaceResponse, error)
+
+	// WildcardToggleWithResponse Toggle wildcard DNS resolution
+	//
+	// Enable or disable wildcard DNS resolution and persist the selected state.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /api/wildcard/{action} (the `WildcardToggle` operationId).
+	WildcardToggleWithResponse(ctx context.Context, action WildcardToggleParamsAction, reqEditors ...RequestEditorFn) (*WildcardToggleResponse, error)
 
 	// ZenModeStatusWithResponse Get zen mode status
 	//
@@ -7492,6 +7773,220 @@ func (r TaggerTagMemberDeleteResponse) ContentType() string {
 	return ""
 }
 
+type WildcardStatusResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WildcardStatusResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r WildcardStatusResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r WildcardStatusResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r WildcardStatusResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r WildcardStatusResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WildcardStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WildcardStatusResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WildcardStatusResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WildcardDomainsReplaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON400() *ApiResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON500() *ApiResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r WildcardDomainsReplaceResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r WildcardDomainsReplaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WildcardDomainsReplaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WildcardDomainsReplaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WildcardDomainsReplaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WildcardToggleResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ApiResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ApiResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *string
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *string
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *ApiResponse
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ApiResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r WildcardToggleResponse) GetJSON200() *ApiResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r WildcardToggleResponse) GetJSON400() *ApiResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r WildcardToggleResponse) GetJSON401() *string {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r WildcardToggleResponse) GetJSON403() *string {
+	return r.JSON403
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r WildcardToggleResponse) GetJSON500() *ApiResponse {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r WildcardToggleResponse) GetJSON503() *ApiResponse {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r WildcardToggleResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WildcardToggleResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WildcardToggleResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WildcardToggleResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ZenModeStatusResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8676,6 +9171,66 @@ func (c *ClientWithResponses) TaggerTagMemberDeleteWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseTaggerTagMemberDeleteResponse(rsp)
+}
+
+// WildcardStatusWithResponse Get wildcard DNS status
+//
+// Return the wildcard middleware state and configured domains.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/wildcard (the `WildcardStatus` operationId).
+func (c *ClientWithResponses) WildcardStatusWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*WildcardStatusResponse, error) {
+	rsp, err := c.WildcardStatus(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWildcardStatusResponse(rsp)
+}
+
+// WildcardDomainsReplaceWithBodyWithResponse Replace enabled wildcard domains
+//
+// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+func (c *ClientWithResponses) WildcardDomainsReplaceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WildcardDomainsReplaceResponse, error) {
+	rsp, err := c.WildcardDomainsReplaceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWildcardDomainsReplaceResponse(rsp)
+}
+
+// WildcardDomainsReplaceWithResponse Replace enabled wildcard domains
+//
+// Replace and persist the additional wildcard domains enabled from the configured allowlist.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /api/wildcard/domains (the `WildcardDomainsReplace` operationId).
+func (c *ClientWithResponses) WildcardDomainsReplaceWithResponse(ctx context.Context, body WildcardDomainsReplaceJSONRequestBody, reqEditors ...RequestEditorFn) (*WildcardDomainsReplaceResponse, error) {
+	rsp, err := c.WildcardDomainsReplace(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWildcardDomainsReplaceResponse(rsp)
+}
+
+// WildcardToggleWithResponse Toggle wildcard DNS resolution
+//
+// Enable or disable wildcard DNS resolution and persist the selected state.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /api/wildcard/{action} (the `WildcardToggle` operationId).
+func (c *ClientWithResponses) WildcardToggleWithResponse(ctx context.Context, action WildcardToggleParamsAction, reqEditors ...RequestEditorFn) (*WildcardToggleResponse, error) {
+	rsp, err := c.WildcardToggle(ctx, action, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWildcardToggleResponse(rsp)
 }
 
 // ZenModeStatusWithResponse Get zen mode status
@@ -10939,6 +11494,175 @@ func ParseTaggerTagMemberDeleteResponse(rsp *http.Response) (*TaggerTagMemberDel
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWildcardStatusResponse parses an HTTP response from a WildcardStatusWithResponse call
+func ParseWildcardStatusResponse(rsp *http.Response) (*WildcardStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WildcardStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWildcardDomainsReplaceResponse parses an HTTP response from a WildcardDomainsReplaceWithResponse call
+func ParseWildcardDomainsReplaceResponse(rsp *http.Response) (*WildcardDomainsReplaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WildcardDomainsReplaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseWildcardToggleResponse parses an HTTP response from a WildcardToggleWithResponse call
+func ParseWildcardToggleResponse(rsp *http.Response) (*WildcardToggleResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WildcardToggleResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ApiResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest ApiResponse
